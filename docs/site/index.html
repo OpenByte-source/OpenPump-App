@@ -310,7 +310,17 @@ a:hover{background:var(--mark)}
 .appx .gr .br i{display:block;height:100%;width:100%;transform:scaleX(var(--w,0));transform-origin:left;background:var(--blue);transition:transform 520ms var(--ease)}
 .appx .gr.met .br i{background:var(--lime)}
 .appx .gr .n{font:500 12.5px/1 "DM Mono",monospace;color:var(--dm)}
-.tbl{overflow-x:auto;margin-top:32px;border-top:2px solid var(--ink)}
+.tbl{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:32px;border-top:2px solid var(--ink)}
+/* on a narrow screen the table is wider than its box: a line says so, and the cut edge fades to show
+   there is more (the fade goes once you've scrolled to the end, which the script notes) */
+.tbl-hint{display:none}
+@media (max-width:719.98px){
+  .tbl-hint{display:block;margin:32px 0 0;font:700 13px/1.2 var(--head);letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}
+  .tbl-hint+.tbl{margin-top:8px}
+  .tbl{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 44px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 44px),transparent)}
+  .tbl.at-end{-webkit-mask-image:none;mask-image:none}
+}
+:where(.tbl,.xp-scroll):focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 .tbl table{border-collapse:collapse;width:100%;min-width:660px;font-size:15px}
 .tbl th,.tbl td{text-align:left;padding:11px 18px 11px 0;border-bottom:1px solid var(--rule);white-space:nowrap}
 .tbl th{font:700 13.5px/1.2 var(--head);color:var(--ink2)}
@@ -486,6 +496,7 @@ a.get:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
       <span class="hold-label">Hold to accept</span>
     </button>
     <p class="small" id="hold-hint">Press and hold for five seconds.</p>
+    <p class="rm-vh" id="hold-status" role="status" aria-live="polite"></p>
   </div>
 </div>
 
@@ -710,7 +721,8 @@ a.get:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
     <h2 id="h-data">Measurements only compare when they're taken the same way</h2>
     <p class="lead">Any way of measuring works, as long as you keep using the same one. The app keeps every measurement with the way it was taken and with the session around it, and it only lines a reading up against others taken the same way.</p>
     <p>A reading taken under pressure is stored with the pressure the pump actually reported, and it's only compared with another taken within 0.3 inHg (1 kPa) of it. So you can stop guessing whether two numbers belong on the same line.</p>
-    <div class="tbl">
+    <p class="tbl-hint" aria-hidden="true">Scroll sideways for more columns →</p>
+    <div class="tbl" id="tbl" role="region" aria-label="Sample session rows" tabindex="0">
       <table>
         <thead><tr><th>When</th><th>Routine</th><th>Length</th><th>Finished</th><th>Peak</th><th>Dose</th><th>How it felt</th></tr></thead>
         <tbody>
@@ -1124,7 +1136,8 @@ function drawProg(p){
   if(!progLen) return;
   progPath.style.strokeDashoffset=(progLen*(1-p)).toFixed(1);
   var pt=progPts[Math.round(p*200)];
-  if(pt&&progDot){ progDot.style.left=(pt.x/progW*100)+"%"; progDot.style.top=(pt.y/14*100)+"%"; }
+  /* kept its own radius inside the right edge, so at the page's end it never widens the page */
+  if(pt&&progDot){ progDot.style.left="min("+(pt.x/progW*100).toFixed(3)+"%, 100% - 4.5px)"; progDot.style.top=(pt.y/14*100)+"%"; }
 }
 buildProg();
 W.addEventListener("resize",buildProg,{passive:true});
@@ -1195,6 +1208,13 @@ var SHAPES={
   apply("fixed");
 })();
 
+/* ===================== the sessions table: its edge fade goes once you reach the end ===================== */
+(function(){
+  var t=D.getElementById("tbl"); if(!t) return;
+  function edge(){ t.classList.toggle("at-end",t.scrollLeft+t.clientWidth>=t.scrollWidth-2); }
+  t.addEventListener("scroll",edge,{passive:true}); W.addEventListener("resize",edge); edge();
+})();
+
 /* ===================== load sequence and the trace drawing itself in ===================== */
 var played=false;
 function playLoad(){ played=true; }
@@ -1226,10 +1246,16 @@ function closeNotice(){
    rather than animation frames, so it still completes in a throttled or hidden tab. */
 var HOLD_MS=5000, holdFrom=0, holdTimer=0, holdDone=false;
 var holdFill=okBtn.querySelector(".hold-fill"), holdLabel=okBtn.querySelector(".hold-label");
+/* The button's own name stays "Hold for five seconds to accept"; the countdown a screen reader
+   hears is this polite status, said once a second, then "Accepted". */
+var holdStatus=D.getElementById("hold-status"), holdSaid="";
+function say(t){ if(holdStatus&&t!==holdSaid){ holdSaid=t; holdStatus.textContent=t; } }
 function holdReset(){
+  var was=!!holdFrom;
   W.clearTimeout(holdTimer); holdTimer=0; holdFrom=0; holdDone=false;
   okBtn.classList.remove("holding");
   holdFill.style.width="0%"; holdLabel.textContent="Hold to accept";
+  say(was?"Let go too soon. Hold for five seconds to accept.":"");
 }
 function holdTick(){
   if(!holdFrom) return;
@@ -1237,11 +1263,13 @@ function holdTick(){
   holdFill.style.width=(p*100).toFixed(1)+"%";
   if(p>=1){
     holdDone=true; W.clearTimeout(holdTimer); holdTimer=0; holdFrom=0;
-    holdLabel.textContent="Accepted"; holdFill.style.width="100%";
+    holdLabel.textContent="Accepted"; holdFill.style.width="100%"; say("Accepted");
     W.setTimeout(closeNotice,220);
     return;
   }
-  holdLabel.textContent="Keep holding "+Math.ceil((1-p)*HOLD_MS/1000);
+  var left=Math.ceil((1-p)*HOLD_MS/1000);
+  holdLabel.textContent="Keep holding "+left;
+  say("Keep holding, "+left+(left===1?" second":" seconds"));
   holdTimer=W.setTimeout(holdTick,60);
 }
 function holdStart(e){
@@ -1265,8 +1293,17 @@ okBtn.addEventListener("keyup",function(e){ if(e.key===" "||e.key==="Enter"||e.k
 okBtn.addEventListener("blur",holdStop);
 okBtn.addEventListener("click",function(e){ e.preventDefault(); });
 D.getElementById("reopen").addEventListener("click",openNotice);
+/* Tab and Shift+Tab go round the notice's own controls (the DISCLAIMER.md link and the button), and
+   never out to the page underneath */
 notice.addEventListener("keydown",function(e){
-  if(e.key==="Tab"){ e.preventDefault(); okBtn.focus(); }
+  if(e.key==="Tab"){
+    e.preventDefault();
+    var f=[].filter.call(notice.querySelectorAll("a[href],button:not([disabled])"),function(x){ return x.getClientRects().length>0; });
+    if(!f.length) return;
+    var at=f.indexOf(D.activeElement);
+    var nx=at<0?(e.shiftKey?f.length-1:0):(at+(e.shiftKey?-1:1)+f.length)%f.length;
+    f[nx].focus();
+  }
   if(e.key==="Escape"&&seen()) closeNotice();
 });
 
@@ -1359,20 +1396,27 @@ function measureScreens(){
 var G={};
 function measure(){
   measureScreens();
+  /* every note back in its own place first: one held in the dock is out of the flow */
+  B.forEach(function(b){ dockNote(b,false); });
   var vw=D.documentElement.clientWidth, vh=W.innerHeight, wide=vw>=768, pinH=vh-HDR, sr=story.getBoundingClientRect(), sy=W.pageYOffset;
-  G={vw:vw,vh:vh,wide:wide,pinH:pinH,cw:sr.width,end:sr.bottom+sy};
+  /* sw: the switch line. A beat is the current one from the moment its section reaches the middle
+     of the screen, and its words, its screen and the camera all take that same cue */
+  G={vw:vw,vh:vh,wide:wide,pinH:pinH,cw:sr.width,end:sr.bottom+sy,top:sr.top+sy,sw:vh/2};
   var tallest=0;
   B.forEach(function(b){ var r=b.el.getBoundingClientRect(); b.top=r.top+sy; b.h=r.height; b.th=b.sbt.offsetHeight; b.tpad=b.frame==="title"?b.sbt.offsetTop:0; if(b.frame!=="title") tallest=Math.max(tallest,b.th); });
   if(wide){
     var pad=parseFloat(getComputedStyle(story).paddingLeft)||24, x0=pad-8;
     G.win={x:x0,y:14,w:Math.round((sr.width-2*pad)*.52),h:pinH-28};
     B.forEach(function(b){ b.dock=Math.max(HDR+16,HDR+(pinH-b.th)/2); b.sbt.style.setProperty("--dt",b.dock+"px"); });
-    G.line=HDR+pinH*.5;
   } else {
     var camH=Math.round(Math.max(210,Math.min(pinH*.5,pinH-tallest-36)));
     G.win={x:12,y:10,w:vw-24,h:camH};
-    var dock=HDR+camH+22; story.style.setProperty("--dock",dock+"px"); B.forEach(function(b){ b.dock=dock; }); G.line=dock;
+    var dock=HDR+camH+22; story.style.setProperty("--dock",dock+"px"); B.forEach(function(b){ b.dock=dock; });
   }
+  /* where a note sits horizontally once docked, taken while it is still in its own place */
+  B.forEach(function(b){ var r=b.sbt.getBoundingClientRect(), q=b.el.getBoundingClientRect(); b.dl=r.left; b.dw=r.width; b.sl=q.left;
+    /* on a short screen a long note can be taller than the room under the dock: by how much */
+    b.over=b.frame==="title"?0:Math.max(0,b.dock+b.th-(vh-8)); });
   frameEl.style.cssText="left:"+G.win.x+"px;top:"+G.win.y+"px;width:"+G.win.w+"px;height:"+G.win.h+"px";
   B.forEach(function(b,k){ b.pose=pose(b); b.clip=(b.frame==="title"&&!wide)?[0,0,0,0]:[G.win.y,G.cw-G.win.x-G.win.w,pinH-G.win.y-G.win.h,G.win.x]; });
 }
@@ -1382,8 +1426,10 @@ function pose(b){
     /* the title: the whole phone low in the window, only its top showing under the words */
     /* it peeks only from the room the words leave under them: on a short phone with a long title
        that can be none, and the phone then rises into view with the first scroll instead */
+    /* it then scrolls up with the page, just under the words, so the screen never empties between
+       the words leaving and the phone arriving (see frame) */
     var k0=Math.min((G.vw*.74)/DW,.62), room=G.pinH-(b.th+b.tpad)-18, peek=Math.max(0,Math.min(Math.max(110,Math.min(G.pinH*.42,room)),room));
-    return {tx:(G.vw-DW*k0)/2,ty:G.pinH-peek,k:k0};
+    return {tx:(G.vw-DW*k0)/2,ty:Math.max(G.pinH-peek,b.tpad+b.th+18),k:k0};
   }
   var kw=Math.min((w.w*.86)/DW,(w.h*.92)/DH);
   if(b.frame==="zoom"&&b.rect){
@@ -1601,6 +1647,7 @@ function liveFor(b,u){
 function ease(x){ return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2; }
 function lerp(a,b,t){ return a+(b-a)*t; }
 function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function now(){ return W.performance&&W.performance.now?W.performance.now():new Date().getTime(); }
 var lastClip="", lastTf="", settleT=0, promoted=false;
 /* THE PHONE STAYS SHARP AT EVERY ZOOM. While the camera moves the phone is its own compositor layer
    (will-change), so a scrubbed zoom is only a transform; but a layer keeps the raster scale it was
@@ -1608,51 +1655,94 @@ var lastClip="", lastTf="", settleT=0, promoted=false;
    the phone, and Chrome paints the screens again at the scale they now show at. */
 function moving(){ if(reduce) return; if(!promoted){ promoted=true; dev.style.willChange="transform"; }
   W.clearTimeout(settleT); settleT=W.setTimeout(function(){ promoted=false; dev.style.willChange="auto"; },150); }
+
+/* ONE CUE PER BEAT. A beat is current from the moment its section reaches the middle of the screen
+   (G.sw), and that one moment changes everything together: the old words go (120 ms), the screen
+   dissolves to the new one (200 ms, done before the new words are fully in), the new words come
+   in (170 ms, starting 100 ms in, so two notes are never both readable), and the camera sets off
+   for its new framing, scrubbed by the scroll as before. With reduced motion all of it is a cut
+   at that same moment. The current note is held in the dock (position:fixed at the dock's own
+   place), so it never rolls under the camera window or fades while it is the one being read. */
+var OUT_MS=120, IN_MS=170, IN_DELAY=100, SCR_MS=200, TITLE_MS=300;
+var cur=-1, scrOn="", scrPrev="", scrT0=0, tw=null, shown=null, again_=0;
+function again(){ if(!again_) again_=W.requestAnimationFrame(function(){ again_=0; frame(); }); }
+/* a note in the dock ("dock"), back in its own place in the page (false), or, for the last note once
+   the story's end comes up the screen ("end"), left in the page exactly where the dock was at that
+   moment, so it scrolls away in step with the camera, which is pinned inside the story */
+function dockNote(c,how,lift){
+  how=how||false; lift=how?(lift||0):0; var s=c.sbt.style;
+  if((c.fixed||false)===how&&c.lift===lift) return; c.fixed=how; c.lift=lift;
+  if(how==="dock"){ s.position="fixed"; s.top=(c.dock-lift)+"px"; s.left=c.dl+"px"; s.width=c.dw+"px"; s.marginLeft="0"; }
+  else if(how==="end"){ s.position="absolute"; s.top=(c.dock-lift+G.end-G.vh-c.top)+"px"; s.left=(c.dl-c.sl)+"px"; s.width=c.dw+"px"; s.marginLeft="0"; }
+  else { s.position=s.top=s.left=s.width=s.marginLeft=""; }
+  /* a note lifted to show its end is cut at the dock line: it never goes up into the window */
+  /* (open to the sides, so a list's numbers hanging left of the note aren't cut) */
+  s.clipPath=lift>0?"inset("+lift.toFixed(1)+"px -40px -40px -40px)":"";
+}
+/* a note's words shown or not: a short fade, out before in */
+function showNote(c,on,delay,instant){
+  if(c.on===on) return; c.on=on; var s=c.sbt.style;
+  s.transition=(reduce||instant)?"none":(on?"opacity "+IN_MS+"ms ease-out "+delay+"ms":"opacity "+OUT_MS+"ms linear");
+  s.opacity=on?"1":"0"; s.pointerEvents=on?"":"none";
+  c.offAt=on?0:now();
+}
+/* the camera as one set of numbers, so a move can be scrubbed or timed alike */
+function camAt(b,sy){
+  var p=b.pose, ty=p.ty;
+  /* on a phone the title's phone scrolls up with the page under its words, from where it peeks */
+  if(b.frame==="title"&&!G.wide) ty-=Math.max(0,sy-(G.top-HDR));
+  return {tx:p.tx,ty:ty,k:p.k,cl:b.clip.slice(),rr:b.frame==="title"&&!G.wide?0:18,fo:G.wide?1:(b.frame==="title"?0:1)};
+}
+function mixCam(a,b,t){ return {tx:lerp(a.tx,b.tx,t),ty:lerp(a.ty,b.ty,t),k:lerp(a.k,b.k,t),cl:[0,1,2,3].map(function(q){ return lerp(a.cl[q],b.cl[q],t); }),rr:lerp(a.rr,b.rr,t),fo:lerp(a.fo,b.fo,t)}; }
 function frame(){
-  /* a beat begins when its section reaches the dock line: its words arrive in the dock as the camera sets off */
-  var sy=W.pageYOffset, anchor=sy+G.line, N=B.length, i=0, k;
-  for(k=0;k<N;k++) if(B[k].top<=anchor+1) i=k;
-  var b=B[i], u=clamp((anchor-b.top)/Math.max(1,b.h),0,1), prev=i>0?B[i-1]:b;
-  var fromTitle=prev.frame==="title"&&!G.wide&&i===1;
-  var m0=fromTitle?.2:.04, m1=fromTitle?.5:.3, mv=i===0?1:reduce?(fromTitle&&u<m1?0:1):(u<m0?0:(u<m1?ease((u-m0)/(m1-m0)):1));
-  /* with reduced motion every move is a cut; the one out of the title waits, as the move would, until the title's words have gone */
-  var P=prev.pose, Q=b.pose, tx=lerp(P.tx,Q.tx,mv), ty=lerp(P.ty,Q.ty,mv), kk=lerp(P.k,Q.k,mv);
-  var tf="translate("+tx.toFixed(1)+"px,"+ty.toFixed(1)+"px) scale("+kk.toFixed(4)+")";
+  var sy=W.pageYOffset, anchor=sy+G.sw, N=B.length, i=0, k, t=now(), more=false;
+  for(k=0;k<N;k++) if(B[k].top<=anchor) i=k;
+  var b=B[i], u=clamp((anchor-b.top)/Math.max(1,b.h),0,1), prev=i>0?B[i-1]:b, first=cur<0;
+  /* on a phone the move out of the title (or back into it) is timed, not scrubbed: the phone comes up
+     into the window as the title's words go, and the next words wait for it */
+  var titleMove=!G.wide&&B[0].frame==="title"&&((cur===0&&i===1)||(cur===1&&i===0));
+  if(i!==cur){
+    var inDelay=IN_DELAY;
+    if(titleMove&&!reduce&&shown){ tw={from:shown,t0:t}; if(i===1) inDelay=TITLE_MS-40; }
+    for(k=0;k<N;k++) showNote(B[k],k===i,inDelay,first);
+    cur=i;
+  }
+  var m0=.04, m1=.3, mv=(i===0||reduce||(i===1&&!G.wide&&B[0].frame==="title"))?1:(u<m0?0:(u<m1?ease((u-m0)/(m1-m0)):1));
+  var target=mv>=1?camAt(b,sy):mixCam(camAt(prev,sy),camAt(b,sy),mv), c2=target;
+  if(tw){ var p=clamp((t-tw.t0)/TITLE_MS,0,1); c2=mixCam(tw.from,target,ease(p)); if(p<1) more=true; else tw=null; }
+  shown=c2;
+  var tf="translate("+c2.tx.toFixed(1)+"px,"+c2.ty.toFixed(1)+"px) scale("+c2.k.toFixed(4)+")";
   if(tf!==lastTf){ lastTf=tf; dev.style.transform=tf; moving(); }
   /* the window: only the title on a phone opens it to the whole screen */
-  var cl=[0,1,2,3].map(function(q){ return lerp(prev.clip[q],b.clip[q],mv); }), rr=lerp(prev.frame==="title"&&!G.wide?0:18,b.frame==="title"&&!G.wide?0:18,mv);
-  var cs="inset("+cl.map(function(v){return v.toFixed(1)+"px";}).join(" ")+" round "+rr.toFixed(1)+"px)"; if(cs!==lastClip){ clip.style.clipPath=cs; lastClip=cs; }
-  frameEl.style.opacity=G.wide?1:(b.frame==="title"?0:(fromTitle?mv:1));
-  /* the screen dissolves in place while the camera moves */
-  var fading=prev.screen!==b.screen&&mv<1;
-  if(fading) showScreens(prev.screen,b.screen,+mv.toFixed(3)); else showScreens(b.screen,"",0);
+  var cs="inset("+c2.cl.map(function(v){return v.toFixed(1)+"px";}).join(" ")+" round "+c2.rr.toFixed(1)+"px)"; if(cs!==lastClip){ clip.style.clipPath=cs; lastClip=cs; }
+  frameEl.style.opacity=c2.fo.toFixed(3);
+  /* the screen: changes on the beat's cue, a short dissolve that is over before the words are in */
+  if(scrOn!==b.screen){ scrPrev=first?"":scrOn; scrOn=b.screen; scrT0=t; }
+  var a=(reduce||!scrPrev)?1:clamp((t-scrT0)/SCR_MS,0,1);
+  if(a<1){ showScreens(scrPrev,scrOn,+a.toFixed(3)); more=true; } else { scrPrev=""; showScreens(scrOn,"",0); }
   if(prev.screen===b.screen) setScroll(b.screen,lerp(prev.scroll,b.scroll,mv)); else { setScroll(prev.screen,prev.scroll); setScroll(b.screen,b.scroll); }
   /* what's live is whatever is in the window */
   var story_on=sy<B[N-1].top+B[N-1].h;
-  setActive("run",story_on&&(b.screen==="run"||(fading&&prev.screen==="run")));
-  setActive("radar",story_on&&(b.screen==="connect"||(fading&&prev.screen==="connect")));
-  if(b.rect&&b.frame!=="title"){ var r=b.rect, pad=5; focusEl.style.cssText="left:"+(r[0]-pad)+"px;top:"+(r[1]-pad)+"px;width:"+(r[2]+2*pad)+"px;height:"+(r[3]+2*pad)+"px;border-color:"+b.col+";border-width:"+(3/kk).toFixed(2)+"px;border-radius:"+(12/kk).toFixed(1)+"px";
+  setActive("run",story_on&&(b.screen==="run"||scrPrev==="run"));
+  setActive("radar",story_on&&(b.screen==="connect"||scrPrev==="connect"));
+  if(b.rect&&b.frame!=="title"){ var r=b.rect, pad=5; focusEl.style.cssText="left:"+(r[0]-pad)+"px;top:"+(r[1]-pad)+"px;width:"+(r[2]+2*pad)+"px;height:"+(r[3]+2*pad)+"px;border-color:"+b.col+";border-width:"+(3/c2.k).toFixed(2)+"px;border-radius:"+(12/c2.k).toFixed(1)+"px";
     focusEl.style.opacity=reduce?1:clamp((u-m1)/.1,0,1); } else focusEl.style.opacity=0;
-  if(mv>=1) liveFor(b,u);
-  /* the words. A note is shown while it's in the dock, and fades as the next one pushes it out,
-     so it never crosses into the window. The one after the title waits until the phone has risen. */
-  /* at the story's end the camera scrolls away with it (it is pinned inside the story): the words
-     move with it rather than rolling under a dock line that has itself moved up */
-  var shift=Math.max(0,G.vh-(G.end-sy));
+  if(mv>=1&&!tw) liveFor(b,u);
+  /* the words: the current note (and one still fading out) is held in the dock; the rest stay in
+     their own places in the page, unseen. The title's words are never held, they scroll as a page
+     does. At the story's end the last note leaves with the camera, never over it. */
+  var atEnd=sy>G.end-G.vh;
   for(k=0;k<N;k++){
-    var c=B[k], o, screenTop=c.top-sy, past=0;
-    if(c.frame==="title"){ var bottom=screenTop+c.tpad+c.th; o=G.wide?1:clamp((bottom-(HDR+40))/Math.max(40,G.line-(HDR+40)),0,1); }
-    else {
-      var pinned=Math.min(Math.max(c.dock,screenTop+c.tpad),screenTop+c.h-c.th); past=c.dock-shift-pinned;
-      o=past>0?clamp(1-past/70,0,1):1;
-      if(screenTop>G.vh) o=0;
-      if(k===1&&!G.wide&&B[0].frame==="title"&&(i===0||(i===1&&u<.5))) o=i===1?o*clamp((u-.5)/.1,0,1):0;
-      if(reduce&&k!==i) o=0;
-    }
-    if(c.o!==o){ c.o=o; c.sbt.style.opacity=o.toFixed(3); }
-    /* a note pushed out rolls under the dock line: whatever has crossed it is cut away */
-    var cp=(c.frame!=="title"&&past>0)?"inset("+Math.min(past,c.th).toFixed(1)+"px 0 0 0)":"none"; if(c.cp!==cp){ c.cp=cp; c.sbt.style.clipPath=cp; }
+    var c=B[k];
+    if(c.frame==="title") continue;
+    var fading=!c.on&&c.offAt&&!reduce&&t-c.offAt<OUT_MS+40, hold=c.on||fading;
+    if(fading) more=true;
+    /* a note taller than its room (a short screen) is read by scrolling: it sits still for a while,
+       then rises in the dock, so its last line is in view well before the next note's cue */
+    var lift=hold&&c.over>0?Math.round(c.over*clamp((sy-(c.top-G.sw)-c.h*.15)/(c.h*.4),0,1)):0;
+    dockNote(c,hold?(k===N-1&&atEnd?"end":"dock"):false,lift);
   }
+  if(more) again();
 }
 var queued=false;
 function onScroll(){ if(queued) return; queued=true; W.requestAnimationFrame(function(){ queued=false; frame(); }); }
