@@ -275,6 +275,8 @@ a:hover{background:var(--mark)}
 /* the run screen's stage bar (StageBarView, live): a stage per segment sized by time, the work block one
    part per set, each dim until the run reaches it, filled as it plays, the part playing outlined */
 .scr .sbar{position:absolute}
+/* a story heading's words, each its own box so it can arrive on its own (phone; see animIn) */
+.sb .pw{display:inline-block}
 .scr .sbar i{position:absolute;top:0;bottom:0;border-radius:3px;overflow:hidden}
 .scr .sbar i::before{content:"";position:absolute;inset:0;background:var(--c);opacity:.22}
 .scr .sbar b{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--c)}
@@ -1410,7 +1412,7 @@ function measure(){
   measureScreens();
   /* every note back in its own place, with nothing left over from the other way of playing it */
   B.forEach(function(b){ dockNote(b,false); var s=b.sbt.style; s.transition="none"; s.opacity=""; s.clipPath=""; s.pointerEvents="";
-    b.on=undefined; b.o=undefined; b.cp=undefined; b.offAt=0; b.dockNow=0; });
+    s.transform=""; restNote(b); b.on=undefined; b.o=undefined; b.cp=undefined; b.offAt=0; b.dockNow=0; });
   cur=-1; tw=null; shown=null; scrOn=""; scrPrev=""; camDone=0;
   var vw=D.documentElement.clientWidth, vh=W.innerHeight, wide=vw>=768, sr=story.getBoundingClientRect(), sy=W.pageYOffset;
   /* THE WINDOW IS CUT FROM THE PIN'S OWN HEIGHT. The pin is 100svh less the header; innerHeight is
@@ -1767,16 +1769,36 @@ function framePass(){
 
 /* ================= below 768px, and with reduced motion: one cue per beat =================
    A beat is current from the moment its section reaches the middle of the screen (G.sw), and that one
-   moment changes everything together: the old words go (130 ms), the screen inside the phone goes
-   dark and comes up on the new one (90 + 120 ms: never two screens at once), the camera moves to the
-   beat's framing (400 ms; the words change while it moves), and the new words come in (200 ms,
-   from 150 ms, so two notes are never both readable and a beat's words never show over the last
-   beat's screen). With reduced motion all of it is a cut at that same moment. The current note is
-   held in the dock (position:fixed just under the window), so it never rolls under the camera or
-   fades while it is the one being read. */
-var OUT_MS=130, IN_MS=200, IN_DELAY=150, SCR_OUT=90, SCR_IN=120, CAM_MS=400, TITLE_MS=300, RING_MS=200;
+   moment sets everything going, in an order that never lets two things fight:
+     the old note lifts away and fades (out);
+     the screen inside the phone fades to the phone's own black and the new one comes up out of it
+       (scrOut + scrIn: never two screens at once, done before any new word is readable);
+     the camera glides to the beat's framing (cam), and the words change while it moves;
+     the new note arrives once the old one has gone (inAt): its kicker, then its heading word by word
+       (each rises and fades in, a beat behind the one before, as the approved story's headings do),
+       then its lines one after another, the big number sliding in as it counts up, and the
+       highlighter drawing across each marked line after the line has arrived.
+   Text moves by transform and opacity only. With reduced motion all of it is a cut at that same
+   moment. The current note is held in the dock (position:fixed just under the window), so it never
+   rolls under the camera or fades while it is the one being read.
+   PACE picks the timing: MEDIUM (the default) or CALM, everything about 1.4 times slower. */
+var PACE="MEDIUM";
+var PACES={
+  /* ms        out  scrOut scrIn  cam  title inAt kick wStart wStag wDur bStart bStag bCap bDur markAt markDur count ring */
+  MEDIUM:[    250,  250,   300,   800, 700,  400, 440,  60,   55,  460,  120,   70,  180, 440,  220,   480,   600,  300],
+  CALM:  [    350,  350,   420,  1120, 980,  560, 616,  84,   77,  644,  168,   98,  252, 616,  308,   672,   840,  420]
+};
+/* out: the old note lifts away; scrOut/scrIn: the screen fades to black and up again; cam: the camera's
+   glide; title: the phone's rise out of the title; inAt: when the new note starts (after the old one has
+   gone, and late enough that nothing of it is readable before its screen is fully up); kick: the kicker;
+   wStart/wStag/wDur: the heading's words, one after another; bStart/bStag/bDur: the lines after the
+   heading, one after another, never more than bCap apart in all; markAt/markDur: the highlighter, after
+   its line; count: the big number; ring: the focus ring, once the camera has arrived */
+var PT=(function(a){ var n="out scrOut scrIn cam title inAt kick wStart wStag wDur bStart bStag bCap bDur markAt markDur count ring".split(" "), o={}; n.forEach(function(k,i){ o[k]=a[i]; }); return o; })(PACES[PACE]||PACES.MEDIUM);
+var OUT_MS=PT.out, SCR_OUT=PT.scrOut, SCR_IN=PT.scrIn, CAM_MS=PT.cam, TITLE_MS=PT.title, IN_AT=PT.inAt, RING_MS=PT.ring;
 var cur=-1, scrOn="", scrPrev="", scrT0=0, tw=null, shown=null, camDone=0, again_=0;
 function again(){ if(!again_) again_=W.requestAnimationFrame(function(){ again_=0; frame(); }); }
+function glide(x){ return .5-.5*Math.cos(Math.PI*x); }   /* a gentle ease in and out, for the timed moves */
 /* a note in the dock ("dock"), back in its own place in the page (false), or, for the last note once
    the story's end comes up the screen ("end"), left in the page exactly where the dock was at that
    moment, so it scrolls away in step with the camera, which is pinned inside the story */
@@ -1790,37 +1812,98 @@ function dockNote(c,how,lift){
   /* (open to the sides, so a list's numbers hanging left of the note aren't cut) */
   s.clipPath=lift>0?"inset("+lift.toFixed(1)+"px -40px -40px -40px)":"";
 }
-/* a note's words shown or not: a short fade, out before in */
+/* ---------- a note's parts, found once: kicker, heading words, lines, big numbers, highlights ---------- */
+function noteParts(c){
+  if(c.parts) return c.parts;
+  var p={k:null,words:[],blocks:[],marks:[].slice.call(c.sbt.querySelectorAll("mark")),nums:[].slice.call(c.sbt.querySelectorAll(".dnum b"))};
+  [].forEach.call(c.sbt.children,function(el){
+    if(el.classList.contains("k")){ p.k=el; return; }
+    if(/^H[1-3]$/.test(el.tagName)&&!el.children.length){
+      /* the heading in words, each its own box, the spaces left as they were so it wraps the same */
+      var ws=el.textContent.split(/(\s+)/), f=D.createDocumentFragment();
+      ws.forEach(function(w){ if(!w) return; if(/^\s+$/.test(w)){ f.appendChild(D.createTextNode(w)); return; }
+        var sp=D.createElement("span"); sp.className="pw"; sp.textContent=w; f.appendChild(sp); p.words.push(sp); });
+      el.textContent=""; el.appendChild(f); return; }
+    if(el.tagName==="OL"||el.tagName==="UL") [].forEach.call(el.children,function(li){ p.blocks.push(li); });
+    else p.blocks.push(el);
+  });
+  p.all=[p.k].concat(p.words,p.blocks).filter(Boolean);
+  c.parts=p; return p;
+}
+/* every part back to rest: no transition, no offset, the highlighter fully drawn, the figure final */
+function restNote(c){
+  var p=c.parts; c.tok=(c.tok||0)+1; if(!p) return;
+  p.all.forEach(function(el){ var s=el.style; s.transition=s.opacity=s.transform=""; });
+  p.marks.forEach(function(m){ m.style.transition=m.style.backgroundSize=""; });
+  p.nums.forEach(function(b){ if(b.getAttribute("data-final")) b.textContent=b.getAttribute("data-final"); });
+}
+var EASE_IN="cubic-bezier(.2,.7,.3,1)", EASE_OUT="cubic-bezier(.5,0,.75,0)";
+function arrive(el,delay,dur,from){
+  var s=el.style; s.transition="none"; s.opacity="0"; s.transform=from;
+  return function(){ s.transition="opacity "+dur+"ms "+EASE_IN+" "+delay+"ms, transform "+dur+"ms "+EASE_IN+" "+delay+"ms"; s.opacity=""; s.transform=""; };
+}
+/* the big number counts up from nothing as it slides in */
+function countIn(c,el,delay,ms){
+  var fin=el.getAttribute("data-final"); if(!fin){ fin=el.textContent; el.setAttribute("data-final",fin); }
+  var tok=c.tok, nums=fin.match(/\d+(?:\.\d+)?/g); if(!nums) return;
+  function put(e){ var i=0; el.textContent=fin.replace(/\d+(?:\.\d+)?/g,function(m){ var d=(m.split(".")[1]||"").length; return (parseFloat(nums[i++])*e).toFixed(d); }); }
+  put(0);
+  W.setTimeout(function(){ var t0=0; function st(t){ if(c.tok!==tok) return; if(!t0) t0=t; var k=Math.min(1,(t-t0)/ms);
+      put(1-Math.pow(1-k,3)); if(k<1) W.requestAnimationFrame(st); else el.textContent=fin; } W.requestAnimationFrame(st); },delay);
+}
+/* the note arrives: kicker, heading word by word, then line by line; all its timings start now */
+function animIn(c,at){
+  var p=noteParts(c), go=[], d=at, i;
+  restNote(c);
+  if(p.k){ go.push(arrive(p.k,d,PT.kick,"translateY(12px)")); }
+  var w0=d+PT.wStart;
+  p.words.forEach(function(w,k){ var y=14+((k*53+7)%5)*3, r=(((k*29+5)%7)-3)*1.6;
+    go.push(arrive(w,w0+Math.min(k,7)*PT.wStag,PT.wDur,"translateY("+y+"px) rotate("+r+"deg)")); });
+  var b0=w0+(p.words.length?Math.min(p.words.length,4)*PT.wStag:0)+PT.bStart, at_=[];
+  var bs=p.blocks.length>1?Math.min(PT.bStag,PT.bCap/(p.blocks.length-1)):0;
+  p.blocks.forEach(function(el,k){ var bd=Math.round(b0+k*bs), num=el.classList.contains("dnum");
+    at_.push([el,bd]); go.push(arrive(el,bd,PT.bDur,num?"translate(-18px,8px)":"translateY(16px)")); });
+  p.marks.forEach(function(m){ var bd=b0; at_.forEach(function(x){ if(x[0].contains(m)) bd=x[1]; }); var s=m.style;
+    s.transition="none"; s.backgroundSize="0% 100%";
+    go.push(function(){ s.transition="background-size "+PT.markDur+"ms "+EASE_IN+" "+(bd+PT.markAt)+"ms"; s.backgroundSize="100% 100%"; }); });
+  p.nums.forEach(function(b){ var bd=b0; at_.forEach(function(x){ if(x[0].contains(b)) bd=x[1]; }); countIn(c,b,bd,PT.count); });
+  void c.sbt.offsetWidth;
+  for(i=0;i<go.length;i++) go[i]();
+}
+/* a note's words shown or not. On a phone: the old one lifts away and fades, the new one arrives part
+   by part after it has gone. With reduced motion, or on the first frame: a plain switch. */
 function showNote(c,on,delay,instant){
-  if(c.on===on) return; c.on=on; var s=c.sbt.style;
-  s.transition=(reduce||instant)?"none":(on?"opacity "+IN_MS+"ms cubic-bezier(.2,.7,.3,1) "+delay+"ms":"opacity "+OUT_MS+"ms cubic-bezier(.5,0,.75,0)");
-  s.opacity=on?"1":"0"; s.pointerEvents=on?"":"none";
+  if(c.on===on) return; c.on=on; var s=c.sbt.style, plain=reduce||instant||G.wide;
+  if(plain){ restNote(c); s.transition="none"; s.transform=""; s.opacity=on?"1":"0"; }
+  else if(on){ s.transition="none"; s.transform=""; s.opacity="1"; animIn(c,delay); }
+  else { s.transition="opacity "+OUT_MS+"ms "+EASE_OUT+", transform "+OUT_MS+"ms "+EASE_OUT; s.opacity="0"; s.transform="translateY(-16px)"; }
+  s.pointerEvents=on?"":"none";
   c.offAt=on?0:now();
 }
 /* the screen inside the phone, during a swap: the old one fades to the phone's own black, then the
    new one comes up out of it */
 function swapScreens(from,to,ms){
   if(!from||ms>=SCR_OUT+SCR_IN){ showScreens(to,"",0); return true; }
-  if(ms<SCR_OUT){ showScreens("",from,1-ms/SCR_OUT); return false; }
-  showScreens("",to,(ms-SCR_OUT)/SCR_IN); return false;
+  if(ms<SCR_OUT){ showScreens("",from,+(1-glide(ms/SCR_OUT)).toFixed(3)); return false; }
+  showScreens("",to,+glide((ms-SCR_OUT)/SCR_IN).toFixed(3)); return false;
 }
 function frameCue(){
   var sy=W.pageYOffset, anchor=sy+G.sw, N=B.length, i=0, k, t=now(), more=false;
   for(k=0;k<N;k++) if(B[k].top<=anchor) i=k;
   var b=B[i], u=clamp((anchor-b.top)/Math.max(1,b.h),0,1), first=cur<0;
   /* the move out of the title (or back into it) on a phone: the phone rises into the window as the
-     title's words go (300 ms), and the next words wait for it */
+     title's words go (title), and the next words come as it settles */
   var titleMove=!G.wide&&B[0].frame==="title"&&((cur===0&&i===1)||(cur===1&&i===0));
   if(i!==cur){
-    var inDelay=IN_DELAY, was=cur>=0?B[cur]:null;
+    var inDelay=IN_AT, was=cur>=0?B[cur]:null;
     if(!first&&!reduce&&shown){ tw={from:shown,t0:t,ms:titleMove?TITLE_MS:CAM_MS,
-      sc0:(was&&was.screen===b.screen)?(scrollAt[b.screen]||0):b.scroll}; if(titleMove&&i===1) inDelay=TITLE_MS-40; }
+      sc0:(was&&was.screen===b.screen)?(scrollAt[b.screen]||0):b.scroll}; if(titleMove&&i===1) inDelay=Math.round(TITLE_MS*.6); }
     else tw=null;
     for(k=0;k<N;k++) showNote(B[k],k===i,inDelay,first);
     cur=i; camDone=0;
   }
   var target=camAt(b,sy), c=target, cp=1;
-  if(tw){ var p=clamp((t-tw.t0)/tw.ms,0,1); cp=ease(p); c=mixCam(tw.from,target,cp); if(p<1) more=true; else tw=null; }
+  if(tw){ var p=clamp((t-tw.t0)/tw.ms,0,1); cp=glide(p); c=mixCam(tw.from,target,cp); if(p<1) more=true; else tw=null; }
   if(!tw&&!camDone) camDone=t;
   shown=c;
   placeCam(c);
