@@ -1,0 +1,75 @@
+name: Pages
+
+# Publishes docs/site/ as the project site. It is served from a sub-path
+# (https://<owner>.github.io/OpenPump-App/), so every link in the site is relative.
+# Pages must be set to "GitHub Actions" as its source in the repository settings.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/site/**'
+      - '.github/workflows/pages.yml'
+  # The most-wanted ideas (docs/site/ideas.json) are read at build time, so a scheduled run keeps
+  # their vote counts fresh without a push.
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  discussions: read
+
+# One deploy at a time; a newer push doesn't cancel one already publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/configure-pages@v6
+
+      # THE MOST-WANTED IDEAS. The page shows the top ideas from Discussions > Ideas, but it can't
+      # ask GitHub itself (Discussions answer only a signed-in request, and the page makes no
+      # third-party calls). So the build writes docs/site/ideas.json beside it: the category's open
+      # discussions, most upvoted first (newest first on a tie), at most 10, with the time it was
+      # made. GitHub can't order discussions by votes, so the step fetches the first 50 and sorts
+      # them. If the query fails the site still deploys, with an empty list the page shows as
+      # "No ideas yet". The file is made here only and never committed.
+      - name: Most-wanted ideas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -o pipefail
+          out=docs/site/ideas.json
+          cat_q='query($owner:String!,$name:String!){repository(owner:$owner,name:$name){discussionCategory(slug:"ideas"){id}}}'
+          ideas_q='query($owner:String!,$name:String!,$cat:ID!){repository(owner:$owner,name:$name){discussions(first:50,states:OPEN,categoryId:$cat){nodes{title url upvoteCount createdAt}}}}'
+          shape='{generated:(now|todate),ideas:([.data.repository.discussions.nodes[]|{title,url,upvotes:.upvoteCount,created:.createdAt}]|sort_by(.created)|reverse|sort_by(-.upvotes)|.[:10])}'
+          if cat_id=$(gh api graphql -F owner="${REPO%/*}" -F name="${REPO#*/}" -f query="$cat_q" --jq '.data.repository.discussionCategory.id') &&
+             [ -n "$cat_id" ] &&
+             gh api graphql -F owner="${REPO%/*}" -F name="${REPO#*/}" -F cat="$cat_id" -f query="$ideas_q" --jq "$shape" > "$out.tmp"; then
+            mv "$out.tmp" "$out"
+          else
+            # never publish a half-written file: the upload below takes everything in docs/site
+            rm -f "$out.tmp"
+            echo "::warning::Could not read Discussions > Ideas; publishing an empty list"
+            printf '{"generated":"%s","ideas":[]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$out"
+          fi
+          cat "$out"
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/site
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     THE SAME THREE STATIC SHORTCUTS, FOR THE "FITNESS LOG" LAUNCHER ENTRY (incognito, 0.10).
+     Registered on the LauncherFitnessLog activity-alias in AndroidManifest.xml. Android reads static
+     shortcuts only from ENABLED launcher entries, and exactly one entry is enabled at a time,
+     so exactly one of shortcuts.xml and the disguises' files (Incognito#DISGUISE_SHORTCUTS) is
+     live - this one while "Fitness log" is chosen. It differs from shortcuts.xml in one thing: the
+     icon, @mipmap/ic_fitness, so a long-press never shows the real logo under the disguise's name.
+     Everything shortcuts.xml's own note says holds here unchanged - above all, each <intent>
+     targets ShortcutTrampoline, never SessionActivity (OneScreenManifestTest reads every
+     launcher entry's file).
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="start_last_routine"
+        android:enabled="true"
+        android:icon="@mipmap/ic_fitness"
+        android:shortcutShortLabel="@string/shortcut_start_last_short"
+        android:shortcutLongLabel="@string/shortcut_start_last_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="org.openpump"
+            android:targetClass="org.openpump.ShortcutTrampoline">
+            <extra android:name="org.openpump.SHORTCUT_ACTION" android:value="start_last" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="log_measurement"
+        android:enabled="true"
+        android:icon="@mipmap/ic_fitness"
+        android:shortcutShortLabel="@string/shortcut_log_measurement_short"
+        android:shortcutLongLabel="@string/shortcut_log_measurement_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="org.openpump"
+            android:targetClass="org.openpump.ShortcutTrampoline">
+            <extra android:name="org.openpump.SHORTCUT_ACTION" android:value="log_measurement" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="progress_photos"
+        android:enabled="true"
+        android:icon="@mipmap/ic_fitness"
+        android:shortcutShortLabel="@string/shortcut_progress_photos_short"
+        android:shortcutLongLabel="@string/shortcut_progress_photos_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="org.openpump"
+            android:targetClass="org.openpump.ShortcutTrampoline">
+            <extra android:name="org.openpump.SHORTCUT_ACTION" android:value="progress_photos" />
+        </intent>
+    </shortcut>
+</shortcuts>

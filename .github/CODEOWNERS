@@ -1,0 +1,14 @@
+# Safety-critical paths: a change here needs the owner's review
+# (branch protection: 2 approvals on these paths, one of them a code owner).
+# @OpenByte-source is the project owner's account; there is no organisation team yet.
+/core/src/main/java/org/openpump/Proto.java        @OpenByte-source
+/core/src/main/java/org/openpump/SimPump.java      @OpenByte-source
+/core/src/main/java/org/openpump/Session.java      @OpenByte-source
+/core/src/main/java/org/openpump/RunEdit.java      @OpenByte-source
+/core/src/main/java/org/openpump/Handoff.java      @OpenByte-source
+/core/src/main/java/org/openpump/Validate.java     @OpenByte-source
+/app/src/main/java/org/openpump/PumpLink.java      @OpenByte-source
+/app/src/main/java/org/openpump/RunService.java    @OpenByte-source
+/app/src/main/java/org/openpump/SessionActivity.java @OpenByte-source
+/core/src/test/java/WiringCheck.java               @OpenByte-source
+/SAFETY.md                                         @OpenByte-source

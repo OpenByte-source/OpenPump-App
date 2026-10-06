@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The cold start's first frame below Android 12: the app's dark ground and nothing on it
+     (values/styles.xml says why there is no logo). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#05070a" />
+</shape>

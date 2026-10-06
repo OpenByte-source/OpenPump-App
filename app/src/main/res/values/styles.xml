@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- THE COLD START'S FIRST FRAME. Android draws it from SessionActivity's theme before any
+         of the app's code runs, so nothing the app knows - incognito's disguise above all -
+         can change it for this launch. Below Android 12 it is this windowBackground: the dark
+         ground, and NO logo (incognito, 0.10): a home screen that says "Notes" must never
+         open onto the real mark, and an app cannot pick this window at runtime there. Android
+         12 and up draw their own splash instead (values-v31, values-v33). -->
+    <style name="AppSplashTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_plain</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <!-- Each disguise's splash (IncognitoShell#applySplash, API 33+ only; WiringCheck
+         invariant 234). Declared here so the ids exist on every API; values-v33 gives them
+         their icons. -->
+    <style name="SplashFitnessLog" parent="AppSplashTheme" />
+    <style name="SplashHabits" parent="AppSplashTheme" />
+    <style name="SplashNotes" parent="AppSplashTheme" />
+</resources>

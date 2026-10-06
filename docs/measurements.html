@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenPump Measurements Handout</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75,700;75,800;100,500;100,600;100,700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+@page{size:297mm 210mm;margin:0}
+:root{
+  --paper:#F5F7F8; --ink:#16202A; --muted:#56626E; --faint:#96A1AB; --rule:#DCE2E6; --card:#FFFFFF;
+  --girth:#1D6A73; --girth-2:#7DAFB5; --girth-soft:#D5E8EA; --length:#C8561F; --length-2:#E59A74; --length-soft:#F6DCCD;
+  --feeder:#6B4FA0; --feeder-soft:#E3DBF1; --rest:#B7C0C7; --warn:#A23B32; --warn-soft:#F6E1DE; --ok:#3F8A4A; --ok-soft:#DCEEDD;
+  --f-sign:"Archivo","Arial Narrow",sans-serif; --f-body:"Source Sans 3","Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#8E989F}
+body{font:400 11.5pt/1.42 var(--f-body);color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{width:297mm;height:210mm;background:var(--paper);position:relative;overflow:hidden;break-after:page;page-break-after:always;padding:12mm 15mm 10mm;display:grid;grid-template-rows:auto 1fr auto;gap:5mm;margin:0 auto 6mm}
+@media print{html,body{background:var(--paper)}.page{margin:0}}
+.top{display:grid;gap:2mm}
+.kick{font:700 8.5pt/1 var(--f-sign);font-stretch:100%;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;gap:3mm;align-items:center}
+h1{font:800 31pt/0.95 var(--f-sign);font-stretch:75%;margin:0}
+h2{font:800 24pt/1 var(--f-sign);font-stretch:75%;margin:0}
+h3{font:700 11pt/1.2 var(--f-sign);font-stretch:100%;margin:0 0 1.2mm}
+p{margin:0}
+.lead{font-size:11.5pt;color:var(--muted);max-width:230mm}
+.foot{display:flex;justify-content:space-between;font:500 7.5pt/1 var(--f-sign);font-stretch:100%;letter-spacing:.1em;color:var(--faint);text-transform:uppercase}
+.app{display:inline-block;font:600 7.5pt/1 var(--f-body);color:var(--feeder);border:1px solid var(--feeder);border-radius:1mm;padding:.8mm 1.4mm .6mm;vertical-align:1px;white-space:nowrap;margin-left:1mm}
+.new{display:inline-block;font:700 7pt/1 var(--f-sign);letter-spacing:.08em;color:#fff;background:var(--ink);border-radius:1mm;padding:.9mm 1.4mm .7mm;vertical-align:1px;margin-left:1mm}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{font-family:var(--f-body)}
+.sg{font-family:var(--f-sign)!important}
+.body{min-height:0;display:grid;gap:4mm;align-content:start}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:8mm;align-items:start}
+.cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm;align-items:start}
+.muted{color:var(--muted)}
+.small{font-size:10pt;line-height:1.38}
+.tiny{font-size:8.8pt;color:var(--muted);line-height:1.35}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:2mm;padding:3.4mm 4mm}
+ul.tight{margin:0;padding-left:4.2mm;display:grid;gap:1.1mm}
+ul.tight li::marker{color:var(--faint)}
+table.t{border-collapse:collapse;width:100%;font-size:9.4pt}
+table.t td{white-space:nowrap}
+table.t th{font:700 7.4pt/1.2 var(--f-sign);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);text-align:left;padding:1.3mm 2.2mm 1.3mm 0;border-bottom:1.2px solid var(--ink)}
+table.t td{padding:1.25mm 2.2mm 1.25mm 0;border-bottom:1px solid var(--rule);vertical-align:top}
+table.t td.n{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:700}
+table.t td.code{font:700 9.4pt/1.2 var(--f-sign);white-space:nowrap}
+table.t tr.grp td{font:700 7.4pt/1 var(--f-sign);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding-top:2.4mm;border-bottom:1px solid var(--rule)}
+.tag{display:inline-block;font:700 7pt/1 var(--f-sign);letter-spacing:.08em;text-transform:uppercase;border-radius:1mm;padding:.9mm 1.4mm .7mm;color:#fff}
+.tag.l{background:var(--length)} .tag.g{background:var(--girth)} .tag.k{background:var(--ink)}
+.rule3{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm}
+.rule3 .card{display:grid;gap:1mm;align-content:start}
+.yes{color:var(--ok);font-weight:700} .no{color:var(--warn);font-weight:700}
+.cover{background:var(--ink);color:#F5F7F8}
+.cover .kick{color:#9FB0BC}
+.cover .foot{color:#6F8190}
+.split{display:grid;grid-template-columns:118mm 1fr;gap:8mm;align-items:start}
+.split2{display:grid;grid-template-columns:1fr 112mm;gap:8mm;align-items:start}
+.stack{display:grid;gap:3.2mm;align-content:start}
+.num{font:800 15pt/1 var(--f-sign);font-stretch:75%;color:var(--faint);margin-right:1.5mm}
+.panel{background:var(--ink);color:#E9EEF1;border-radius:2mm;padding:3.6mm 4.4mm;display:grid;gap:2mm}
+.panel h3{color:#fff}
+.panel .muted{color:#AEBBC4}
+.panel .app{color:#C9B5F0;border-color:#C9B5F0}
+.panel .new{background:#fff;color:var(--ink)}
+.pill{display:inline-block;font:600 8.6pt/1 var(--f-body);border:1px solid var(--rule);background:#fff;border-radius:5mm;padding:1.1mm 2.4mm 1mm;margin:0 1mm 1mm 0}
+table.t.m{font-size:8.9pt}
+table.t.m td{padding:.95mm 1.6mm .95mm 0;white-space:nowrap}
+table.t.m{table-layout:auto}
+table.t.m th{white-space:nowrap}
+table.t.m code{font:500 7.4pt/1.2 Consolas,"Courier New",monospace;color:var(--faint);margin-left:1.5mm;white-space:nowrap}
+table.t.m .yes{color:var(--ok)} .dash{color:var(--faint)} .if{color:var(--length);font-weight:600;font-size:8.2pt}
+table.t.m td.nt{color:var(--muted);font-size:8.2pt;white-space:normal;line-height:1.2}
+code{font:500 8.4pt Consolas,"Courier New",monospace}
+
+.page.dev{border-left:7mm solid var(--ink);padding-left:12mm}
+.devtag{display:inline-block;font:800 8pt/1 var(--f-sign);letter-spacing:.14em;text-transform:uppercase;color:#fff;background:var(--feeder);border-radius:1mm;padding:1.3mm 2.2mm 1.1mm}
+.dev .body{gap:3.2mm}
+.dev .card{padding:2.6mm 3.2mm}
+.dev h3{font-size:9.8pt;margin-bottom:1mm}
+.dev h3 .k{color:var(--faint);margin-right:1.2mm}
+.dt{font-size:8.3pt;line-height:1.3;color:var(--ink)}
+.dt p{margin:0 0 .9mm}
+.dt ul{margin:0;padding-left:3.6mm;display:grid;gap:.6mm}
+.dt li::marker{color:var(--faint)}
+.dt code,.dev h3 code{font:500 7.5pt/1.2 Consolas,"Courier New",monospace;color:#3A4A58;background:#EEF1F3;border-radius:.6mm;padding:0 .6mm}
+.dt .src{font:500 7pt/1.2 Consolas,"Courier New",monospace;color:var(--faint)}
+table.f{border-collapse:collapse;width:100%;font-size:7.9pt;line-height:1.2}
+table.f th{font:700 6.8pt/1.1 var(--f-sign);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);text-align:left;padding:.8mm 1.4mm .8mm 0;border-bottom:1.1px solid var(--ink)}
+table.f td{padding:.62mm 1.4mm .62mm 0;border-bottom:1px solid var(--rule);vertical-align:top}
+table.f td:first-child{font:600 7.6pt/1.2 Consolas,"Courier New",monospace;color:var(--ink)}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4mm;align-items:start}
+.col{display:grid;gap:3.2mm;align-content:start}
+</style>
+</head>
+<body>
+
+<!-- ================= PAGE 1 ================= -->
+<section class="page">
+  <div class="top">
+    <span class="kick">OpenPump 0.10 · Measurements · what and how</span>
+    <h1>Two equal ways to measure, each compared with its own kind</h1>
+    <p class="lead">A reading is a length, a girth, or both, taken one of two ways: <b>standardised</b>, during the pump's short hold at a set pressure, or <b>at rest</b>, with no pump. Neither is the “better” one. The app simply never mixes them.</p>
+  </div>
+  <div class="body">
+    <div class="split">
+      <div class="stack">
+        <div class="card">
+          <h3>Standardised: measured while the pump holds</h3>
+          <svg viewBox="0 0 470 196" role="img" aria-label="The standardisation hold over time: the pump pulls to 20 kPa, holds a 30 second count, then gives two minutes to measure, then vents down to 5 kPa.">
+            <line x1="44" y1="160" x2="466" y2="160" stroke="#96A1AB"/>
+            <line x1="44" y1="14" x2="44" y2="160" stroke="#96A1AB"/>
+            <text x="38" y="36" font-size="13" fill="#56626E" text-anchor="end">20 kPa</text>
+            <text x="38" y="133" font-size="13" fill="#56626E" text-anchor="end">5 kPa</text>
+            <rect x="74" y="32" width="86" height="128" fill="#DCE2E6"/>
+            <rect x="160" y="32" width="200" height="128" fill="#D5E8EA"/>
+            <polyline points="44,160 74,32 360,32 380,129 466,129" fill="none" stroke="#16202A" stroke-width="3" stroke-linejoin="round"/>
+            <line x1="44" y1="129" x2="380" y2="129" stroke="#96A1AB" stroke-dasharray="3 3"/>
+            <text x="117" y="72" font-size="15" font-weight="700" class="sg" text-anchor="middle">Count</text>
+            <text x="117" y="90" font-size="13.5" fill="#56626E" text-anchor="middle">30 s</text>
+            <text x="260" y="72" font-size="15" font-weight="700" class="sg" text-anchor="middle" fill="#1D6A73">Measure now</text>
+            <text x="260" y="90" font-size="13.5" fill="#1D6A73" text-anchor="middle">2 minutes to type</text>
+            <text x="260" y="106" font-size="13.5" fill="#1D6A73" text-anchor="middle">length and girth</text>
+            <text x="424" y="112" font-size="13" fill="#56626E" text-anchor="middle">vent, then</text>
+            <text x="424" y="150" font-size="13" fill="#56626E" text-anchor="middle">session</text>
+            <text x="44" y="184" font-size="12.5" fill="#56626E">Leaving the app vents at once; any hold vents itself after 5 min.</text>
+          </svg>
+          <p class="tiny" style="margin-top:1.2mm">The vacuum the pump actually reported at the end of the count is saved on the reading. Saved before the count ends or after the two minutes, a reading is <b>not</b> filed as standardised.</p>
+        </div>
+        <div class="card small">
+          <h3>At rest: no pump, a ruler or a soft tape</h3>
+          <p class="muted">Erect or soft comes from the method itself. In a session the at-rest before and after screens offer the five <b>length</b> methods; MSEG and MSSG are logged from the Log screen. Every reading records its cylinder; stored in cm, shown in cm or inches.</p>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card" style="padding-bottom:2mm">
+          <h3>What you can measure</h3>
+          <table class="t">
+            <tr><th>Code</th><th>What it means</th><th>Gives</th></tr>
+            <tr><td class="code">Std</td><td>Standardised: during the pump's hold at a set pressure</td><td><span class="tag l">length</span> <span class="tag g">girth</span></td></tr>
+            <tr class="grp"><td colspan="3">At rest · length (ruler along the top, read at the tip)</td></tr>
+            <tr><td class="code">BPEL</td><td>Erect, pressed to the bone</td><td><span class="tag l">length</span></td></tr>
+            <tr><td class="code">BPSSL</td><td>Stretched, pressed to the bone</td><td><span class="tag l">length</span></td></tr>
+            <tr><td class="code">BPSL</td><td>Soft, pressed to the bone</td><td><span class="tag l">length</span></td></tr>
+            <tr><td class="code">NBPEL</td><td>Erect, not pressed</td><td><span class="tag l">length</span></td></tr>
+            <tr><td class="code">NBPSL</td><td>Soft, not pressed</td><td><span class="tag l">length</span></td></tr>
+            <tr class="grp"><td colspan="3">At rest · girth (soft tape once round the middle, snug)</td></tr>
+            <tr><td class="code">MSEG</td><td>Around the middle, erect</td><td><span class="tag g">girth</span></td></tr>
+            <tr><td class="code">MSSG</td><td>Around the middle, soft</td><td><span class="tag g">girth</span></td></tr>
+          </table>
+          <p class="tiny" style="margin-top:1.6mm">“Pressed” means the ruler is pushed into the fat pad until it meets the bone. Each code is its own series on the trend.</p>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3 style="margin-bottom:2mm">When are two readings comparable?</h3>
+      <div class="rule3 small">
+        <div class="card"><b><span class="yes">Yes</span> · both standardised</b><span class="muted">and the vacuum the pump <i>reported</i> at the end of the count is within <b>1 kPa</b>. Unknown is never a match; hold length doesn't count.</span></div>
+        <div class="card"><b><span class="yes">Yes</span> · both at rest, same method</b><span class="muted">BPEL with BPEL, MSSG with MSSG. Never across methods: BPEL and NBPEL are different lines.</span></div>
+        <div class="card"><b><span class="no">Never</span> · standardised with at rest</b><span class="muted">The trend draws them apart, and the app says in words why a pair does or doesn't compare.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>OpenPump · how measurements work</span><span>1</span></div>
+</section>
+
+<!-- ================= PAGE 2 ================= -->
+<section class="page">
+  <div class="top">
+    <span class="kick">When the app asks · before and after · what the trainer does</span>
+    <h2>A measured session gives a pair: before and after, from the same session</h2>
+  </div>
+  <div class="body">
+    <div class="split2">
+      <div class="stack">
+        <div class="card">
+          <h3>When the app asks (Settings › Measurements › Ask for measurements)</h3>
+          <svg viewBox="0 0 600 150" role="img" aria-label="Cadence: with Sessions every 5, sessions 1, 6 and 11 are measured. With Week, the 1st and 4th session of each training week are measured.">
+            <text x="0" y="30" font-size="15" font-weight="700" class="sg">Sessions · every 5</text>
+            <text x="0" y="45" font-size="12.5" fill="#56626E">the default</text>
+            <g font-size="12.5" text-anchor="middle">
+              <g fill="#DCE2E6"><circle cx="175" cy="30" r="14" fill="#16202A"/><circle cx="210" cy="30" r="14"/><circle cx="245" cy="30" r="14"/><circle cx="280" cy="30" r="14"/><circle cx="315" cy="30" r="14"/><circle cx="350" cy="30" r="14" fill="#16202A"/><circle cx="385" cy="30" r="14"/><circle cx="420" cy="30" r="14"/><circle cx="455" cy="30" r="14"/><circle cx="490" cy="30" r="14"/><circle cx="525" cy="30" r="14" fill="#16202A"/></g>
+              <text x="175" y="34" fill="#fff" font-weight="700">1</text><text x="210" y="34" fill="#56626E">2</text><text x="245" y="34" fill="#56626E">3</text><text x="280" y="34" fill="#56626E">4</text><text x="315" y="34" fill="#56626E">5</text><text x="350" y="34" fill="#fff" font-weight="700">6</text><text x="385" y="34" fill="#56626E">7</text><text x="420" y="34" fill="#56626E">8</text><text x="455" y="34" fill="#56626E">9</text><text x="490" y="34" fill="#56626E">10</text><text x="525" y="34" fill="#fff" font-weight="700">11</text>
+            </g>
+            <text x="0" y="98" font-size="15" font-weight="700" class="sg">Week · 1st and 4th</text>
+            <text x="0" y="113" font-size="12.5" fill="#56626E">of each training week</text>
+            <g font-size="12.5" text-anchor="middle">
+              <rect x="160" y="80" width="170" height="36" rx="5" fill="none" stroke="#96A1AB" stroke-dasharray="3 3"/>
+              <rect x="345" y="80" width="170" height="36" rx="5" fill="none" stroke="#96A1AB" stroke-dasharray="3 3"/>
+              <g fill="#DCE2E6"><circle cx="180" cy="98" r="14" fill="#16202A"/><circle cx="212" cy="98" r="14"/><circle cx="244" cy="98" r="14"/><circle cx="276" cy="98" r="14" fill="#16202A"/><circle cx="308" cy="98" r="14"/>
+              <circle cx="365" cy="98" r="14" fill="#16202A"/><circle cx="397" cy="98" r="14"/><circle cx="429" cy="98" r="14"/><circle cx="461" cy="98" r="14" fill="#16202A"/><circle cx="493" cy="98" r="14"/></g>
+              <text x="180" y="102" fill="#fff" font-weight="700">1</text><text x="276" y="102" fill="#fff" font-weight="700">4</text><text x="365" y="102" fill="#fff" font-weight="700">1</text><text x="461" y="102" fill="#fff" font-weight="700">4</text>
+              <text x="245" y="138" fill="#56626E">week 1</text><text x="430" y="138" fill="#56626E">week 2</text>
+            </g>
+            <circle cx="545" cy="80" r="6" fill="#16202A"/><text x="556" y="84" font-size="12.5" fill="#56626E">asks</text>
+          </svg>
+          <ul class="tight small" style="margin-top:2mm">
+            <li><b>Sessions</b> 1–20 (1 asks every session) · <b>Hours</b> after 10 hours of sessions (1–50) · <b>Week</b> counts the sessions of the track you are starting <span class="new">0.10</span> · <b>Never</b>, and you log from Today whenever you like.</li>
+            <li>You can always skip; a skip is not counted as a measurement. <b>Remind me to measure</b> is off by default; turned on, it checks once a day (19:30) and notifies only when a reading is due.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>The pair <span class="new">0.10</span></h3>
+          <svg viewBox="0 0 600 150" role="img" aria-label="A measured session: a before reading at START, the session, then an after reading; the after reading pairs with its own session's before reading.">
+            <rect x="0" y="16" width="150" height="54" rx="6" fill="#fff" stroke="#16202A" stroke-width="1.5"/>
+            <text x="75" y="38" font-size="16" font-weight="700" class="sg" text-anchor="middle">Before</text>
+            <text x="75" y="56" font-size="12.5" fill="#56626E" text-anchor="middle">the baseline, at START</text>
+            <rect x="170" y="24" width="260" height="38" rx="5" fill="#1D6A73"/>
+            <text x="300" y="48" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">the session</text>
+            <rect x="450" y="16" width="150" height="54" rx="6" fill="#fff" stroke="#16202A" stroke-width="1.5"/>
+            <text x="525" y="38" font-size="16" font-weight="700" class="sg" text-anchor="middle">After</text>
+            <text x="525" y="56" font-size="12.5" fill="#56626E" text-anchor="middle">logged when it ends</text>
+            <path d="M75 72 V92 H525 V72" fill="none" stroke="#C8561F" stroke-width="2"/>
+            <text x="300" y="114" font-size="14" fill="#16202A" text-anchor="middle">each after-reading pairs with <tspan font-weight="700">its own session's</tspan> baseline </text>
+            <text x="300" y="132" font-size="12.5" fill="#56626E" text-anchor="middle">two measured sessions in a day are two pairs · afters carry the session's swelling,</text>
+            <text x="300" y="148" font-size="12.5" fill="#56626E" text-anchor="middle">so the trend keeps them on their own line, apart from the befores</text>
+          </svg>
+        </div>
+      </div>
+      <div class="panel small">
+        <h3>What the trainer does with the pairs</h3>
+        <div><b>Girth yield</b> <span class="muted">= (after − before) ÷ before × 100, from one girth session's own pair. Target: 6–12 % at every level, the swelling a session can't avoid included (at Level 1 a floor only). It moves the plan from Level 1 week 10 (traditional girth: from Level 2), and only after <b>3 sessions in a row</b> on the same side of the target. Since a session's at-rest screens offer only length, a yield pair is in practice standardised at both ends.</span></div>
+        <div><span class="muted">Left out: manual runs, sessions without their own baseline, and a girth baseline taken within 4 hours of the start of a length session (“after other work”). <span class="new">0.10</span> <span class="app">App's choice: the 4 hours</span></span></div>
+        <div><b>Length strain</b> <span class="muted">from bone-pressed <i>stretched</i> length (BPSSL): the newest length session's after-reading against its own before. Target 2–6 %: over 6 % asks you to measure again, under 2 % for a week asks what the block did. From month 3. <span class="app">App's choice: the window</span></span></div>
+        <div><b>Stretched against erect</b> <span class="muted">over 6 weeks: stretched length up more than 0.1 cm while erect length (BPEL) stays within 0.1 cm: the plan proposes a girth-focus block.</span></div>
+        <div><b>On target and rising</b> <span class="muted">at rest over 4 counted weeks: the calendar steps come half as often, with <b>Step up now</b>. <span class="new">0.10</span></span></div>
+        <div><b>Tracked readings this week</b> <span class="muted">shown against a target of 2. The count is for you; the plan doesn't act on it.</span></div>
+        <div style="border-top:1px solid #33414D;padding-top:2mm"><b>Tissue response test</b> <span class="muted">the app's own fill-time index from the same short pull before and after a session; changes under 4 % are normal variation. <b>Off by default</b> for new routines (existing ones keep what they had), turned on per routine: 20 kPa, 60 % speed, 45 s, before and after; a length session runs it after only, never deeper than its work. Skipped in the day's second session, and it <b>never moves the plan</b>.</span> <span class="app">App's choice</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>OpenPump · how measurements work</span><span>2</span></div>
+</section>
+
+<!-- ================= PAGE 3 ================= -->
+<section class="page">
+  <div class="top">
+    <span class="kick">Standardised pictures · the angle and the photo flow</span>
+    <h2>Same angle, same framing: photos you can line up over months</h2>
+  </div>
+  <div class="body">
+    <div class="cols2" style="grid-template-columns:1.08fr 1fr">
+      <div class="card">
+        <h3>The level bubble measures the phone against <i>your</i> saved angle</h3>
+        <svg viewBox="0 0 520 262" role="img" aria-label="Left: a phone seen from the side, tilted 40 degrees against a saved reference of 45 degrees; below, turn is the phone rolled about its long edge. Right: the bubble dial; the inner green ring is 2 degrees, the rim is 15 degrees.">
+          <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#C8561F"/></marker></defs>
+          <text x="0" y="16" font-size="15" font-weight="700" class="sg">Tilt</text>
+          <text x="36" y="16" font-size="13" fill="#56626E">top edge raised from flat</text>
+          <line x1="10" y1="170" x2="250" y2="170" stroke="#96A1AB"/>
+          <path d="M30 170 L175 25" stroke="#1D6A73" stroke-width="1.6" stroke-dasharray="6 4" fill="none"/>
+          <path d="M30 170 L186 39" stroke="none"/>
+          <g transform="rotate(-40 30 170)"><rect x="30" y="161" width="160" height="9" rx="3" fill="#16202A"/></g>
+          <path d="M120 170 A90 90 0 0 0 98.9 112.1" fill="none" stroke="#C8561F" stroke-width="2"/>
+          <text x="126" y="150" font-size="13.5" fill="#C8561F" font-weight="700">40° now</text>
+          <text x="182" y="30" font-size="13" fill="#1D6A73" font-weight="700">reference 45°</text>
+          <text x="10" y="190" font-size="12" fill="#56626E">0° = flat on a table · 90° = upright</text>
+          <text x="0" y="222" font-size="15" font-weight="700" class="sg">Turn</text>
+          <text x="40" y="222" font-size="13" fill="#56626E">the phone rolled about its long edge;</text>
+          <text x="40" y="239" font-size="13" fill="#56626E">both must match, or it is not the same photo</text>
+          <circle cx="410" cy="112" r="92" fill="#fff" stroke="#16202A" stroke-width="2"/>
+          <line x1="318" y1="112" x2="502" y2="112" stroke="#DCE2E6"/>
+          <line x1="410" y1="20" x2="410" y2="204" stroke="#DCE2E6"/>
+          <circle cx="410" cy="112" r="12.3" fill="none" stroke="#96A1AB" stroke-width="1.5"/>
+          <circle cx="440.7" cy="81.3" r="8" fill="#16202A"/>
+          <line x1="410" y1="112" x2="440.7" y2="81.3" stroke="#C8561F" stroke-dasharray="2 2"/>
+          <text x="410" y="224" font-size="12.5" fill="#56626E" text-anchor="middle">rim = 15° off · inner ring = 2°</text>
+          <text x="410" y="242" font-size="13" fill="#16202A" text-anchor="middle" font-weight="700">Δ tilt −5.0° · Δ turn +5.0°</text>
+          <text x="410" y="259" font-size="12.5" fill="#A23B32" text-anchor="middle">“Not level yet — aim for within 2°”</text>
+        </svg>
+        <ul class="tight small" style="margin-top:2mm">
+          <li><b>Calibrate once:</b> hold the phone the way you shoot (flat, 45°, upright, anything) and tap <b>Set current angle as the … reference</b>. It is saved at once; <b>Clear the reference angle</b> forgets it.</li>
+          <li><b>Green</b> means within <b>±2°</b> of the reference in <b>both</b> tilt and turn. The readout shows the difference (Δ), never the raw angle; before any reference is set it shows the phone's own angle and asks you to set one.</li>
+          <li>The dot moves <b>right</b> when you turn past the reference and <b>down</b> when you tilt past it, and turns green when level. The shutter lights up then, but never blocks you. Tilt and turn at the shutter are saved with the photo.</li>
+        </ul>
+      </div>
+      <div class="stack">
+        <div class="card small">
+          <h3>Four references, one per kind of photo</h3>
+          <table class="t" style="margin-top:1mm">
+            <tr><th></th><th>At rest</th><th>Standardised</th></tr>
+            <tr><td class="code">POV</td><td>own angle</td><td>own angle</td></tr>
+            <tr><td class="code">Side</td><td>own angle</td><td>own angle</td></tr>
+          </table>
+          <p class="tiny" style="margin-top:1.5mm">POV and Side are a quarter turn apart; a standardised shot has the cylinder in frame. Setting one never moves the others. Views are shot POV, then Side (old Top photos still show).</p>
+        </div>
+        <div class="card small">
+          <h3>What each photo is labelled</h3>
+          <div style="margin-top:.5mm">
+            <span class="pill">At rest</span><span class="pill">Standardised · −5.9 inHg</span><span class="pill">Held · for less than 30 s</span><span class="pill">Held · after the two minutes</span><span class="pill">▣ Imported</span>
+          </div>
+          <p class="muted" style="margin-top:1mm">By what was true at the shutter: standardised only once the count has finished and inside the two minutes, with the vacuum the pump reported. Other held photos are kept on their own; an import's angle and pressure are unknown.</p>
+        </div>
+        <div class="card small">
+          <h3>Photo during the hold <span class="muted" style="font-weight:400">· off by default</span></h3>
+          <p class="muted">Turned on, the camera opens while the pump holds, before you type the numbers, so the picture and the reading share one hold.</p>
+        </div>
+      </div>
+    </div>
+    <svg viewBox="0 0 1000 126" role="img" aria-label="The photo flow: level and frame, shoot or import, review label, align over the ghost, save, compare.">
+      <defs><marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#96A1AB"/></marker></defs>
+      <g font-size="11">
+        <rect x="0" y="6" width="150" height="118" rx="7" fill="#fff" stroke="#DCE2E6"/>
+        <text x="12" y="28" font-size="13" font-weight="700" class="sg">1 · Line up</text>
+        <text x="12" y="48" fill="#56626E">live camera with your</text><text x="12" y="63" fill="#56626E">cylinder's outline and</text><text x="12" y="78" fill="#56626E">the bubble in a corner</text>
+        <text x="12" y="98" fill="#96A1AB" font-size="10.5">(no live view: bubble</text><text x="12" y="112" fill="#96A1AB" font-size="10.5">first, then phone camera)</text>
+        <line x1="154" y1="65" x2="174" y2="65" stroke="#96A1AB" stroke-width="2" marker-end="url(#ah2)"/>
+        <rect x="178" y="6" width="150" height="118" rx="7" fill="#fff" stroke="#DCE2E6"/>
+        <text x="190" y="28" font-size="13" font-weight="700" class="sg">2 · Shoot</text>
+        <text x="190" y="48" fill="#56626E">or take one “From</text><text x="190" y="63" fill="#56626E">gallery” (copied in,</text><text x="190" y="78" fill="#56626E">marked Imported)</text>
+        <line x1="332" y1="65" x2="352" y2="65" stroke="#96A1AB" stroke-width="2" marker-end="url(#ah2)"/>
+        <rect x="356" y="6" width="150" height="118" rx="7" fill="#fff" stroke="#DCE2E6"/>
+        <text x="368" y="28" font-size="13" font-weight="700" class="sg">3 · Review</text>
+        <text x="368" y="48" fill="#56626E">its label, an optional</text><text x="368" y="63" fill="#56626E">note for this view only,</text><text x="368" y="78" fill="#56626E">retake or discard</text>
+        <line x1="510" y1="65" x2="530" y2="65" stroke="#96A1AB" stroke-width="2" marker-end="url(#ah2)"/>
+        <rect x="534" y="6" width="150" height="118" rx="7" fill="#fff" stroke="#1D6A73" stroke-width="1.8"/>
+        <text x="546" y="28" font-size="13" font-weight="700" class="sg" fill="#1D6A73">4 · Align</text>
+        <text x="546" y="48" fill="#56626E">drag, pinch, two-finger</text><text x="546" y="63" fill="#56626E">rotate over the outline</text><text x="546" y="78" fill="#56626E">and the ghost</text>
+        <line x1="688" y1="65" x2="708" y2="65" stroke="#96A1AB" stroke-width="2" marker-end="url(#ah2)"/>
+        <rect x="712" y="6" width="130" height="118" rx="7" fill="#fff" stroke="#DCE2E6"/>
+        <text x="724" y="28" font-size="13" font-weight="700" class="sg">5 · Save</text>
+        <text x="724" y="48" fill="#56626E">nothing is kept</text><text x="724" y="63" fill="#56626E">until Save; the</text><text x="724" y="78" fill="#56626E">alignment is baked</text><text x="724" y="93" fill="#56626E">into the picture</text>
+        <line x1="846" y1="65" x2="866" y2="65" stroke="#96A1AB" stroke-width="2" marker-end="url(#ah2)"/>
+        <rect x="870" y="6" width="130" height="118" rx="7" fill="#16202A"/>
+        <text x="882" y="28" font-size="13" font-weight="700" class="sg" fill="#fff">6 · Compare</text>
+        <text x="882" y="48" fill="#AEBBC4">two dates, same</text><text x="882" y="63" fill="#AEBBC4">view, same way</text><text x="882" y="78" fill="#AEBBC4">(next page)</text>
+      </g>
+    </svg>
+  </div>
+  <div class="foot"><span>OpenPump · how measurements work</span><span>3</span></div>
+</section>
+
+<!-- ================= PAGE 4 ================= -->
+<section class="page">
+  <div class="top">
+    <span class="kick">Standardised pictures · aligning, comparing, privacy · every setting</span>
+    <h2>Line it up, compare like with like, and it all stays on the phone</h2>
+  </div>
+  <div class="body">
+
+    <div class="cols3" style="grid-template-columns:1fr 1fr 1fr;gap:5mm">
+      <div class="card small">
+        <h3>The ghost</h3>
+        <svg viewBox="0 0 260 150" style="width:78%;margin:0 auto" role="img" aria-label="Align: the fixed cylinder outline, a faint ghost of the previous photo, and the new photo being moved onto it.">
+          <rect x="6" y="6" width="248" height="138" rx="6" fill="#16202A"/>
+          <rect x="70" y="30" width="120" height="92" rx="12" fill="none" stroke="#F5F7F8" stroke-opacity=".55" stroke-width="2" stroke-dasharray="6 4"/>
+          <rect x="94" y="52" width="72" height="48" rx="20" fill="#7DAFB5" fill-opacity=".35"/>
+          <rect x="110" y="44" width="72" height="48" rx="20" fill="none" stroke="#E59A74" stroke-width="2.5"/>
+          <path d="M122 68 L106 76" stroke="#E59A74" stroke-width="2" marker-end="url(#ah3)"/>
+          <defs><marker id="ah3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#E59A74"/></marker></defs>
+          <text x="16" y="24" font-size="10" fill="#AEBBC4">cylinder outline (fixed)</text>
+          <text x="16" y="138" font-size="10" fill="#7DAFB5">ghost · last photo, 35 %</text>
+          <text x="244" y="138" font-size="10" fill="#E59A74" text-anchor="end">new photo</text>
+        </svg>
+        <p class="muted" style="margin-top:1.5mm">The ghost is the most recent earlier photo of the <b>same view, taken the same way</b> (at rest or held). Its opacity slides, and “change ›” picks another date. <b>Save as default for this view</b> keeps your framing; <b>Match</b> snaps back to it.</p>
+      </div>
+        <div class="card small">
+          <h3>Comparing over time</h3>
+          <p class="muted">A month calendar shows a dot on each date with a photo of this view; pick two. Three ways to look: <b>Drag</b> (a seam wipes one into the other), <b>Side by side</b>, <b>Blink</b>. Only the same view, taken the same way, is paired; the screen says in one sentence whether the two readings compare and why, with the length and girth change and a rate per 30 days.</p>
+        </div>
+      <div class="card small">
+          <h3>Where photos live</h3>
+          <ul class="tight muted">
+            <li>On this phone only, in the app's own storage, hidden from the gallery. Gallery imports are copied in.</li>
+            <li>The release app has no internet permission (debug builds have it, for a developer's log console), and Android's cloud backup is off for it.</li>
+            <li>They leave only if you choose: <b>Include photos</b> in a PDF export (it asks first), or <b>Settings › Back up now</b>, a zip saved where you pick.</li>
+            <li>The debug log never holds photos or measurements. <b>Erase photos</b> deletes the images and keeps the readings.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding-bottom:2mm">
+      <h3>Every measurement and photo setting</h3>
+      <div class="cols2" style="gap:7mm"><table class="t"><tr><th>Setting</th><th>Default</th><th>What it changes</th></tr><tr><td>Hold before measuring</td><td class="n">On</td><td class="muted">Off: readings are taken at rest</td></tr><tr><td>Hold pressure</td><td class="n">20 kPa</td><td class="muted">5 kPa up to 57, or your ceiling if lower</td></tr><tr><td>Hold for</td><td class="n">30 s</td><td class="muted">the count before you measure, 10–60 s</td></tr><tr><td>Photo during the hold</td><td class="n">Off</td><td class="muted">the camera opens while the pump holds</td></tr><tr><td>Vent down to</td><td class="n">5 kPa</td><td class="muted">where the pump settles after the hold</td></tr><tr><td>Vent any hold after</td><td class="n">5 min</td><td class="muted">safety limit for every hold, 1–15 min</td></tr><tr><td>Measurement unit</td><td class="n">cm</td><td class="muted">display only; always stored in cm</td></tr><tr><td>Ask for measurements</td><td class="n">Sessions · 5</td><td class="muted">or Hours (10 h) / Week / Never</td></tr><tr><td>Remind me to measure</td><td class="n">Off · 19:30</td><td class="muted">one notice, only when due</td></tr></table><table class="t"><tr><th>Setting</th><th>Default</th><th>What it changes</th></tr><tr><td>Goals (3 series)</td><td class="n">none · 1 year</td><td class="muted">a pace line; horizon 6 m to 3 y</td></tr><tr><td>Blur photos and numbers</td><td class="n">Off</td><td class="muted">drawing only; files untouched</td></tr><tr><td>App lock</td><td class="n">Off</td><td class="muted">on: guards Photos and Measurements</td></tr><tr><td>Reference angle (4 slots)</td><td class="n">none</td><td class="muted">set on the camera screen</td></tr><tr><td>Framing per view</td><td class="n">none</td><td class="muted">saved while aligning</td></tr><tr><td>Photos in PDF export</td><td class="n">Off</td><td class="muted">asks before photos go into the report</td></tr><tr><td>Tissue response test</td><td class="n">Off · 20 kPa</td><td class="muted">per routine: 60 % speed, 45 s, before + after</td></tr></table></div>
+    </div>
+  <div class="foot"><span>OpenPump · how measurements work · read from the 0.10 code</span><span>4</span></div>
+</section>
+
+<!-- ================= PAGE 5 ================= -->
+<section class="page">
+  <div class="top">
+    <span class="kick">What a measurement log entry stores</span>
+    <h2>One entry per reading, and one photo record per view when there is a picture</h2>
+  </div>
+  <div class="body">
+    <div style="display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:6mm;align-items:start">
+      <div class="card">
+        <h3>The reading <span class="muted" style="font-weight:400">· the same fields with or without a picture</span></h3>
+        <table class="t m"><tr><th style="width:40mm">Stored variable</th><th style="width:15mm">Std</th><th style="width:15mm">Rest · len</th><th style="width:15mm">Rest · girth</th><th>Notes</th></tr><tr><td>Entry id<code>id</code></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td class="nt">names the files</td></tr><tr><td>Date and time<code>ts</code></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td class="nt">photos share it</td></tr><tr><td>Day label<code>label</code></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td class="nt"></td></tr><tr><td>Method<code>method</code></td><td>0 = Std</td><td>1–5</td><td>6–7</td><td class="nt">the series it is drawn on</td></tr><tr><td>Before / after<code>phase</code></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td class="nt">set in a session</td></tr><tr><td>Pair link<code>pair</code></td><td><span class="if">afters</span></td><td><span class="if">afters</span></td><td><span class="dash">—</span></td><td class="nt">written only when set</td></tr><tr><td>Length, cm<code>len</code></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="dash">—</span></td><td class="nt">unmeasured = 0</td></tr><tr><td>Girth, cm<code>gir</code></td><td><span class="yes">✓</span></td><td><span class="dash">—</span></td><td><span class="yes">✓</span></td><td class="nt"></td></tr><tr><td>Hold pressure, set<code>holdKpa</code></td><td><span class="yes">✓</span></td><td><span class="dash">—</span></td><td><span class="dash">—</span></td><td class="nt"></td></tr><tr><td>Hold time, set<code>holdSec</code></td><td><span class="yes">✓</span></td><td><span class="dash">—</span></td><td><span class="dash">—</span></td><td class="nt">−1 when no hold</td></tr><tr><td>Reported vacuum<code>observedKpa</code></td><td><span class="if">if fresh</span></td><td><span class="dash">—</span></td><td><span class="dash">—</span></td><td class="nt">for comparing</td></tr><tr><td>Erect / soft<code>state</code></td><td><span class="dash">—</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td class="nt">from the method</td></tr><tr><td>Cylinder<code>cyl · cylId</code></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td class="nt">index and stable id</td></tr><tr><td>Note<code>note</code></td><td><span class="if">if typed</span></td><td><span class="if">if typed</span></td><td><span class="if">if typed</span></td><td class="nt">empty on afters</td></tr><tr><td>Edited later<code>edited</code></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td class="nt">true once changed</td></tr><tr><td>Has a photo<code>photo</code></td><td><b>no</b> / <b>yes</b></td><td><b>no</b> / <b>yes</b></td><td><b>no</b> / <b>yes</b></td><td class="nt">without / with</td></tr><tr><td>Photo records<code>photoFront/Side</code></td><td><span class="if">with picture</span></td><td><span class="if">with picture</span></td><td><span class="if">with picture</span></td><td class="nt">POV, Side</td></tr></table>
+        <p class="tiny" style="margin-top:1.5mm">A hold that was skipped, or not served, files as method 0 with no hold fields and no state, so it compares with nothing. Several at-rest rows saved together become one entry each, at one time, sharing the same photos.</p>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3>What a picture adds <span class="muted" style="font-weight:400">· inside photoFront / photoSide</span></h3>
+          <table class="t m"><tr><th>Per photo, per view</th><th>At rest</th><th>Std</th><th>Held only</th><th>Imported</th></tr><tr><td>Image file<code>path</code></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td></tr><tr><td>Note for this view<code>note</code></td><td><span class="if">if typed</span></td><td><span class="if">if typed</span></td><td><span class="if">if typed</span></td><td><span class="if">if typed</span></td></tr><tr><td>Time<code>ts</code></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td></tr><tr><td>Vacuum reported<code>kpa</code></td><td><span class="if">if fresh</span></td><td><span class="if">if fresh</span></td><td><span class="if">if fresh</span></td><td><span class="if">if fresh</span></td></tr><tr><td>Hold on at capture<code>held</code></td><td>no</td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="dash">—</span></td></tr><tr><td>Standardised<code>std</code></td><td>no</td><td><span class="yes">✓</span></td><td>no</td><td><span class="dash">—</span></td></tr><tr><td>Std pressure<code>skpa</code></td><td><span class="dash">—</span></td><td><span class="yes">✓</span></td><td><span class="dash">—</span></td><td><span class="dash">—</span></td></tr><tr><td>Hold pressure<code>hkpa</code></td><td><span class="dash">—</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="dash">—</span></td></tr><tr><td>From the gallery<code>gal</code></td><td>no</td><td>no</td><td>no</td><td><b>yes</b></td></tr><tr><td>Tilt, turn<code>tilt turn</code></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="dash">—</span></td></tr><tr><td>Align transform<code>ez er ex ey</code></td><td><span class="if">if aligned</span></td><td><span class="if">if aligned</span></td><td><span class="if">if aligned</span></td><td><span class="dash">—</span></td></tr></table>
+          <p class="tiny" style="margin-top:1.5mm">Not in the record: the image itself, a thumbnail, the reference angle (a setting per view and way), the on-screen label (worked out from these fields) or “Photo during the hold” (a setting; it shows up as held / standardised).</p>
+        </div>
+        <div class="card small">
+          <h3>Where it all lives, and what leaves</h3>
+          <ul class="tight muted">
+            <li><b>The log</b> is part of the app's data file on the phone (<code>model.json</code>); a photo entry holds only its file's location.</li>
+            <li><b>The images</b> are files named <code>reading-&lt;id&gt;-front.jpg</code> / <code>-side.jpg</code> in the app's own picture folder, hidden from the gallery.</li>
+            <li><b>Back up now</b>: a zip of the data file, the run history and every photo. <b>CSV export</b>: time, length, girth, hold and reported vacuum, method, before/after and a yes/no per view; no notes, cylinder, pair link or images. <b>PDF</b>: photos only when ticked.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>OpenPump · how measurements work · read from the 0.10 code</span><span>5</span></div>
+</section>
+
+<section class="page dev">
+  <div class="top"><span class="kick"><span class="devtag">For developers</span> Appendix A1 · measurements in the 0.10 code</span><h2>The stored record: fields, versions, ids and safe writing</h2></div>
+  <div class="body">
+    <div class="g3" style="grid-template-columns:1.05fr 0.95fr 1fr">
+      <div class="card"><h3><span class="k">1</span>Reading · <code>Model.Reading</code></h3><div class="dt"><table class="f"><tr><th>JSON key</th><th>Type · unit</th><th>When missing</th></tr><tr><td>id</td><td>string</td><td>""</td></tr><tr><td>label</td><td>string, day label</td><td>""</td></tr><tr><td>ts</td><td>long ms epoch, as string</td><td>0</td></tr><tr><td>len</td><td>double cm, as string</td><td>0 (= not measured)</td></tr><tr><td>gir</td><td>double cm, as string</td><td>0</td></tr><tr><td>cyl</td><td>int, cylinder index</td><td>−1 (unknown)</td></tr><tr><td>cylId</td><td>string, cylinder id</td><td>"" → rebuilt from cyl</td></tr><tr><td>note</td><td>string</td><td>""</td></tr><tr><td>holdKpa</td><td>kPa, commanded; "" = none</td><td>null (no hold)</td></tr><tr><td>holdSec</td><td>int s; −1 = none</td><td>null</td></tr><tr><td>observedKpa</td><td>kPa, pump-reported at the count's end; ""</td><td>null (unknown)</td></tr><tr><td>okAt</td><td>"count" · "save" <span class="new">0.10</span></td><td>null, as stored (at Save)</td></tr><tr><td>state</td><td>hard · soft · unknown</td><td>unknown</td></tr><tr><td>phase</td><td>0 unknown · 1 before · 2 after</td><td>0, drawn on the before line</td></tr><tr><td>method</td><td>0 Std · 1–5 length · 6–7 girth</td><td>0 = Std</td></tr><tr><td>pair</td><td>before-reading id, or "-" <span class="new">0.10</span></td><td>"" → pairs by day</td></tr><tr><td>photo</td><td>bool, any view</td><td>false</td></tr><tr><td>edited</td><td>bool</td><td>false</td></tr><tr><td>photoFront, photoSide, photoTop</td><td>[ Photo ], one-element array</td><td>absent = no photo</td></tr></table><p class="src" style="margin-top:1mm">Model.Reading · toJson · fromJson</p></div></div>
+      <div class="col">
+      <div class="card"><h3><span class="k">1</span>Photo · <code>Model.Reading.Photo</code></h3><div class="dt"><table class="f"><tr><th>JSON key</th><th>Type · unit</th><th>When missing</th></tr><tr><td>path</td><td>absolute file path</td><td>""</td></tr><tr><td>note</td><td>string, this view only</td><td>""</td></tr><tr><td>kpa</td><td>kPa reported when armed</td><td>null</td></tr><tr><td>ts</td><td>long ms (the reading's)</td><td>0</td></tr><tr><td>gal</td><td>bool, imported</td><td>false</td></tr><tr><td>tilt, turn</td><td>degrees at the shutter</td><td>null</td></tr><tr><td>ez er ex ey</td><td>zoom ×fit · clockwise ° · pan px</td><td>null (unknown)</td></tr><tr><td>held</td><td>"1" · "0" · ""</td><td>null (unknown)</td></tr><tr><td>std</td><td>"1" · "0" · ""</td><td>null → the reading's kind</td></tr><tr><td>skpa</td><td>kPa, served hold</td><td>null</td></tr><tr><td>hkpa</td><td>kPa, any hold</td><td>null</td></tr></table><p class="src" style="margin-top:1mm">Model.Reading.Photo · toJson · Shot.photoRecord</p></div></div>
+      <div class="card"><h3><span class="k">2</span>Schema and migrations</h3><div class="dt"><ul>
+<li>No schema version for readings or photos. Every key is read with a default when absent (the right-hand columns). Numbers are written as strings because the desktop JSON shim has no <code>optDouble</code>.</li>
+<li>Old readings: no <code>method</code> → Std; no <code>phase</code> → unknown; no <code>observedKpa</code> → unknown, never copied from <code>holdKpa</code>; no <code>pair</code> → day pairing; no <code>okAt</code> → vacuum kept as stored; <code>cylId</code> rebuilt from <code>cyl</code> on load (<code>Model#linkReadingCylinders</code>).</li>
+<li>Unknown keys are kept <span class="new">0.10</span>: top level, readings and photos write back unchanged every key the loader never asked for (<code>JsonKeep</code>, invariant 221).</li>
+<li>Harness: <code>core/src/test/java/Migrate.java</code>, fixture <code>migrate/main-every-kind.json</code>.</li></ul></div></div>
+      </div>
+      <div class="col">
+      <div class="card"><h3><span class="k">3</span>Ids, pairs and deletes</h3><div class="dt"><ul>
+<li>Id = <code>"m" + epoch ms</code>, reserved before the hold (<code>MeasureScreens.beginBaseline</code>) so photos shot during it carry it. An at-rest batch: the first row keeps the id, the rest get <code>id-m&lt;method&gt;</code>, sharing one time and the same photo files.</li>
+<li>A session after-reading gets <code>pair = Meas.pairFor(session)</code>: the session's baseline id, or <code>"-"</code> when it took none. It does not reset the cadence.</li>
+<li>Delete a before: its after pairs with nothing, never a borrowed figure (<code>Meas.prePostPct</code>). Delete any reading: its photo files go too, unless another reading uses the same path (<code>Gallery.pathInUse</code>).</li></ul></div></div>
+      <div class="card"><h3><span class="k">5</span>Write safety</h3><div class="dt"><ul>
+<li><code>Store.save</code> (app/Store.java) → <code>AtomicFile.save</code>: writes <code>model.json.tmp</code>, fsyncs it (<code>getFD().sync()</code>), then renames over <code>model.json</code> <span class="new">0.10</span>. The same for <code>asrun.json</code>, <code>tau.json</code> and a restore's staged photos. A power cut loses at most the save in progress. A refused write keeps the old file; a refused rename falls back to a synced direct write (invariant 220).</li>
+<li>An unreadable <code>model.json</code> is renamed to <code>model.json.unreadable-&lt;time&gt;</code> and the app starts fresh beside it.</li>
+<li>Photos hit disk at capture, before the reading is saved. Leaving a capture deletes only the files it made that no saved reading uses (<code>PhotoDiscard</code>, invariant 85). At each start, after the load, <code>StrayPhotos</code> deletes <code>reading-&lt;id&gt;-*.jpg</code> files no reading has the id of or refers to, that no open capture is making and that are over 24 h old; never on an empty library or an unreadable store; logs a count only <span class="new">0.10</span> (invariant 222).</li></ul></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>OpenPump · developer appendix · files in core/…/org/openpump unless marked app/</span><span>6</span></div>
+</section>
+<section class="page dev">
+  <div class="top"><span class="kick"><span class="devtag">For developers</span> Appendix A2 · measurements in the 0.10 code</span><h2>Hold, vacuum, clocks, the camera pipeline and privacy</h2></div>
+  <div class="body">
+    <div class="g3">
+      <div class="col">
+      <div class="card"><h3><span class="k">6</span>Standardised hold on the pump</h3><div class="dt"><p>See <code>docs/pump-control-guide.md</code> §9 “The measurement hold”, §5 “0.0 means no measurement” and §10 “Stopping and venting”.</p><ul>
+<li>9 × <code>66 2A 2A 00</code>, one Add at 60 % speed with the hold pressure for the count, the same pressure for 1 s, then <code>66 2A 2C 00</code>. Defaults: <code>66 2A 2B 99 14 1E 14 01</code>. The pump repeats the cycle.</li>
+<li>The count runs only while readings are at target (within 5 % or 0.5 kPa, whichever is larger). Then two minutes, counted until Save (<code>HoldWindow.WINDOW_MS</code> = 120 000).</li>
+<li>Vents at the hold limit (1–15 min, 5 default, monotonic clock), when telemetry is quiet 5 s, when the app is left, or before another app's camera or share sheet opens. Release: STOP, move on at or below 5 kPa.</li></ul></div></div>
+      <div class="card"><h3><span class="k">7</span>The recorded vacuum</h3><div class="dt"><ul>
+<li>Taken at the end of the count <span class="new">0.10</span> (<code>StdMoment</code>): the tick that opens the two minutes samples <code>observedNowOrNull()</code> → <code>Session.freshBaselineKpa</code> (under 600 ms old, wall clock, device measuring). Save uses it (<code>fileObservedKpa</code>); the value at Save only if it was null; <code>okAt</code> says which. A 0.0 sample means “not measuring”, never a pressure.</li>
+<li>Photo: inside a served hold's two minutes, the count-end value; otherwise at the shutter. Both by <code>PhotoTruth.shutterKpa</code>, under 5 s old on the hold's monotonic clock (invariants 126, 223).</li>
+<li>Comparable: both have a hold, same tag, both reported values known, <code>|a − b| ≤ 1.0</code> kPa on the count-end values (<code>Model.Reading.COMPARABLE_TOLERANCE_KPA</code>, <code>Model.Reading.comparable</code>). <code>holdSec</code> is not compared.</li></ul></div></div>
+      </div>
+      <div class="col">
+      <div class="card"><h3><span class="k">8</span>Clocks and days</h3><div class="dt"><ul>
+<li>Reading <code>ts</code> = <code>System.currentTimeMillis()</code> at Save (baseline, after). The Log screen uses the picked date and time, or the hold's start; a future time is refused. A photo's <code>ts</code> is its reading's.</li>
+<li>Hold limits, the two minutes and photo freshness run on a monotonic clock.</li>
+<li>“Same day” = <code>PhotoCalendar.dayKey</code>: device-local calendar YYYYMMDD. Windows are rolling, <code>ts ≥ now − N × 86 400 000</code> (<code>MeasLog.window</code>). CSV times are local, without offset.</li></ul></div></div>
+      <div class="card"><h3><span class="k">12</span>Tilt sensor</h3><div class="dt"><ul>
+<li><code>TYPE_ACCELEROMETER</code> at <code>SENSOR_DELAY_UI</code>; low-pass α = 0.15, the first sample seeds it (<code>Level.ALPHA</code>).</li>
+<li>pitch = atan2(a<sub>y</sub>, √(a<sub>x</sub>² + a<sub>z</sub>²)); roll = atan2(−a<sub>x</sub>, a<sub>z</sub>). Level = |Δ| ≤ 2° on both axes; bubble = Δ ÷ 15, clamped to ±1; x = Δturn, y = Δtilt (down = tilted further).</li>
+<li>References in <code>model.json</code>: <code>angPovRestP/R</code>, <code>angPovStdP/R</code>, <code>angSideRestP/R</code>, <code>angSideStdP/R</code>, falling back to the legacy <code>calibPitch/Roll</code>. Old Top photos use the POV slot.</li></ul></div></div>
+      <div class="card"><h3><span class="k">16</span>Privacy boundaries</h3><div class="dt"><ul>
+<li>No INTERNET permission in the release build (the debug manifest adds it for the log console); <code>allowBackup="false"</code>. The debug log never holds measurements, photos, typed names or photo paths.</li>
+<li>Out only by the person: Export (CSV; PDF with photos only if ticked) through a one-file <code>content://</code> link, or the backup zip.</li>
+<li><code>FLAG_SECURE</code> = <code>Model.secureWindow</code>, off by default; it is incognito's “recents” switch, not in the master's first set. Blur only changes drawing; app lock stops screens being built.</li></ul></div></div>
+      </div>
+      <div class="col">
+      <div class="card"><h3><span class="k">4</span>Photo files</h3><div class="dt"><ul>
+<li><code>reading-&lt;id&gt;-front|side|top.jpg</code> (<code>Shot.filename</code>) in <code>getExternalFilesDir(Pictures)</code> with a <code>.nomedia</code> marker; scratch file <code>capture-pending.jpg</code> via authority <code>org.openpump.capture</code>.</li>
+<li><code>CameraScreen.saveFinal</code> (app/CameraScreen.java): JPEG quality 90, from a bitmap downsampled by powers of two to ≤ 1000 px on the long edge (<code>Photos.decodeOriented</code>). The in-app capture asks the camera for ≥ 1080 px.</li>
+<li>EXIF: <code>compress</code> writes none; <code>stampUpright</code> adds only Orientation = Normal. No location. Imports are re-encoded the same way, so their EXIF is dropped.</li></ul></div></div>
+      <div class="card"><h3><span class="k">13</span>Align transform</h3><div class="dt"><ul>
+<li><code>Align.T</code>: zoom × fit (0.5–4), rotation clockwise, clamped ±90°, pan in frame px (≤ half a frame). Matrix order: centre → scale(fit·zoom) → rotate → frame centre + pan.</li>
+<li>Baked into the pixels before saving; <code>ez er ex ey</code> are a record only and never re-applied, so Compare draws the file as is. Per-view default match: 5 % zoom, 2°, 8 px.</li></ul></div></div>
+      <div class="card"><h3><span class="k">14</span>Capture paths</h3><div class="dt"><ul>
+<li>In-app camera2 preview (≤ 1920 px) with outline and dial. Any failure falls back to the system camera (<code>ACTION_IMAGE_CAPTURE</code> into the scratch file); a camera app that returns only a thumbnail gets that thumbnail used.</li>
+<li>Permission off: a card offering the gallery and the app's settings (settings not offered while holding, since leaving vents).</li>
+<li>Import: <code>ACTION_OPEN_DOCUMENT</code> image/* (fallback <code>ACTION_PICK</code>), copied, decoded; <code>gal</code> = true, and no tilt, held, skpa or hkpa.</li></ul></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>OpenPump · developer appendix · files in core/…/org/openpump unless marked app/</span><span>7</span></div>
+</section>
+<section class="page dev">
+  <div class="top"><span class="kick"><span class="devtag">For developers</span> Appendix A3 · measurements in the 0.10 code</span><h2>Formulas, tests, exports, code map and open points</h2></div>
+  <div class="body">
+    <div class="g3">
+      <div class="col">
+      <div class="card"><h3><span class="k">9</span>Formulas</h3><div class="dt"><ul>
+<li><b>Pair %</b> = (to − from) ÷ from × 100; none if either ≤ 0 (<code>Meas.pairPct</code>).</li>
+<li><b>Strain</b> = the newest comparable BPSSL pair % from a length session that pulled, at most 7 days old (<code>Meas.strainPct</code>); <b>fatigue</b> = the mean over 21 days, shown only.</li>
+<li><b>Yield</b> = Δgirth ÷ (after − Δgirth) × 100 from the session record, i.e. (after − before) ÷ before × 100; needs this session's own baseline.</li>
+<li><b>Divergence</b>: over 6 × 7 days, cold readings only (not afters), newest − oldest: BPSSL &gt; 0.1 cm and BPEL ≤ 0.1 cm, with two of each (<code>Meas.stretchOutrunningErect</code>).</li>
+<li>No rounding inside these calculations.</li></ul></div></div>
+      <div class="card"><h3><span class="k">10</span>Windows and exclusions</h3><div class="dt"><ul>
+<li>Yield streak (<code>TrainerTab.yieldStreaks</code>), newest first: skips manual runs, other tracks, sessions without a yield, and “after other work” (a baseline &lt; 4 h after a plan length session's start). Stops at <code>yieldSinceMs</code>, so it restarts after each change; 3 in a row acts (<code>Plan.YIELD_DEBOUNCE</code>), from L1 week 10 (traditional: L2).</li>
+<li>Length: strain &gt; 6 % → measure again, twice → −0.5 lb (floor 5 lb); &lt; 2 % for 7 days (<code>strainMissDays</code>) → a week off if the block reached 2 %, else +1 set.</li>
+<li>Tissue test skipped when the other track already ran today (<code>SameDay.tissueTestSkipped</code>).</li></ul></div></div>
+      <div class="card"><h3><span class="k">?</span>Not confirmed in the code</h3><div class="dt"><ul>
+<li>The version each field arrived in, except <code>pair</code> (0.10).</li>
+<li>How yield, strain and fatigue are rounded for display.</li>
+<li>The pixel size of an aligned, saved photo.</li>
+<li>Whether the align stage runs for an imported image (a comment says imports carry no transform).</li>
+<li>How fast a hold coasts.</li></ul></div></div>
+      </div>
+      <div class="col">
+      <div class="card"><h3><span class="k">11</span>Tests that pin them</h3><div class="dt"><table class="f"><tr><th>Test</th><th>Pins</th></tr>
+<tr><td>TrackMeasurementTest</td><td>strain, yield targets, pair links, after-other-work</td></tr>
+<tr><td>SelfTest</td><td>fatigue, miss days, divergence, Level, Align</td></tr>
+<tr><td>ComparableClassTest</td><td>comparable() and its reasons</td></tr>
+<tr><td>ComparableRunsTest</td><td>pairing within comparable runs</td></tr>
+<tr><td>YieldSetsTest</td><td>yield streaks and set changes</td></tr>
+<tr><td>ReadingsCsvTest</td><td>readings.csv cells</td></tr>
+<tr><td>CaptureFacts, PhotoHeld, PhotoStandardised, PhotoTruth, PhotoDiscard (…Test)</td><td>photo record; discards</td></tr>
+<tr><td>BackupRebaseTest</td><td>restored photo paths</td></tr>
+<tr><td>AtomicFile, UnknownKeys, StrayPhotos, StdMoment (…Test)</td><td>the 0.10 data fixes</td></tr>
+<tr><td>Migrate, TrainerGuideDocTest</td><td>old files; the guide's numbers</td></tr></table>
+<p style="margin-top:1mm">All: <code>./gradlew test</code> (selfTest, migrateCheck, wiringCheck, scenarioCheck, then JUnit). One: <code>./gradlew :core:test --tests org.openpump.TrackMeasurementTest</code>.</p></div></div>
+      <div class="card"><h3><span class="k">18</span>Known limits</h3><div class="dt"><ul>
+<li>The pump coasts in a long hold (rate unmeasured). Since 0.10 the vacuum is taken at the count's end, so drift in the two minutes no longer moves it. <i>Inferred.</i></li>
+<li>An import records the live vacuum if one is fresh, though the image was not taken then (<code>CaptureFacts.commitTo</code> passes it).</li>
+<li>Force-stopped during a hold, nothing is left to vent.</li></ul></div></div>
+      </div>
+      <div class="col">
+      <div class="card"><h3><span class="k">15</span>Exports, backup, restore</h3><div class="dt"><ul>
+<li><code>readings.csv</code> (<code>Export.readingsCsv</code>): ts_iso (local), len_cm and gir_cm (blank when not measured or 0), display pair and unit, hold_kpa, observed_kpa, has_front/side/top, method (STD or code), phase (before / after / blank), kind (standardised / at_rest / no_hold). No id, note, cylinder, holdSec, state, pair or paths.</li>
+<li>Backup zip: <code>model.json</code>, <code>asrun.json</code>, <code>photos/reading-*.jpg</code>.</li>
+<li>Restore asks twice. It validates in memory, stages photos in <code>.restore-staging</code>, deletes photos not in the backup, renames the staged ones in, swaps both JSON files by tmp + rename and re-points paths. It replaces everything; nothing is merged.</li></ul></div></div>
+      <div class="card"><h3><span class="k">17</span>Code map</h3><div class="dt"><table class="f"><tr><th>Feature</th><th>Where</th></tr>
+<tr><td>record</td><td>Model.Reading, Model.MeasLog, JsonKeep</td></tr>
+<tr><td>formulas</td><td>Meas, TrainerTab, Plan</td></tr>
+<tr><td>hold</td><td>HoldWindow, Session, StdMoment</td></tr>
+<tr><td>screens</td><td>app/MeasureScreens, app/SessionActivity</td></tr>
+<tr><td>camera</td><td>app/CameraScreen, Align, Level, Shot, CaptureFacts, PhotoTruth</td></tr>
+<tr><td>photos</td><td>app/CompareScreen, Compare, PhotoCalendar, app/Photos, PhotoDiscard, StrayPhotos</td></tr>
+<tr><td>export</td><td>Export, Backup, app/Store, AtomicFile</td></tr></table>
+<p style="margin-top:1mm">WiringCheck invariants: 54 steppers match saves · 69, 99 photo during the hold · 70, 97 two minutes until Save · 71 after-reading by its own hold · 82–86 capture and discard · 88 photo grouping · 89 smoothing · 101 CSV and pairing · 125, 126 capture facts, shutter vacuum · 220–223 durable save, kept keys, stray photos, count-end vacuum.</p></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>OpenPump · developer appendix · files in core/…/org/openpump unless marked app/</span><span>8</span></div>
+</section>
+</body>
+</html>

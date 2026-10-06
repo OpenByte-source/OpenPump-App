@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Suggest an idea, or vote on one
+    url: https://github.com/OpenByte-source/OpenPump-App/discussions/categories/ideas
+    about: Ideas live in Discussions, where everyone can vote with ▲ and the most wanted rise to the top.
+  - name: Ask a question
+    url: https://github.com/OpenByte-source/OpenPump-App/discussions/categories/q-a
+    about: How something works, or whether your pump could be supported.
+  - name: Report a safety or security problem privately
+    url: https://github.com/OpenByte-source/OpenPump-App/security/advisories/new
+    about: Pressure above the ceiling, a stop that doesn't vent, a run that won't stop, or a security hole. Please don't post these in public.

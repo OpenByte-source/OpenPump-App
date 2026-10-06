@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12: the system's own splash - its icon is the app's real launcher icon unless
+         the theme names another, and an app may name one at runtime only from Android 13
+         (values-v33). So here the icon is left blank on the dark ground (incognito, 0.10):
+         it can never show the real logo under a disguise. -->
+    <style name="AppSplashTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_plain</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowSplashScreenBackground">#05070a</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+    </style>
+</resources>

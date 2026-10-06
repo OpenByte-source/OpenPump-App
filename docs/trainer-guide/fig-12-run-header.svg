@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 430" width="760" height="430" role="img" aria-label="The run screen in a rest" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title>The run screen in a rest</title>
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5d6470"/></marker></defs>
+<rect x="0.5" y="0.5" width="759" height="429" rx="10" fill="#fbfaf7" stroke="#d9d4ca"/>
+<text x="20.0" y="26.0" font-size="13" fill="#5d6470" text-anchor="start" font-weight="600" >The run screen in a rest (a sketch, not a screenshot)</text>
+<rect x="40.0" y="44.0" width="300.0" height="370.0" rx="14" fill="#15171b" stroke="none" />
+<rect x="56" y="60" width="44" height="10" rx="3" fill="#7CC4F2"/>
+<rect x="104" y="60" width="96" height="10" rx="3" fill="#D4F53C"/>
+<rect x="138" y="60" width="2" height="10" fill="#15171b"/><rect x="170" y="60" width="2" height="10" fill="#15171b"/>
+<rect x="204" y="60" width="40" height="10" rx="3" fill="#2b3566"/>
+<rect x="204" y="60" width="16" height="10" rx="3" fill="#6D8BFF"/>
+<rect x="203" y="59" width="42" height="12" rx="3" fill="none" stroke="#e8ecef" stroke-width="1.5"/>
+<rect x="248" y="60" width="76" height="10" rx="3" fill="#3a4410"/>
+<text x="56.0" y="88.0" font-size="10" fill="#9aa2ae" text-anchor="start">now: <tspan fill="#6D8BFF" font-weight="700">Rest</tspan> · next: Work</text>
+<rect x="56.0" y="98.0" width="268.0" height="26.0" rx="8" fill="#6D8BFF" />
+<text x="66.0" y="115.0" font-size="10.5" fill="#07090D" text-anchor="start" font-weight="700" letter-spacing="0.5">REST · PULL IN 1:46</text>
+<text x="316.0" y="115.0" font-size="10.5" fill="#07090D" text-anchor="end" font-family="monospace">17:44 / 29:55</text>
+<rect x="56.0" y="132.0" width="268.0" height="82.0" rx="8" fill="#232830" />
+<text x="68.0" y="150.0" font-size="10" fill="#e4e6ea" font-weight="600">REST</text>
+<text x="68.0" y="176.0" font-size="26" fill="#6D8BFF" font-family="monospace">1:46</text>
+<text x="68.0" y="192.0" font-size="9.5" fill="#9aa2ae">next: set 6 · 2:00 at −8.0 inHg</text>
+<text x="68.0" y="206.0" font-size="9" fill="#9aa2ae">Girth L1 · vented</text>
+<rect x="56.0" y="222.0" width="268.0" height="66.0" rx="8" fill="#232830" />
+<text x="64.0" y="235.0" font-size="8" fill="#9aa2ae" letter-spacing="0.6">PRESSURE · LIVE</text>
+<text x="316.0" y="236.0" font-size="10.5" fill="#6D8BFF" text-anchor="end" font-weight="600">vented</text>
+<rect x="120.0" y="242.0" width="100.0" height="42.0" fill="#6D8BFF" fill-opacity="0.18"/>
+<text x="124.0" y="254.0" font-size="9" fill="#6D8BFF" font-weight="700">REST · 1:46 left</text>
+<line x1="120" y1="282" x2="160" y2="282" stroke="#6D8BFF" stroke-width="3"/>
+<path d="M160 282 L220 282 L236 250 L316 250" fill="none" stroke="#8a94a6" stroke-width="1.5" stroke-dasharray="2 4"/>
+<rect x="56.0" y="296.0" width="268.0" height="56.0" rx="8" fill="#10141B" />
+<text x="64.0" y="308.0" font-size="8" fill="#9aa2ae" letter-spacing="0.6">THIS REST · CUFF VENTED</text>
+<rect x="62.0" y="314.0" width="256.0" height="32.0" rx="7" fill="#171C26" />
+<rect x="62.0" y="314.0" width="32.0" height="32.0" rx="7" fill="#1F2530" />
+<rect x="286.0" y="314.0" width="32.0" height="32.0" rx="7" fill="#1F2530" />
+<text x="78.0" y="335.0" font-size="17" fill="#eef2f7" text-anchor="middle">−</text>
+<text x="302.0" y="335.0" font-size="17" fill="#eef2f7" text-anchor="middle">+</text>
+<text x="190.0" y="326.0" font-size="8" fill="#9aa2ae" text-anchor="middle">Rest length</text>
+<text x="190.0" y="340.0" font-size="12" fill="#eef2f7" text-anchor="middle" font-family="monospace">2:30</text>
+<rect x="56.0" y="358.0" width="86.0" height="22.0" rx="7" fill="#F0A63C" fill-opacity="0.06" />
+<text x="99.0" y="373.0" font-size="10.5" fill="#F0A63C" fill-opacity="0.4" text-anchor="middle" font-weight="600">Pause</text>
+<rect x="146.0" y="358.0" width="86.0" height="22.0" rx="7" fill="#171C26" />
+<text x="189.0" y="373.0" font-size="10.5" fill="#eef2f7" text-anchor="middle" font-weight="600">End rest</text>
+<rect x="236.0" y="358.0" width="88.0" height="22.0" rx="7" fill="#171C26" />
+<text x="280.0" y="373.0" font-size="10.5" fill="#eef2f7" text-anchor="middle" font-weight="600">+30 s rest</text>
+<rect x="56.0" y="386.0" width="268.0" height="20.0" rx="7" fill="#F0564C" />
+<text x="190.0" y="400.0" font-size="10.5" fill="#1A0404" text-anchor="middle">STOP · vent now</text>
+<line x1="330.0" y1="65.0" x2="360.0" y2="62.0" stroke="#1d5bb8" stroke-width="1.2" marker-end="url(#arr)"/>
+<text x="368.0" y="58.0" font-size="12" fill="#1c1e22">The stage bar: sized by time, one part per set,</text>
+<text x="368.0" y="74.0" font-size="12" fill="#1c1e22">the stage playing outlined. Under it: now … · next ….</text>
+<line x1="330.0" y1="111.0" x2="360.0" y2="111.0" stroke="#1d5bb8" stroke-width="1.2" marker-end="url(#arr)"/>
+<text x="368.0" y="106.0" font-size="12" fill="#1c1e22">The status line names the phase, never the pressure;</text>
+<text x="368.0" y="122.0" font-size="12" fill="#1c1e22">time since the routine started / its planned total.</text>
+<line x1="330.0" y1="172.0" x2="360.0" y2="172.0" stroke="#1d5bb8" stroke-width="1.2" marker-end="url(#arr)"/>
+<text x="368.0" y="166.0" font-size="12" fill="#1c1e22">NOW: the time left in this step and what comes next.</text>
+<text x="368.0" y="182.0" font-size="12" fill="#1c1e22">In a rest it reads REST once, and vented.</text>
+<line x1="330.0" y1="256.0" x2="360.0" y2="256.0" stroke="#1d5bb8" stroke-width="1.2" marker-end="url(#arr)"/>
+<text x="368.0" y="246.0" font-size="12" fill="#1c1e22">The chart: the live reading at its top right (vented in a</text>
+<text x="368.0" y="262.0" font-size="12" fill="#1c1e22">rest), the line in the step's colour. A rest is hatched,</text>
+<text x="368.0" y="278.0" font-size="12" fill="#1c1e22">with a dotted ramp for when the next pull comes.</text>
+<line x1="330.0" y1="325.0" x2="360.0" y2="325.0" stroke="#1d5bb8" stroke-width="1.2" marker-end="url(#arr)"/>
+<text x="368.0" y="316.0" font-size="12" fill="#1c1e22">The − / + strip: changes the step that is playing, at once,</text>
+<text x="368.0" y="332.0" font-size="12" fill="#1c1e22">without restarting its countdown. Pinned here (the default)</text>
+<text x="368.0" y="348.0" font-size="12" fill="#1c1e22">or, by a setting, under the chart.</text>
+<line x1="330.0" y1="369.0" x2="360.0" y2="372.0" stroke="#1d5bb8" stroke-width="1.2" marker-end="url(#arr)"/>
+<text x="368.0" y="374.0" font-size="12" fill="#1c1e22">The buttons: Pause first (greyed in a rest: the cuff is</text>
+<text x="368.0" y="390.0" font-size="12" fill="#1c1e22">vented), then End rest and +30 s rest. STOP under them.</text>
+</svg>

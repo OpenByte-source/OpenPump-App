@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" width="760" height="360" role="img" aria-label="Load against pressure for three erect girths" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title>Load against pressure for three erect girths</title>
+<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#f1eee7"/><line x1="0" y1="0" x2="0" y2="7" stroke="#b8b1a3" stroke-width="2.5"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5d6470"/></marker></defs>
+<rect x="0.5" y="0.5" width="759" height="359" rx="10" fill="#fbfaf7" stroke="#d9d4ca"/>
+<text x="20.0" y="26.0" font-size="13" fill="#5d6470" text-anchor="start" font-weight="600" >The pull a pressure makes, by erect girth (an upper bound)</text>
+<line x1="70.0" y1="310.0" x2="70.0" y2="60.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="70.0" y="328.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >0</text>
+<line x1="198.0" y1="310.0" x2="198.0" y2="60.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="198.0" y="328.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >3</text>
+<line x1="326.0" y1="310.0" x2="326.0" y2="60.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="326.0" y="328.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >6</text>
+<line x1="454.0" y1="310.0" x2="454.0" y2="60.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="454.0" y="328.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >9</text>
+<line x1="582.0" y1="310.0" x2="582.0" y2="60.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="582.0" y="328.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >12</text>
+<line x1="710.0" y1="310.0" x2="710.0" y2="60.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="710.0" y="328.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >15</text>
+<line x1="70.0" y1="310.0" x2="710.0" y2="310.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="62.0" y="314.0" font-size="12" fill="#5d6470" text-anchor="end" font-weight="normal" >0</text>
+<line x1="70.0" y1="268.3" x2="710.0" y2="268.3" stroke="#e7e2d8" stroke-width="1" />
+<text x="62.0" y="272.3" font-size="12" fill="#5d6470" text-anchor="end" font-weight="normal" >3</text>
+<line x1="70.0" y1="226.7" x2="710.0" y2="226.7" stroke="#e7e2d8" stroke-width="1" />
+<text x="62.0" y="230.7" font-size="12" fill="#5d6470" text-anchor="end" font-weight="normal" >6</text>
+<line x1="70.0" y1="185.0" x2="710.0" y2="185.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="62.0" y="189.0" font-size="12" fill="#5d6470" text-anchor="end" font-weight="normal" >9</text>
+<line x1="70.0" y1="143.3" x2="710.0" y2="143.3" stroke="#e7e2d8" stroke-width="1" />
+<text x="62.0" y="147.3" font-size="12" fill="#5d6470" text-anchor="end" font-weight="normal" >12</text>
+<line x1="70.0" y1="101.7" x2="710.0" y2="101.7" stroke="#e7e2d8" stroke-width="1" />
+<text x="62.0" y="105.7" font-size="12" fill="#5d6470" text-anchor="end" font-weight="normal" >15</text>
+<line x1="70.0" y1="60.0" x2="710.0" y2="60.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="62.0" y="64.0" font-size="12" fill="#5d6470" text-anchor="end" font-weight="normal" >18</text>
+<text x="390.0" y="348.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >pressure, hg</text>
+<text x="24.0" y="185.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" transform="rotate(-90 24 185.0)">pull, lb</text>
+<line x1="70.0" y1="254.4" x2="710.0" y2="254.4" stroke="#a4462f" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="78.0" y="248.4" font-size="12" fill="#a4462f" text-anchor="start" font-weight="600" >4 lb: most in the first month</text>
+<line x1="70.0" y1="143.3" x2="710.0" y2="143.3" stroke="#a4462f" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="78.0" y="137.3" font-size="12" fill="#a4462f" text-anchor="start" font-weight="600" >12 lb: the plan's cap</text>
+<line x1="70.0" y1="310.0" x2="710.0" y2="145.1" stroke="#6f9ad6" stroke-width="2.4" />
+<line x1="70.0" y1="310.0" x2="710.0" y2="106.4" stroke="#1d5bb8" stroke-width="2.4" />
+<line x1="70.0" y1="310.0" x2="710.0" y2="63.7" stroke="#12346b" stroke-width="2.4" />
+<line x1="82.0" y1="74.0" x2="106.0" y2="74.0" stroke="#6f9ad6" stroke-width="2.4" />
+<text x="114.0" y="78.0" font-size="12" fill="#1c1e22" text-anchor="start" font-weight="normal" >4.5 in erect girth: 0.79 lb per hg, 11.9 lb at 15 hg</text>
+<line x1="82.0" y1="92.0" x2="106.0" y2="92.0" stroke="#1d5bb8" stroke-width="2.4" />
+<text x="114.0" y="96.0" font-size="12" fill="#1c1e22" text-anchor="start" font-weight="normal" >5.0 in erect girth: 0.98 lb per hg, 14.7 lb at 15 hg</text>
+<line x1="82.0" y1="110.0" x2="106.0" y2="110.0" stroke="#12346b" stroke-width="2.4" />
+<text x="114.0" y="114.0" font-size="12" fill="#1c1e22" text-anchor="start" font-weight="normal" >5.5 in erect girth: 1.18 lb per hg, 17.7 lb at 15 hg</text>
+<line x1="70.0" y1="310.0" x2="710.0" y2="310.0" stroke="#1c1e22" stroke-width="1" />
+<line x1="70.0" y1="310.0" x2="70.0" y2="60.0" stroke="#1c1e22" stroke-width="1" />
+</svg>

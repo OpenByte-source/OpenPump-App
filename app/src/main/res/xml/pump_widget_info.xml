@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     WIDGET METADATA (Stage D task 10, N2 — dist/round5-options.html #n2, decision
+     "B — LIVE 4x2 TILE"). Registered via the <meta-data android:name=
+     "android.appwidget.provider"> entry on PumpWidgetProvider in AndroidManifest.xml. Like
+     res/xml/shortcuts.xml, a platform-required resource, not a screen — see that file's
+     own comment and widget_pump.xml's.
+
+     SIZE: 4x2 cells. minWidth/minHeight use the classic pre-O formula, cells*70dp-30dp
+     (4*70-30=250, 2*70-30=110), which is what every launcher still honours on API < 26.
+     targetCellWidth/Height (API 26+) state the same 4x2 directly and are simply ignored
+     on older devices — the same "silently absent below the API it needs" degrade
+     shortcuts.xml already relies on for its own API floor.
+
+     updatePeriodMillis=1800000 (30 minutes) is Android's OWN ENFORCED FLOOR — asking for
+     anything shorter still only calls onUpdate every 30 minutes, so this is honest about
+     what the manifest path actually buys: a periodic self-heal (see PumpWidgetProvider's
+     onUpdate/buildViews, which cross-checks the persisted snapshot against
+     RunService.isRunning() before ever trusting it) for the rare case where the process
+     died mid-run without RunService.onDestroy running to push idle itself. THE LIVE,
+     PER-SECOND UPDATES DURING AN ACTUAL RUN NEVER GO THROUGH THIS PATH AT ALL — those are
+     RunService's own Tick pushing straight to AppWidgetManager.updateAppWidget on the same
+     cadence it already re-posts the notification.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="90dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_pump"
+    android:previewImage="@mipmap/ic_launcher"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_pump_description" />

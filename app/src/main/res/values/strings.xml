@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App shortcuts (Stage D task 1, N3 — long-press the launcher icon). Static
+         shortcuts require these as resource strings, not literal attribute text, so
+         they live here rather than inline in shortcuts.xml. -->
+    <string name="shortcut_start_last_short">Start last routine</string>
+    <string name="shortcut_start_last_long">Start last routine</string>
+    <string name="shortcut_log_measurement_short">Log measurement</string>
+    <string name="shortcut_log_measurement_long">Log a measurement</string>
+    <string name="shortcut_progress_photos_short">Progress photos</string>
+    <string name="shortcut_progress_photos_long">Progress photos</string>
+
+    <!-- Home-screen widget (Stage D task 10, N2). Shown in the launcher's widget picker,
+         under the widget's preview. -->
+    <string name="widget_pump_description">Shows the live run and jumps back into the app.</string>
+</resources>

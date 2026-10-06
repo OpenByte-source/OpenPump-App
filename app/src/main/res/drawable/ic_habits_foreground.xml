@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- INCOGNITO (0.10): the "Habits" icon's mark - a check mark in a rounded square, the plain
+     look of any habit or to-do tracker. Drawn on the 108dp canvas inside the 66dp safe zone
+     (34..74) every launcher mask keeps. Strokes only, so it is also the themed (monochrome)
+     layer: only alpha matters there. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M44,34 H64 A10,10 0 0 1 74,44 V64 A10,10 0 0 1 64,74 H44 A10,10 0 0 1 34,64 V44 A10,10 0 0 1 44,34 Z"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="4.4"
+        android:strokeLineJoin="round" android:fillColor="#00000000" />
+    <path android:pathData="M43.5,54.5 L51,62 L65,46.5"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="5"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+</vector>

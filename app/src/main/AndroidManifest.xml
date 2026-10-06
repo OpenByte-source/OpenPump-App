@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Legacy (<= API 30) -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"
+        android:maxSdkVersion="30" />
+
+    <!-- API 31+.
+         neverForLocation (0x00010000) is REQUIRED here: without it Android 12+
+         additionally demands ACCESS_FINE_LOCATION to return any scan result, and
+         this app caps location at API 30. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+
+    <!-- Photo capture (Task 7, then Task 14's in-app viewfinder). CameraScreen now drives a
+         camera2 LIVE PREVIEW on the pre-capture screen, so the level bubble and the alignment
+         silhouette are drawn on the frame that is actually captured rather than on the screen
+         before it — which needs CAMERA, declared here and requested at the point of use.
+
+         THE COST OF DECLARING IT, stated plainly: with CAMERA declared-but-NOT-granted the
+         system also refuses ACTION_IMAGE_CAPTURE, so the system-camera fallback needs the
+         same grant. CameraScreen therefore asks once, and a refusal leaves "From gallery"
+         (which needs no camera at all) as the working way to fill a slot. The fallback still
+         exists for every OTHER failure — no camera2 device, a session that will not
+         configure, a shutter that does not fire — which is what actually happened on the
+         user's device the first time this preview was attempted.
+
+         Photos are written to app-private external storage (getExternalFilesDir), which needs
+         no storage permission on minSdk. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
+    <!-- Android 11+ package visibility: without this, resolveActivity() and
+         queryIntentActivities() for ACTION_IMAGE_CAPTURE return null/empty even when a
+         camera app exists, so the app could neither confirm a camera is present nor grant
+         it write access to the capture file. -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <!-- "From gallery" asks resolveActivity() before launching the picker. On API 30+
+             that answer is filtered by package visibility, so without these two entries it
+             was always "no photo app" and the button did nothing. -->
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT" />
+            <category android:name="android.intent.category.OPENABLE" />
+            <data android:mimeType="image/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.PICK" />
+            <data android:mimeType="image/*" />
+        </intent>
+    </queries>
+
+    <!-- run-screen haptics: the 3/2/1 countdown ticks and the preset-change buzz. A
+         normal permission, granted at install, no runtime prompt. It gives the app no
+         access to anything it can read - only the ability to buzz the phone - and the
+         feature is a Settings toggle the user can turn off. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Training reminders (opt-in, off by default).
+         POST_NOTIFICATIONS is a RUNTIME permission on API 33+; it is requested at the
+         moment the Settings toggle is turned on, with a rationale, and if it is denied the
+         toggle goes back off rather than sitting on while nothing can ever appear.
+         RECEIVE_BOOT_COMPLETED because AlarmManager drops every alarm across a reboot —
+         without it a user who restarts their phone silently stops being reminded.
+         The training reminders still use a plain inexact AlarmManager.set: one that lands
+         a few minutes late under Doze has lost nothing. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- THE RING TIMER'S "take it off" (0.10) is a safety notice, and it is an EXACT alarm
+         (setExactAndAllowWhileIdle, RingTimer) so it arrives on time with the app's process
+         frozen or gone. SCHEDULE_EXACT_ALARM, with no maxSdkVersion: granted at install on
+         API 31-33, off by default for a new install on 34+ (Android 14), where the ring card says so
+         in plain words and opens "Alarms & reminders"; until then the alarm is inexact, never
+         missing. Below 31 no permission is needed. USE_EXACT_ALARM is deliberately NOT
+         declared: Play keeps it for apps whose core job is an alarm clock or a calendar. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- FIX ROUND B — the live run survives leaving the app.
+         Until this, onStop() aborted and vented on every exit from the foreground,
+         because a backgrounded Activity cannot be relied on to keep driving the pump and
+         the user would have no handle on a run they can no longer see. A FOREGROUND
+         SERVICE (RunService) supplies both: the process stops being an ordinary
+         background candidate, and the ongoing notification is the handle, with STOP and
+         HOLD (T7) buttons wired to the same finishSession(true) / hold-toggle chokepoints
+         the on-screen STOP and HOLD already use.
+
+         connectedDevice is the honest type: the whole reason the process must stay alive
+         is that it is holding a GATT connection to the pump and sequencing presets over
+         it. FOREGROUND_SERVICE_CONNECTED_DEVICE is the API 34 companion permission for
+         that type — without it startForeground() throws on target 34 and the service
+         never becomes a handle at all. WAKE_LOCK is the partial wakelock that keeps the
+         Activity's Handler ticks (the sequencer, the run heartbeat's link watchdog and
+         the vent watch's retries) running with the screen off.
+
+         POST_NOTIFICATIONS is NOT declared again here — the training reminder already
+         declares it above, and it is the same runtime permission. If it is denied the
+         service still starts and the run still continues; Android suppresses the
+         notification's visibility rather than refusing the foreground start, and the app
+         warns with a toast at that point. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Battery-killer protection (Stage E task 3, T18, dist/round7-options.html —
+         "guided exemption in setup + pre-run check; service-killed detection re-offers").
+         DELIBERATELY NO android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS declared
+         here. That permission only gates the DIRECT single-app request Intent
+         (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS), which Google Play's Developer
+         Program Policy restricts to a short, specific list of app categories a manual
+         review has to confirm; this build has not been through that review. The app uses
+         the PICKER-TO-SETTINGS Intent instead (ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+         — the same general "Battery optimization" list Settings already exposes for every
+         app), which needs no permission declaration at all. See SessionActivity's
+         openBatteryExemptionSettings() for the full reasoning behind that choice. -->
+
+    <!-- App lock (Task 6, S16+) — android.hardware.biometrics.BiometricPrompt (the
+         PLATFORM API this build uses; no androidx.biometric on this classpath — see
+         SessionActivity's own import-block note) requires this NORMAL permission,
+         granted at install with no runtime prompt. Declared unconditionally: the app only
+         calls into BiometricPrompt behind a Build.VERSION.SDK_INT >= 28 guard, but a
+         normal permission the platform ignores below the API level it applies to costs
+         nothing to declare for every device. Below API 28, and whenever biometric
+         hardware/enrollment is unavailable, the challenge falls back to
+         KeyguardManager.createConfirmDeviceCredentialIntent, which needs no permission
+         declaration at all. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+    <!-- debuggable: FALSE is the shipped default, and build.sh only rewrites it for
+         a deliberate `build.sh` debuggable build. On a debuggable APK anyone
+         with ADB access can attach a debugger and read the app's private data, which
+         here is body measurements and photographs; a body-photo app does not stay
+         permanently debuggable because it was convenient during bring-up. This is
+         not what gates `adb logcat` or the log pull — both still work. -->
+    <!-- android:theme — belt-and-braces DARK. With no android:theme at all the app
+         inherited the platform default (Theme.DeviceDefault.Light.DarkActionBar), which is
+         why every AlertDialog came up as a WHITE card with blue buttons in the middle of a
+         black instrument app. Every dialog now goes through Ui.dialog(), which asks for the
+         dark alert theme explicitly; this line is the backstop for anything ever added
+         without going through it, and for the window background behind a screen that has
+         not painted itself yet.
+         CHECKED against the existing header: the action bar was already DARK under
+         ...Light.DarkActionBar and stays dark here, so the app bar does not change; neither
+         theme sets a status-bar colour, so the status bar is untouched; and every screen
+         paints its own root background, so the window background under it is never seen.
+         Theme.DeviceDefault is a FRAMEWORK style constant, not an XML layout or any
+         resource this project authors. -->
+    <application
+        android:label="OpenPump"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+        android:allowBackup="false">
+        <!-- A rotation DESTROYS an Activity by default, and a destroyed Activity is an
+             exit from a live run: the pump session ends, and (fix round 1) has to be
+             filed as an abort from onDestroy because nothing else can. Two layers stop
+             an ordinary rotation from being that exit at all:
+
+             screenOrientation — the console is laid out only as a PORTRAIT COLUMN in a
+             ScrollView, built entirely in code (proto/pump-console.html's frame); there
+             is no landscape layout anywhere and nothing measures for one. That is the
+             whole rationale. It is deliberately NOT the camera: CameraScreen now applies
+             a real display-rotation and aspect transform (applyPreviewTransform), so the
+             viewfinder is not what the lock is protecting — and before Task 14, when it
+             applied no transform at all, portrait was the MISMATCHED case rather than
+             the protected one, because a sensor-native landscape buffer was being
+             stretched into portrait bounds. Arguing the lock from the camera had it
+             backwards in both eras.
+
+             sensorPortrait, not portrait: plain `portrait` forbids the 180 flip, so a
+             phone in an inverted dock or a charging cradle is upside down with no
+             in-app escape. This is an app used with both hands occupied, so mounting
+             rigs are a real case, and CameraScreen corrects the preview for the 180
+             case explicitly (PreviewGeom.previewCorrectionDeg).
+
+             configChanges — Android 12+ may ignore the orientation request on large
+             screens, and multi-window/foldable resizes are not orientation changes at
+             all. Handling them ourselves is safe here precisely because there are no XML
+             layouts or resource qualifiers to reload (the app builds every view in
+             code), so the running screen simply re-measures.
+
+             FINAL REVIEW: uiMode|fontScale|density|locale were ADDED for exactly that
+             reason. The list used to stop at keyboardHidden while the block below named
+             uiMode, density, font-scale and locale as the destroys onDestroy has to
+             clean up after — i.e. the four the same paragraph argues are free to absorb
+             here. A scheduled Dark theme switchover is a uiMode change that arrives with
+             NO user action at all: mid-hold, it destroyed the Activity, filed the run as
+             an abort the user never asked for, wrote a last-resort Proto.stop() that
+             link.close() discards in the same main-thread turn, and brought the app back
+             up on Today with a fresh Session that reads "nothing outstanding" — with the
+             pump still on its preset. Absorbing it costs nothing (no XML layouts, no
+             resource qualifiers, every view built in code) and removes the only
+             UNATTENDED trigger of that whole chain. The screen simply re-measures; a
+             font-scale or locale change is not re-read anywhere because nothing is
+             loaded from resources.
+
+             WHAT THE onDestroy FILING RELIABLY COVERS, stated honestly because it used
+             to claim more: in-process destroys — an explicit finish(), and any recreate
+             configChanges does not absorb (the four named above no longer reach it). A
+             TASK SWIPE IS NOT ON THAT LIST. Android does not guarantee onDestroy when an
+             app is swiped away from Recents; the process can simply be killed, and that
+             run is lost exactly as it was before the fix. Closing that needs safety state
+             persisted outside the Activity — see docs/BUILD.md. -->
+        <!-- ONE SCREEN (re-review 4, HIGH). SessionActivity owns the pump's one link, the run
+             and the hold. It was a standard activity: an intent that did not match the task's
+             root intent (the run's notification after a shortcut launch, the launcher icon
+             after one, the Play Store's "Open") stacked a SECOND instance, which took
+             RunService away from the running one, opened a second PumpLink, and let the
+             service stop - the running screen's run or hold went on with no foreground, no
+             STOP and no kill protection. singleTask: every intent reaches the one instance,
+             through onNewIntent (ScreenEntry decides what it may do - never a second run or
+             hold). singleTop was not enough: it catches a duplicate only when the screen is on
+             top of its task, and only for the intents this app builds itself. The cost, taken
+             knowingly: an entry into the app clears an activity this screen started above it
+             (the phone's camera app, a picker, a settings screen) - the screen underneath is
+             the one that is running. A duplicate that gets past this finishes itself before it
+             touches anything (SessionActivity#anotherScreenIsLive, WiringCheck invariant 108;
+             OneScreenManifestTest pins this attribute). -->
+        <activity
+            android:name=".SessionActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="sensorPortrait"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|fontScale|density|locale|layoutDirection"
+            android:theme="@style/AppSplashTheme"
+            android:label="OpenPump" />
+
+        <!-- THE LAUNCHER ENTRIES (incognito, 0.10, the owner's decision): the home-screen icon
+             and name are "OpenPump" or one of three disguises - "Fitness log", "Habits",
+             "Notes" (the owner, 2026-09-28) - one activity-alias each, EXACTLY ONE enabled at
+             a time (Incognito#LAUNCHERS, in the order declared here). Settings › Privacy
+             switches them with PackageManager setComponentEnabledSetting(DONT_KILL_APP),
+             enabling the chosen one BEFORE disabling every other, so there is never a moment
+             with no way into the app
+             (IncognitoShell#applyLauncher, WiringCheck invariant 194). Only the real one is
+             enabled here, so a fresh install and every upgrade show the real icon.
+
+             All four are aliases of LauncherTrampoline, NOT of SessionActivity (the incognito safety
+             review, I1). Disabling an alias makes Android remove every task whose ROOT INTENT
+             names it - DONT_KILL_APP spares the process, not the task - and a task opened from
+             the icon keeps the alias as its intent. Aimed at SessionActivity, switching the icon
+             removed the running screen's own task: its onDestroy sent the last stop and dropped
+             the vent watch, and one-time safety messages went unread. The trampoline shows
+             nothing and starts the one singleTask SessionActivity by name (its task, its
+             onNewIntent - invariants 108/109), so the screen's task is rooted by SessionActivity
+             and no alias switch can match it; a switch removes only the trampoline's empty task
+             (WiringCheck invariant 198). The launcher intent-filter lives ONLY here -
+             SessionActivity and the trampoline have none, or the drawer would show a third,
+             undisguised icon (OneScreenManifestTest).
+
+             Static app shortcuts (Stage D task 1, N3) — long-press the launcher icon for
+             "Start last routine" / "Log measurement" / "Progress photos". Android reads them
+             from the ENABLED launcher entry only, so each alias carries its own file (each
+             disguise's with its own icon, Incognito#DISGUISE_SHORTCUTS); every one targets
+             ShortcutTrampoline (invariant 118). ShortcutManager needs API 25+; below that (this app's minSdk is 24) the OS
+             simply never reads this meta-data, which is the correct degrade, not a crash.
+
+             Android's own Settings › Apps and the notification header still say "OpenPump":
+             that is the application label, which an app cannot change while it runs, and
+             Settings › Privacy says so. -->
+        <!-- THE LAUNCHER ENTRIES' TRAMPOLINE (the incognito safety review, I1), declared before
+             the aliases that target it, as Android requires. Its OWN taskAffinity, no history,
+             out of Recents, Theme.NoDisplay: it starts the one SessionActivity by name and
+             finishes (LauncherTrampoline, WiringCheck invariant 198, OneScreenManifestTest).
+             Exported like SessionActivity, which already takes the launcher's intent: nothing
+             new is reachable. -->
+        <activity
+            android:name=".LauncherTrampoline"
+            android:exported="true"
+            android:taskAffinity="org.openpump.launcher"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <activity-alias
+            android:name=".LauncherOpenPump"
+            android:targetActivity=".LauncherTrampoline"
+            android:enabled="true"
+            android:exported="true"
+            android:label="OpenPump"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherFitnessLog"
+            android:targetActivity=".LauncherTrampoline"
+            android:enabled="false"
+            android:exported="true"
+            android:label="Fitness log"
+            android:icon="@mipmap/ic_fitness"
+            android:roundIcon="@mipmap/ic_fitness_round">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts_fitness" />
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherHabits"
+            android:targetActivity=".LauncherTrampoline"
+            android:enabled="false"
+            android:exported="true"
+            android:label="Habits"
+            android:icon="@mipmap/ic_habits"
+            android:roundIcon="@mipmap/ic_habits_round">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts_habits" />
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherNotes"
+            android:targetActivity=".LauncherTrampoline"
+            android:enabled="false"
+            android:exported="true"
+            android:label="Notes"
+            android:icon="@mipmap/ic_notes"
+            android:roundIcon="@mipmap/ic_notes_round">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts_notes" />
+        </activity-alias>
+
+        <!-- THE DISGUISES' LOCK HOSTS (incognito, 0.10; the owner, 2026-09-28: the lock must
+             show the disguise's logo "and not the original app logo"). Newer Android draws the
+             ASKING activity's icon and name on its fingerprint prompt and its PIN screen; asked
+             from SessionActivity that is the real logo and "OpenPump". So while a disguise is
+             on, SessionActivity asks from that disguise's host instead - one per disguise
+             (Incognito#DISGUISE_LOCK_HOSTS, in the same order), each with the disguise's own
+             label and icon, the same pair its launcher entry shows (OneScreenManifestTest).
+             Translucent, drawing nothing, in the screen's own task above it only while it
+             asks; not exported - only SessionActivity starts one (LockHost, WiringCheck
+             invariant 233). configChanges so a turn of the phone does not restart the
+             question. No launcher filter: they are never an icon. -->
+        <activity
+            android:name=".LockHost$FitnessLog"
+            android:exported="false"
+            android:label="Fitness log"
+            android:icon="@mipmap/ic_fitness"
+            android:roundIcon="@mipmap/ic_fitness_round"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|fontScale|density|locale|layoutDirection" />
+        <activity
+            android:name=".LockHost$Habits"
+            android:exported="false"
+            android:label="Habits"
+            android:icon="@mipmap/ic_habits"
+            android:roundIcon="@mipmap/ic_habits_round"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|fontScale|density|locale|layoutDirection" />
+        <activity
+            android:name=".LockHost$Notes"
+            android:exported="false"
+            android:label="Notes"
+            android:icon="@mipmap/ic_notes"
+            android:roundIcon="@mipmap/ic_notes_round"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|fontScale|density|locale|layoutDirection" />
+
+        <!-- THE SHORTCUTS' TRAMPOLINE (re-review 4). Android starts a static shortcut with
+             NEW_TASK | CLEAR_TASK. Aimed at SessionActivity, that cleared the running screen's
+             task - and its onDestroy sent the stop, ending a run or hold from a long-press.
+             The shortcuts aim here instead. Its OWN taskAffinity means CLEAR_TASK clears only
+             its own task; it shows nothing (Theme.NoDisplay), keeps no history and stays out of
+             Recents; it forwards the shortcut's action to the one SessionActivity and
+             finishes (WiringCheck invariant 118, OneScreenManifestTest). Exported like
+             SessionActivity, which already takes the same extra: nothing new is reachable. -->
+        <activity
+            android:name=".ShortcutTrampoline"
+            android:exported="true"
+            android:taskAffinity="org.openpump.shortcut"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <!-- The diagnostic console (MainActivity) is NOT declared here. It is in debug
+             builds only - its class and its <activity> both live in src/debug - so the
+             release APK carries neither. See src/debug/AndroidManifest.xml. -->
+
+        <!-- The training reminder. exported=false for the alarm itself (only this app's
+             own PendingIntent targets it); the BOOT_COMPLETED filter is what the system
+             needs to deliver a reboot, and the receiver re-reads the saved schedule on
+             every delivery rather than trusting the Intent. -->
+        <receiver
+            android:name=".ReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- The ring timer's alarm (RingTimer). exported=false: only this app's own
+             PendingIntent fires it. BOOT_COMPLETED sets a still-running timer again after a
+             reboot (or says at once that it ran out); the exact-alarm permission's change
+             turns a pending inexact alarm exact. Its own receiver, so the notice never waits
+             on the reminders' model load. -->
+        <receiver
+            android:name=".RingTimerReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- The lifecycle+notification shell that keeps a live run, seal check,
+             assessment, validation routine, hardware self-test or measurement hold (H1, the
+             safety review: the hold's limit must fire on time) going while the app is
+             off screen. exported=false: nothing outside this app has any business
+             starting it, and its only action (RUN_STOP) is delivered by a PendingIntent
+             this app builds for its own notification. It owns NO GATT connection — see
+             RunService's class comment for why a second link owner was refused. -->
+        <service
+            android:name=".RunService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false" />
+
+        <!-- Home-screen widget (Stage D task 10, N2 — dist/round5-options.html #n2,
+             decision B). exported=true because the broadcast it listens for
+             (APPWIDGET_UPDATE) is delivered by the system/launcher, not by this app —
+             the same reason every other <receiver>/<service> here is exported=false and
+             this one alone is not: this is the sole component in the manifest whose
+             caller is legitimately outside the app. It owns no GATT connection and no
+             session state of its own; see PumpWidgetProvider's own class comment and
+             RunService's "THE WIDGET" section for what feeds it and how. -->
+        <receiver
+            android:name=".PumpWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/pump_widget_info" />
+        </receiver>
+
+        <!-- Serves log files as content:// so WhatsApp/Gmail can attach them.
+             file:// would throw FileUriExposedException on API 24+. -->
+        <provider
+            android:name=".LogProvider"
+            android:authorities="org.openpump.logs"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
+        <!-- Hands the system camera (ACTION_IMAGE_CAPTURE, EXTRA_OUTPUT) a WRITABLE
+             descriptor for ONE scratch file in app-private external Pictures. A separate
+             authority and separate containment from LogProvider (CapturePaths, not
+             LogPaths) so the write path can never touch a log or a committed photo, and the
+             log-read path can never touch a photo. exported=false + a per-capture write
+             grant only. -->
+        <provider
+            android:name=".CaptureProvider"
+            android:authorities="org.openpump.capture"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
+        <!-- Serves the user's own DATA EXPORT (files/export/*.csv|*.pdf) — the files the
+             Progress › Export sheet just wrote, which deliberately DO contain
+             measurements, unlike the debug log (LogProvider), which never does. A third
+             authority and a third containment rule (Export.mimeFor + isDirectChildOf on
+             getFilesDir()/export) so neither log nor photo paths can ever be served
+             here, and export files can never be served as "just a log" there.
+             exported=false + per-share read grants only. -->
+        <provider
+            android:name=".ExportProvider"
+            android:authorities="org.openpump.export"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

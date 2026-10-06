@@ -1,0 +1,26 @@
+name: New pump request
+description: Help add support for another pump
+labels: [new-pump]
+body:
+  - type: markdown
+    attributes:
+      value: "Thank you! Please share captures and observations only — never the manufacturer's app, code or text copied from it. See docs/adding-a-pump.md."
+  - type: input
+    id: model
+    attributes:
+      label: Make and model
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Name it advertises over Bluetooth
+  - type: textarea
+    id: capture
+    attributes:
+      label: Capture and notes
+      description: "An extract of a Bluetooth snoop log of its own app starting, changing pressure and stopping: only the pump's packets, as a text list, with the addresses replaced by PUMP and PHONE and any ID, serial number or name replaced by XX. Add a short timeline of what you did. Please don't attach the raw log: it holds every Bluetooth device around you. How: docs/adding-a-pump.md, steps 3 and 10."
+  - type: textarea
+    id: telemetry
+    attributes:
+      label: Does it report pressure back? How often?

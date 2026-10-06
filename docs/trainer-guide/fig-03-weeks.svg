@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 290" width="760" height="290" role="img" aria-label="Four example weeks" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title>Four example weeks</title>
+<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#f1eee7"/><line x1="0" y1="0" x2="0" y2="7" stroke="#b8b1a3" stroke-width="2.5"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5d6470"/></marker></defs>
+<rect x="0.5" y="0.5" width="759" height="289" rx="10" fill="#fbfaf7" stroke="#d9d4ca"/>
+<text x="20.0" y="26.0" font-size="13" fill="#5d6470" text-anchor="start" font-weight="600" >Four example weeks (Monday to Sunday); a filled day had a session from the plan</text>
+<text x="140.0" y="52.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Mon</text>
+<text x="186.0" y="52.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Tue</text>
+<text x="232.0" y="52.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Wed</text>
+<text x="278.0" y="52.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Thu</text>
+<text x="324.0" y="52.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Fri</text>
+<text x="370.0" y="52.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Sat</text>
+<text x="416.0" y="52.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Sun</text>
+<text x="20.0" y="90.0" font-size="13" fill="#1c1e22" text-anchor="start" font-weight="600" >Week A</text>
+<rect x="120.0" y="64.0" width="40.0" height="38.0" rx="5" fill="#2f7d4f" stroke="#d9d4ca" />
+<rect x="166.0" y="64.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="212.0" y="64.0" width="40.0" height="38.0" rx="5" fill="#2f7d4f" stroke="#d9d4ca" />
+<rect x="258.0" y="64.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="304.0" y="64.0" width="40.0" height="38.0" rx="5" fill="#2f7d4f" stroke="#d9d4ca" />
+<rect x="350.0" y="64.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="396.0" y="64.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<text x="456.0" y="89.0" font-size="13" fill="#2f7d4f" text-anchor="start" font-weight="600" >3 days (or 2 full sessions): it counts</text>
+<text x="20.0" y="142.0" font-size="13" fill="#1c1e22" text-anchor="start" font-weight="600" >Week B</text>
+<rect x="120.0" y="116.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="166.0" y="116.0" width="40.0" height="38.0" rx="5" fill="#2f7d4f" stroke="#d9d4ca" />
+<rect x="212.0" y="116.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="258.0" y="116.0" width="40.0" height="38.0" rx="5" fill="#2f7d4f" stroke="#d9d4ca" />
+<rect x="304.0" y="116.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="350.0" y="116.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="396.0" y="116.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<text x="456.0" y="141.0" font-size="13" fill="#5d6470" text-anchor="start" font-weight="600" >2 short days: doesn't count, blocks nothing</text>
+<text x="20.0" y="194.0" font-size="13" fill="#1c1e22" text-anchor="start" font-weight="600" >Week C</text>
+<rect x="120.0" y="168.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="166.0" y="168.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="212.0" y="168.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="258.0" y="168.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="304.0" y="168.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="350.0" y="168.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<rect x="396.0" y="168.0" width="40.0" height="38.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<text x="456.0" y="193.0" font-size="13" fill="#a4462f" text-anchor="start" font-weight="600" >no plan session for 7 days: a layoff</text>
+<text x="20.0" y="246.0" font-size="13" fill="#1c1e22" text-anchor="start" font-weight="600" >Week D</text>
+<rect x="120.0" y="220.0" width="40.0" height="38.0" rx="5" fill="url(#hatch)" stroke="#d9d4ca" />
+<rect x="166.0" y="220.0" width="40.0" height="38.0" rx="5" fill="url(#hatch)" stroke="#d9d4ca" />
+<rect x="212.0" y="220.0" width="40.0" height="38.0" rx="5" fill="url(#hatch)" stroke="#d9d4ca" />
+<rect x="258.0" y="220.0" width="40.0" height="38.0" rx="5" fill="url(#hatch)" stroke="#d9d4ca" />
+<rect x="304.0" y="220.0" width="40.0" height="38.0" rx="5" fill="url(#hatch)" stroke="#d9d4ca" />
+<rect x="350.0" y="220.0" width="40.0" height="38.0" rx="5" fill="url(#hatch)" stroke="#d9d4ca" />
+<rect x="396.0" y="220.0" width="40.0" height="38.0" rx="5" fill="url(#hatch)" stroke="#d9d4ca" />
+<text x="456.0" y="245.0" font-size="13" fill="#1d5bb8" text-anchor="start" font-weight="600" >a deload week: it needs no training days</text>
+</svg>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     THE HOME-SCREEN WIDGET (Stage D task 10, N2 — dist/round5-options.html #n2,
+     decision "B — LIVE 4x2 TILE"). Like res/xml/shortcuts.xml, this is the ONE OTHER
+     correct use of a platform resource XML in an app that otherwise builds every screen
+     in code: android.widget.RemoteViews can only inflate a layout resource, it cannot
+     take a View tree built at runtime the way every other screen here is built. Nothing
+     about "no XML layouts" is violated — this defines no screen, only the widget's own
+     four fields plus a progress bar, and RemoteViews only understands a small allow-list
+     of widget classes to begin with (TextView/ProgressBar/etc.), not this app's own
+     hand-rolled views.
+
+     DELIBERATELY NO COLOURS HERE. Every text colour and the background are set from
+     PumpWidgetProvider#buildViews via RemoteViews.setInt/setTextColor, reading Look.java's
+     named constants (COMMANDED, TEXT, FAINT, SURFACE) directly — Look.java stays the
+     single source for what a colour here means, exactly as it is for every other screen.
+     The one exception is @drawable/widget_progress: a RemoteViews ProgressBar cannot be
+     tinted portably below API 31, so its fill/track colours are baked into that drawable
+     and MUST be kept equal to Look.COMMANDED / Look.SURFACEHI by hand — see that file's
+     own comment.
+
+     Placeholder text below is what a widget instance shows for the brief instant between
+     being placed and PumpWidgetProvider#onUpdate's first render; it is never left on
+     screen.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/widget_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:text="Pump" />
+
+        <TextView
+            android:id="@+id/widget_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            android:textSize="10.5sp"
+            android:text="" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/widget_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:indeterminate="false"
+        android:max="100"
+        android:progress="0"
+        android:progressDrawable="@drawable/widget_progress"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/widget_detail_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/widget_pressure"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:textStyle="bold"
+            android:textSize="10.5sp"
+            android:text="" />
+
+        <TextView
+            android:id="@+id/widget_step"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            android:textSize="10.5sp"
+            android:text="" />
+    </LinearLayout>
+</LinearLayout>

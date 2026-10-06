@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" width="760" height="300" role="img" aria-label="Three sessions to scale" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title>Three sessions to scale</title>
+<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#f1eee7"/><line x1="0" y1="0" x2="0" y2="7" stroke="#b8b1a3" stroke-width="2.5"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5d6470"/></marker></defs>
+<rect x="0.5" y="0.5" width="759" height="299" rx="10" fill="#fbfaf7" stroke="#d9d4ca"/>
+<text x="20.0" y="26.0" font-size="13" fill="#5d6470" text-anchor="start" font-weight="600" >Three sessions as the app builds them, default settings, to scale</text>
+<line x1="190.0" y1="46.0" x2="190.0" y2="214.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="190.0" y="232.0" font-size="11" fill="#5d6470" text-anchor="middle" font-weight="normal" >0</text>
+<line x1="245.0" y1="46.0" x2="245.0" y2="214.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="245.0" y="232.0" font-size="11" fill="#5d6470" text-anchor="middle" font-weight="normal" >5</text>
+<line x1="300.0" y1="46.0" x2="300.0" y2="214.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="300.0" y="232.0" font-size="11" fill="#5d6470" text-anchor="middle" font-weight="normal" >10</text>
+<line x1="355.0" y1="46.0" x2="355.0" y2="214.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="355.0" y="232.0" font-size="11" fill="#5d6470" text-anchor="middle" font-weight="normal" >15</text>
+<line x1="410.0" y1="46.0" x2="410.0" y2="214.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="410.0" y="232.0" font-size="11" fill="#5d6470" text-anchor="middle" font-weight="normal" >20</text>
+<line x1="465.0" y1="46.0" x2="465.0" y2="214.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="465.0" y="232.0" font-size="11" fill="#5d6470" text-anchor="middle" font-weight="normal" >25</text>
+<line x1="520.0" y1="46.0" x2="520.0" y2="214.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="520.0" y="232.0" font-size="11" fill="#5d6470" text-anchor="middle" font-weight="normal" >30</text>
+<line x1="575.0" y1="46.0" x2="575.0" y2="214.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="575.0" y="232.0" font-size="11" fill="#5d6470" text-anchor="middle" font-weight="normal" >35</text>
+<line x1="630.0" y1="46.0" x2="630.0" y2="214.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="630.0" y="232.0" font-size="11" fill="#5d6470" text-anchor="middle" font-weight="normal" >40</text>
+<line x1="685.0" y1="46.0" x2="685.0" y2="214.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="685.0" y="232.0" font-size="11" fill="#5d6470" text-anchor="middle" font-weight="normal" >45</text>
+<line x1="740.0" y1="46.0" x2="740.0" y2="214.0" stroke="#e7e2d8" stroke-width="1" />
+<text x="740.0" y="232.0" font-size="11" fill="#5d6470" text-anchor="middle" font-weight="normal" >50</text>
+<text x="465.0" y="250.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >minutes</text>
+<text x="20.0" y="76.0" font-size="13" fill="#1c1e22" text-anchor="start" font-weight="600" >Girth L1, week 1</text>
+<rect x="190.0" y="56.0" width="44.0" height="30.0" rx="0" fill="#9fb3c8" stroke="#ffffff" stroke-width="1"/>
+<text x="212.0" y="75.0" font-size="11" fill="#1c1e22" text-anchor="middle" font-weight="normal" >warm-up</text>
+<rect x="234.0" y="56.0" width="114.6" height="30.0" rx="0" fill="#2f7d4f" stroke="#ffffff" stroke-width="1"/>
+<text x="291.3" y="75.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal" >5 sets</text>
+<text x="356.6" y="76.0" font-size="12" fill="#5d6470" text-anchor="start" font-weight="normal" >15:25</text>
+<text x="20.0" y="130.0" font-size="13" fill="#1c1e22" text-anchor="start" font-weight="600" >Girth L2, week 18</text>
+<rect x="190.0" y="110.0" width="66.9" height="30.0" rx="0" fill="#9fb3c8" stroke="#ffffff" stroke-width="1"/>
+<text x="223.5" y="129.0" font-size="11" fill="#1c1e22" text-anchor="middle" font-weight="normal" >warm-up</text>
+<rect x="256.9" y="110.0" width="114.6" height="30.0" rx="0" fill="#2f7d4f" stroke="#ffffff" stroke-width="1"/>
+<text x="314.2" y="129.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal" >5 sets</text>
+<rect x="371.5" y="110.0" width="33.0" height="30.0" rx="0" fill="#e9e5dc" stroke="#ffffff" stroke-width="1"/>
+<rect x="404.5" y="110.0" width="114.6" height="30.0" rx="0" fill="#2f7d4f" stroke="#ffffff" stroke-width="1"/>
+<text x="461.8" y="129.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal" >5 sets</text>
+<text x="527.1" y="130.0" font-size="12" fill="#5d6470" text-anchor="start" font-weight="normal" >28:50</text>
+<text x="20.0" y="184.0" font-size="13" fill="#1c1e22" text-anchor="start" font-weight="600" >Length L1, 2.5 lb</text>
+<rect x="190.0" y="164.0" width="55.0" height="30.0" rx="0" fill="#9fb3c8" stroke="#ffffff" stroke-width="1"/>
+<text x="217.5" y="183.0" font-size="11" fill="#1c1e22" text-anchor="middle" font-weight="normal" >release</text>
+<rect x="245.0" y="164.0" width="44.0" height="30.0" rx="0" fill="#9fb3c8" stroke="#ffffff" stroke-width="1"/>
+<text x="267.0" y="183.0" font-size="11" fill="#1c1e22" text-anchor="middle" font-weight="normal" >warm-up</text>
+<rect x="289.0" y="164.0" width="128.3" height="30.0" rx="0" fill="#d9a441" stroke="#ffffff" stroke-width="1"/>
+<text x="353.2" y="183.0" font-size="11" fill="#1c1e22" text-anchor="middle" font-weight="normal" >10 fatigue</text>
+<rect x="417.3" y="164.0" width="121.0" height="30.0" rx="0" fill="#d9a441" stroke="#ffffff" stroke-width="1"/>
+<text x="477.8" y="183.0" font-size="11" fill="#1c1e22" text-anchor="middle" font-weight="normal" >2 strain</text>
+<rect x="538.3" y="164.0" width="22.0" height="30.0" rx="0" fill="#b9aee0" stroke="#ffffff" stroke-width="1"/>
+<rect x="560.3" y="164.0" width="114.6" height="30.0" rx="0" fill="#2f7d4f" stroke="#ffffff" stroke-width="1"/>
+<text x="617.6" y="183.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal" >expansion</text>
+<text x="682.9" y="184.0" font-size="12" fill="#5d6470" text-anchor="start" font-weight="normal" >45:05</text>
+<rect x="20.0" y="266.0" width="14.0" height="14.0" rx="3" fill="#9fb3c8" stroke="#d9d4ca" />
+<text x="40.0" y="278.0" font-size="12" fill="#1c1e22" text-anchor="start" font-weight="normal" >prep</text>
+<rect x="78.0" y="266.0" width="14.0" height="14.0" rx="3" fill="#2f7d4f" stroke="#d9d4ca" />
+<text x="98.0" y="278.0" font-size="12" fill="#1c1e22" text-anchor="start" font-weight="normal" >counts as minutes at pressure</text>
+<rect x="311.0" y="266.0" width="14.0" height="14.0" rx="3" fill="#d9a441" stroke="#d9d4ca" />
+<text x="331.0" y="278.0" font-size="12" fill="#1c1e22" text-anchor="start" font-weight="normal" >work that doesn't count</text>
+<rect x="502.0" y="266.0" width="14.0" height="14.0" rx="3" fill="#e9e5dc" stroke="#d9d4ca" />
+<text x="522.0" y="278.0" font-size="12" fill="#1c1e22" text-anchor="start" font-weight="normal" >rest (vented)</text>
+<rect x="623.0" y="266.0" width="14.0" height="14.0" rx="3" fill="#b9aee0" stroke="#d9d4ca" />
+<text x="643.0" y="278.0" font-size="12" fill="#1c1e22" text-anchor="start" font-weight="normal" >changeover</text>
+</svg>

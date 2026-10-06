@@ -1,0 +1,44 @@
+title: "[Idea] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting something. Other people vote on ideas with the ▲ button, so the most wanted rise to the top.
+        **Search first:** if your idea is already here, vote for it and add what you'd use it for instead of starting a new one.
+        **Something broken or unsafe?** That's not an idea: report a bug as an issue, or a safety problem privately (see SECURITY.md).
+  - type: textarea
+    id: need
+    attributes:
+      label: What would it let you do?
+      description: The need first, before the solution. What are you trying to do that the app makes hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How you picture it working. Sketches and screenshots are welcome.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app?
+      options:
+        - Pumps and connecting
+        - Running a session
+        - Routines and the Library
+        - The training plan
+        - Measurements and photos
+        - Progress and history
+        - Settings, privacy and backups
+        - Something else
+    validations:
+      required: true
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Could you help? (optional)
+      options:
+        - label: I can test it on my pump
+        - label: I can share session logs
+        - label: I can help build it

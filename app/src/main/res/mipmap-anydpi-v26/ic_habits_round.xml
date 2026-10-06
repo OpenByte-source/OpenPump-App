@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- INCOGNITO (0.10): "Habits", a disguised launcher icon, round form (LauncherHabits). -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_habits_background" />
+    <foreground android:drawable="@drawable/ic_habits_foreground" />
+    <monochrome android:drawable="@drawable/ic_habits_foreground" />
+</adaptive-icon>

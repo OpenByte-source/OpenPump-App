@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 90" width="720" height="90" role="img" aria-label="A pressure trace: it pulls up, holds under a dashed red ceiling, drops, and pulls again">
+<style>
+  .t { fill: none; stroke: #F0A63C; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round;
+       stroke-dasharray: 1100; stroke-dashoffset: 1100; animation: draw 6s ease-in-out infinite; }
+  .c { stroke: #ff5c52; stroke-width: 2; stroke-dasharray: 7 6; opacity: .75; }
+  .d { fill: #C8FF3D; opacity: 0; animation: dot 6s ease-in-out infinite; }
+  @keyframes draw { 0% { stroke-dashoffset: 1100; } 70% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; } }
+  @keyframes dot  { 0%, 66% { opacity: 0; } 72%, 94% { opacity: 1; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .t { animation: none; stroke-dashoffset: 0; } .d { animation: none; opacity: 1; } }
+</style>
+<line class="c" x1="10" y1="16" x2="710" y2="16"/>
+<path class="t" d="M10,78 H40 L90,26 H250 L268,70 H300 L350,26 H520 L538,70 H570 L620,26 H700"/>
+<circle class="d" cx="700" cy="26" r="6"/>
+</svg>

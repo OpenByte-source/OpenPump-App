@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ids the Java-built views need that no layout declares. -->
+<resources>
+    <!-- Quick hide as the top bar's accessibility action (SessionActivity#QuickHideAction):
+         a screen reader cannot double-tap inside the platform's timeout. -->
+    <item name="a11y_quick_hide" type="id" />
+    <!-- The passing message's own window, tagged on the screen's decor view so a new one
+         takes the place of the last (Ui#say, incognito: no system Toast under a disguise). -->
+    <item name="passing_message" type="id" />
+</resources>

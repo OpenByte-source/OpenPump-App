@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     STATIC APP SHORTCUTS (Stage D task 1, N3 — dist/round5-options.html #batch:
+     "Start <last routine>" / "Log measurement" / "Progress photos", long-press the
+     launcher icon). Registered via the <meta-data android:name="android.app.shortcuts">
+     entry on the LauncherOpenPump activity-alias in AndroidManifest.xml (incognito, 0.10:
+     the launcher entries are aliases of LauncherTrampoline now; each disguise's - "Fitness
+     log", "Habits", "Notes" - carries its own file, shortcuts_fitness.xml,
+     shortcuts_habits.xml and shortcuts_notes.xml: the same three with its own icon).
+
+     THIS IS THE ONE CORRECT USE OF A PLATFORM RESOURCE XML in an app that otherwise
+     builds every screen in code — a launcher shortcut is a system-level surface Android
+     reads before this app's process (or any of its own UI) exists at all, so it cannot
+     be anything OTHER than a manifest-adjacent resource. Nothing about "no XML layouts"
+     is violated: no screen is defined here, only three system entry points into the ones
+     SessionActivity already builds.
+
+     Ignored outright on API < 25 (ShortcutManager does not exist there) — this app's
+     minSdk is 24, and a shortcut that silently does not appear on the oldest supported
+     devices is the correct degrade, not a crash.
+
+     EACH <intent> targets ShortcutTrampoline (re-review 4), never SessionActivity: Android
+     starts a static shortcut with NEW_TASK | CLEAR_TASK, which on SessionActivity cleared the
+     running screen's task and ended a run in its onDestroy. The trampoline has its own task
+     affinity, so the clear takes only its own task, and it forwards the extra below to the
+     one SessionActivity (see the manifest's note on it).
+
+     EACH <intent> names its target BY EXPLICIT COMPONENT (targetPackage +
+     targetClass), so it needs no matching <intent-filter> — explicit-component intents
+     bypass intent-filter resolution entirely. The single <extra> on each names which of
+     the three the tap was, read in SessionActivity#onCreate/#onNewIntent via the shared
+     EXTRA_SHORTCUT key (see SessionActivity#handleShortcutIntent).
+
+     "Start last routine" cannot literally name the routine: static shortcuts carry
+     PRE-COMPILED labels with no way to interpolate live app state (that needs DYNAMIC
+     shortcuts, a bigger feature nothing here asks for), so the label stays generic and
+     the routine it starts is resolved at tap time by Model#lastRunRoutineId.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="start_last_routine"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_start_last_short"
+        android:shortcutLongLabel="@string/shortcut_start_last_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="org.openpump"
+            android:targetClass="org.openpump.ShortcutTrampoline">
+            <extra android:name="org.openpump.SHORTCUT_ACTION" android:value="start_last" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="log_measurement"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_log_measurement_short"
+        android:shortcutLongLabel="@string/shortcut_log_measurement_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="org.openpump"
+            android:targetClass="org.openpump.ShortcutTrampoline">
+            <extra android:name="org.openpump.SHORTCUT_ACTION" android:value="log_measurement" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="progress_photos"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_progress_photos_short"
+        android:shortcutLongLabel="@string/shortcut_progress_photos_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="org.openpump"
+            android:targetClass="org.openpump.ShortcutTrampoline">
+            <extra android:name="org.openpump.SHORTCUT_ACTION" android:value="progress_photos" />
+        </intent>
+    </shortcut>
+</shortcuts>

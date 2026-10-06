@@ -1,0 +1,8 @@
+The two fonts here draw the app inside the phone on the project page, in the faces the app itself
+uses on Android. Both are subsets (Latin, digits and the few marks the screens need).
+
+roboto-var.woff  Roboto (variable, weights 100-900). Copyright 2011 Google Inc.
+droidmono.woff   Droid Sans Mono. Copyright 2007 Google Corporation.
+
+Both are licensed under the Apache License, Version 2.0:
+https://www.apache.org/licenses/LICENSE-2.0

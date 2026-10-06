@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- INCOGNITO (0.10): the "Habits" launcher icon's ground - a green teal, plainly not the
+     Fitness log's bluer teal. Used only by the disguise's launcher entry (LauncherHabits),
+     its shortcuts and its lock host. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M0,0h108v108h-108z" android:fillColor="#178A6C" />
+</vector>

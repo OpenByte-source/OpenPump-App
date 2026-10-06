@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 13 and up: the system's splash shows the app's own launcher icon on the dark
+         ground - and while a disguise is on, the app names that disguise's theme below for
+         every later launch (IncognitoShell#applySplash, SplashScreen#setSplashScreenTheme), so
+         the splash shows the icon the home screen does (incognito, 0.10; invariant 234). -->
+    <style name="AppSplashTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_plain</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowSplashScreenBackground">#05070a</item>
+    </style>
+
+    <style name="SplashFitnessLog" parent="AppSplashTheme">
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_fitness</item>
+    </style>
+    <style name="SplashHabits" parent="AppSplashTheme">
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_habits</item>
+    </style>
+    <style name="SplashNotes" parent="AppSplashTheme">
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_notes</item>
+    </style>
+</resources>

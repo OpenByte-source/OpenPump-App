@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- INCOGNITO (0.10): the "Notes" icon below Android 8 (no adaptive icons there, and
+     this app's minSdk is 24): the same lined page on warm yellow, drawn whole - the
+     adaptive mark at 0.6, centred. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <path android:pathData="M14,2 H34 A12,12 0 0 1 46,14 V34 A12,12 0 0 1 34,46 H14 A12,12 0 0 1 2,34 V14 A12,12 0 0 1 14,2 Z"
+        android:fillColor="#F2B233" />
+    <group android:scaleX="0.6" android:scaleY="0.6" android:translateX="-8.4" android:translateY="-8.4">
+        <path android:pathData="M42,32 H66 A5,5 0 0 1 71,37 V71 A5,5 0 0 1 66,76 H42 A5,5 0 0 1 37,71 V37 A5,5 0 0 1 42,32 Z"
+            android:fillColor="#FFFFFFFF" />
+        <path android:pathData="M44,44 H64 M44,52 H64 M44,60 H64 M44,68 H56"
+            android:strokeColor="#FFB07A12" android:strokeWidth="3.2"
+            android:strokeLineCap="round" android:fillColor="#00000000" />
+    </group>
+</vector>

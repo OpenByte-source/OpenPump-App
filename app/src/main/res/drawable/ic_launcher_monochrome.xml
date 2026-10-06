@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon layer (Android 13+): the same O in one colour, no glow. Only alpha matters.
+     The group maps the 100-unit drawing onto the 108dp canvas at 0.78, centred like the foreground.
+     VectorDrawable has no dash support, so the ceiling is drawn as its six dashes. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="0.56" android:scaleY="0.56" android:translateX="26" android:translateY="26">
+        <path android:pathData="M50,15 a35,35 0 1,1 0,70 a35,35 0 1,1 0,-70"
+            android:strokeColor="#FFFFFFFF" android:strokeWidth="8" android:fillColor="#00000000" />
+        <path android:pathData="M29,33 H33 M36.5,33 H40.5 M44,33 H48 M51.5,33 H55.5 M59,33 H63 M66.5,33 H70.5"
+            android:strokeColor="#FFFFFFFF" android:strokeWidth="3" />
+        <path android:pathData="M29,60 H40 L46,40 L55,70 L60,54 H69"
+            android:strokeColor="#FFFFFFFF" android:strokeWidth="6"
+            android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" />
+        <path android:pathData="M70,48.5 a5.5,5.5 0 1,1 0,11 a5.5,5.5 0 1,1 0,-11" android:fillColor="#FFFFFFFF" />
+    </group>
+</vector>

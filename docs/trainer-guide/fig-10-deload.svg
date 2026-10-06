@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 330" width="760" height="330" role="img" aria-label="The deload cadence and the gentle return" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title>The deload cadence and the gentle return</title>
+<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#f1eee7"/><line x1="0" y1="0" x2="0" y2="7" stroke="#b8b1a3" stroke-width="2.5"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5d6470"/></marker></defs>
+<rect x="0.5" y="0.5" width="759" height="329" rx="10" fill="#fbfaf7" stroke="#d9d4ca"/>
+<text x="20.0" y="26.0" font-size="13" fill="#5d6470" text-anchor="start" font-weight="600" >The deload cadence, counted in weeks that count</text>
+<rect x="20.0" y="44.0" width="40.0" height="40.0" rx="5" fill="#1d5bb8" stroke="none" />
+<text x="40.0" y="69.0" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="600" >1</text>
+<rect x="66.0" y="44.0" width="40.0" height="40.0" rx="5" fill="#1d5bb8" stroke="none" />
+<text x="86.0" y="69.0" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="600" >2</text>
+<rect x="112.0" y="44.0" width="40.0" height="40.0" rx="5" fill="#1d5bb8" stroke="none" />
+<text x="132.0" y="69.0" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="600" >3</text>
+<rect x="158.0" y="44.0" width="40.0" height="40.0" rx="5" fill="#1d5bb8" stroke="none" />
+<text x="178.0" y="69.0" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="600" >4</text>
+<rect x="204.0" y="44.0" width="40.0" height="40.0" rx="5" fill="url(#hatch)" stroke="#d9d4ca" />
+<text x="224.0" y="69.0" font-size="13" fill="#1c1e22" text-anchor="middle" font-weight="600" >D</text>
+<rect x="250.0" y="44.0" width="40.0" height="40.0" rx="5" fill="#1d5bb8" stroke="none" />
+<text x="270.0" y="69.0" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="600" >1</text>
+<rect x="296.0" y="44.0" width="40.0" height="40.0" rx="5" fill="#1d5bb8" stroke="none" />
+<text x="316.0" y="69.0" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="600" >2</text>
+<rect x="342.0" y="44.0" width="40.0" height="40.0" rx="5" fill="#ffffff" stroke="#d9d4ca" />
+<text x="362.0" y="69.0" font-size="13" fill="#5d6470" text-anchor="middle" font-weight="normal" >–</text>
+<rect x="388.0" y="44.0" width="40.0" height="40.0" rx="5" fill="#1d5bb8" stroke="none" />
+<text x="408.0" y="69.0" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="600" >3</text>
+<rect x="434.0" y="44.0" width="40.0" height="40.0" rx="5" fill="url(#hatch)" stroke="#d9d4ca" />
+<text x="454.0" y="69.0" font-size="13" fill="#1c1e22" text-anchor="middle" font-weight="600" >D</text>
+<rect x="480.0" y="44.0" width="40.0" height="40.0" rx="5" fill="#1d5bb8" stroke="none" />
+<text x="500.0" y="69.0" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="600" >1</text>
+<rect x="526.0" y="44.0" width="40.0" height="40.0" rx="5" fill="#1d5bb8" stroke="none" />
+<text x="546.0" y="69.0" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="600" >2</text>
+<rect x="572.0" y="44.0" width="40.0" height="40.0" rx="5" fill="#1d5bb8" stroke="none" />
+<text x="592.0" y="69.0" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="600" >3</text>
+<rect x="618.0" y="44.0" width="40.0" height="40.0" rx="5" fill="url(#hatch)" stroke="#d9d4ca" />
+<text x="638.0" y="69.0" font-size="13" fill="#1c1e22" text-anchor="middle" font-weight="600" >D</text>
+<text x="20.0" y="104.0" font-size="12" fill="#1c1e22" text-anchor="start" font-weight="normal" >4 weeks that count, then a deload; then every 3. A week that doesn't count (–) doesn't move the count.</text>
+<text x="20.0" y="122.0" font-size="12" fill="#1c1e22" text-anchor="start" font-weight="normal" >From month 4 of the plan, every 4 again.</text>
+<text x="20.0" y="160.0" font-size="13" fill="#5d6470" text-anchor="start" font-weight="600" >Coming back: the first training days after a deload, working pressure 8 hg (27 kPa)</text>
+<rect x="60.0" y="256.7" width="70.0" height="43.3" rx="3" fill="#8fb9a0" stroke="none" />
+<text x="95.0" y="248.7" font-size="12" fill="#1c1e22" text-anchor="middle" font-weight="600" >13 kPa</text>
+<text x="95.0" y="316.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Mon</text>
+<text x="95.0" y="232.7" font-size="11" fill="#1c1e22" text-anchor="middle" font-weight="normal" >4 hg under</text>
+<rect x="190.0" y="294.0" width="70.0" height="6.0" rx="0" fill="#e7e2d8" stroke="none" />
+<text x="225.0" y="316.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Tue</text>
+<text x="225.0" y="284.0" font-size="11" fill="#1c1e22" text-anchor="middle" font-weight="normal" >rest day</text>
+<rect x="320.0" y="233.3" width="70.0" height="66.7" rx="3" fill="#8fb9a0" stroke="none" />
+<text x="355.0" y="225.3" font-size="12" fill="#1c1e22" text-anchor="middle" font-weight="600" >20 kPa</text>
+<text x="355.0" y="316.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Wed</text>
+<text x="355.0" y="209.3" font-size="11" fill="#1c1e22" text-anchor="middle" font-weight="normal" >2 hg under</text>
+<rect x="450.0" y="294.0" width="70.0" height="6.0" rx="0" fill="#e7e2d8" stroke="none" />
+<text x="485.0" y="316.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Thu</text>
+<text x="485.0" y="284.0" font-size="11" fill="#1c1e22" text-anchor="middle" font-weight="normal" >rest day</text>
+<rect x="580.0" y="210.0" width="70.0" height="90.0" rx="3" fill="#2f7d4f" stroke="none" />
+<text x="615.0" y="202.0" font-size="12" fill="#1c1e22" text-anchor="middle" font-weight="600" >27 kPa</text>
+<text x="615.0" y="316.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >Fri</text>
+<text x="615.0" y="186.0" font-size="11" fill="#1c1e22" text-anchor="middle" font-weight="normal" >full</text>
+<line x1="40.0" y1="300.0" x2="740.0" y2="300.0" stroke="#1c1e22" stroke-width="1" />
+<text x="20.0" y="180.0" font-size="12" fill="#1c1e22" text-anchor="start" font-weight="normal" >Slower too: 60 % speed on the reduced days. Rest days don't use a step.</text>
+</svg>

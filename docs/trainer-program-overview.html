@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The OpenPump Training Program</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75,700;75,800;100,500;100,600;100,700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+@page{size:297mm 210mm;margin:0}
+:root{
+  --paper:#F5F7F8; --ink:#16202A; --muted:#56626E; --faint:#96A1AB; --rule:#DCE2E6; --card:#FFFFFF;
+  --girth:#1D6A73; --girth-2:#7DAFB5; --girth-soft:#D5E8EA; --length:#C8561F; --length-2:#E59A74; --length-soft:#F6DCCD;
+  --feeder:#6B4FA0; --feeder-soft:#E3DBF1; --rest:#B7C0C7; --warn:#A23B32; --warn-soft:#F6E1DE;
+  --f-sign:"Archivo","Arial Narrow",sans-serif; --f-body:"Source Sans 3","Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#8E989F}
+body{font:400 11.5pt/1.42 var(--f-body);color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{width:297mm;height:210mm;background:var(--paper);position:relative;overflow:hidden;break-after:page;page-break-after:always;padding:13mm 16mm 11mm;display:grid;grid-template-rows:auto 1fr auto;gap:6mm;margin:0 auto 6mm}
+@media print{html,body{background:var(--paper)}.page{margin:0}}
+.top{display:grid;gap:2.2mm}
+.kick{font:700 8.5pt/1 var(--f-sign);font-stretch:100%;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;gap:3mm;align-items:center}
+h1{font:800 50pt/0.95 var(--f-sign);font-stretch:75%;margin:0}
+h2{font:800 25pt/1 var(--f-sign);font-stretch:75%;margin:0}
+h3{font:700 11.5pt/1.2 var(--f-sign);font-stretch:100%;margin:0 0 1.2mm}
+p{margin:0}
+.lead{font-size:12.5pt;color:var(--muted);max-width:190mm}
+.foot{display:flex;justify-content:space-between;font:500 7.5pt/1 var(--f-sign);font-stretch:100%;letter-spacing:.1em;color:var(--faint);text-transform:uppercase}
+.chip{display:inline-block;font:700 8pt/1 var(--f-sign);font-stretch:100%;letter-spacing:.1em;text-transform:uppercase;padding:1.8mm 2.6mm 1.6mm;border-radius:1.4mm;color:#fff}
+.chip.g{background:var(--girth)} .chip.l{background:var(--length)} .chip.f{background:var(--feeder)} .chip.k{background:var(--ink)}
+.app{display:inline-block;font:600 7.5pt/1 var(--f-body);color:var(--feeder);border:1px solid var(--feeder);border-radius:1mm;padding:.8mm 1.4mm .6mm;vertical-align:1px;white-space:nowrap;margin-left:1mm}
+.new{display:inline-block;font:700 7pt/1 var(--f-sign);letter-spacing:.08em;color:#fff;background:var(--ink);border-radius:1mm;padding:.9mm 1.4mm .7mm;vertical-align:1px;margin-left:1mm}
+.review{display:inline-block;font:700 7.5pt/1 var(--f-sign);letter-spacing:.08em;text-transform:uppercase;color:var(--warn);border:1.2px dashed var(--warn);border-radius:1mm;padding:1mm 1.6mm .8mm}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{font-family:var(--f-body)}
+.sg{font-family:var(--f-sign)!important}
+.body{min-height:0;display:grid;gap:5mm;align-content:start}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:9mm;align-items:start}
+.cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:7mm;align-items:start}
+.side{display:grid;grid-template-columns:82mm 1fr;gap:9mm;align-items:start;min-height:0}
+.muted{color:var(--muted)}
+.small{font-size:10pt}
+.tiny{font-size:9pt;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:2mm;padding:4mm 4.5mm}
+.facts{display:grid;gap:3mm;font-size:10.5pt}
+.facts div b{font-weight:700}
+.facts .muted{font-size:10.5pt}
+ul.tight{margin:0;padding-left:4.5mm;display:grid;gap:1.4mm}
+ul.tight li::marker{color:var(--faint)}
+ol.flow{list-style:none;margin:0;padding:0;display:grid;gap:2.2mm;counter-reset:f}
+ol.flow li{display:grid;grid-template-columns:9mm 44mm 1fr;gap:3mm;align-items:baseline;background:var(--card);border:1px solid var(--rule);border-radius:2mm;padding:2.6mm 3.5mm;font-size:10.5pt}
+ol.flow li::before{counter-increment:f;content:counter(f);font:800 16pt/1 var(--f-sign);font-stretch:75%;color:var(--faint)}
+ol.flow b{font:700 10.5pt/1.2 var(--f-sign)}
+ol.flow.stack li{grid-template-columns:8mm 1fr;row-gap:1mm}
+ol.flow.stack li > span{grid-column:2}
+table.t{border-collapse:collapse;width:100%;font-size:10pt}
+table.t th{font:700 7.8pt/1.2 var(--f-sign);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);text-align:left;padding:1.6mm 2.5mm 1.6mm 0;border-bottom:1.2px solid var(--ink)}
+table.t td{padding:1.8mm 2.5mm 1.8mm 0;border-bottom:1px solid var(--rule);vertical-align:top}
+table.t td.n{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:4mm}
+.tile{background:var(--card);border:1px solid var(--rule);border-radius:2mm;padding:4mm;display:grid;gap:1.5mm;align-content:start}
+.tile .big{font:800 26pt/1 var(--f-sign);font-stretch:75%}
+.tile .what{font:700 9.5pt/1.2 var(--f-sign)}
+.tile .how{font-size:9.2pt;color:var(--muted);line-height:1.35}
+.enf{font:700 7pt/1 var(--f-sign);letter-spacing:.1em;text-transform:uppercase;color:var(--girth)}
+.adv{font:700 7pt/1 var(--f-sign);letter-spacing:.1em;text-transform:uppercase;color:var(--length)}
+.callout{border:1.4px dashed var(--warn);background:var(--warn-soft);border-radius:2mm;padding:3.5mm 4.5mm;font-size:10.3pt;display:grid;gap:1.5mm}
+.legend{display:flex;flex-wrap:wrap;gap:2mm 6mm;font-size:9.2pt;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:6mm;height:3mm;border-radius:.8mm;margin-right:1.5mm;vertical-align:middle}
+.cover{background:var(--ink);color:#F5F7F8}
+.cover .kick{color:#9FB0BC}
+.cover h1{color:#fff;font-size:62pt;max-width:220mm}
+.cover .lead{color:#C4CFD6;font-size:14pt;max-width:190mm}
+.cover .foot{color:#6F8190}
+.toc{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5mm 8mm;font-size:10pt;color:#C4CFD6;max-width:250mm}
+.toc span b{color:#fff;font-weight:600;margin-right:2mm;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+<!-- 1 COVER -->
+<section class="page cover">
+  <div class="top"><span class="kick">OpenPump 0.10 · the trainer</span></div>
+  <div style="display:grid;align-content:center;gap:8mm">
+    <h1>The training program, start to finish</h1>
+    <p class="lead">Every path the trainer offers, where you start on it, what moves you along, what holds you, what steps you back, and when it rests you. Drawn so the program can be judged without knowing the app.</p>
+    <div class="toc">
+      <span><b>2</b>The whole program</span><span><b>3</b>Where you start</span><span><b>4</b>What counts as a week</span><span><b>5</b>How a session is built</span>
+      <span><b>6</b>Girth Level 1</span><span><b>7</b>Girth Level 2</span><span><b>8</b>Girth Levels 3 and 4</span><span><b>9</b>How girth pressure rises</span>
+      <span><b>10</b>Traditional girth</span><span><b>11</b>Length, months 0–3</span><span><b>12</b>Length from month 3</span><span><b>13</b>Feeders</span>
+      <span><b>14</b>How the program decides</span><span><b>15</b>What it measures</span><span><b>16</b>Deloads and coming back</span><span><b>17</b>Both tracks in a day</span>
+      <span><b>18</b>A first 36 weeks</span><span><b>19</b>Limits</span><span><b>20</b>Words and open points</span>
+    </div>
+  </div>
+  <div class="foot"><span>The program's rules come from the collection of publicly available guidance on PE. Where OpenPump decided something itself, it is marked <span style="color:#B7A0E6">App's choice</span>.</span><span>1</span></div>
+</section>
+
+<!-- 2 MASTER MAP -->
+<section class="page">
+  <div class="top"><span class="kick">The whole program</span><h2>Four lines, from your first week to month 12 and beyond</h2></div>
+  <div class="body">
+    <svg id="master" viewBox="0 0 1000 470" role="img" aria-label="Master map: girth interval Levels 1 to 4 (Level 1 earned, Level 3 at month 6 and 30-minute sessions, Level 4 at month 12 and 20-minute sessions), traditional girth Levels 1 to 4, length Levels 1 to 4 by the calendar with the month-12 choice, the feeder from girth Level 3, and deloads along the months."></svg>
+    <div class="cols3 small">
+      <div><b>Girth.</b> <span class="muted">Choose interval (2-minute holds, week tables for Levels 1–2) or traditional (5-minute holds that grow by the weeks at the level). Level 1 ends at a gate you earn. Levels 3 and 4 need the month (6, then 12) and sessions that held the time: 30 minutes, then 20.</span></div>
+      <div><b>Length.</b> <span class="muted">Optional, beside either girth style or alone. It follows the calendar for three months, then your measurements steer it. Its levels open by the calendar alone, at months 3, 6 and 12.</span></div>
+      <div><b>Feeder and deloads.</b> <span class="muted">Feeders join at girth Level 3. A deload week comes after 4 training weeks, then every 3, then every 4 from month 4, counted over both tracks.</span></div>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>2</span></div>
+</section>
+
+<!-- 3 PLACEMENT -->
+<section class="page">
+  <div class="top"><span class="kick">Where you start</span><h2>Setup answers decide where you board each line</h2></div>
+  <div class="side">
+    <div class="facts">
+      <div><b>Months pumping</b> <span class="muted">(0–360). Months open Levels 3 and 4 (month 6, month 12), and place you when the session question is left at Skip: each month counts as 4 weeks.</span></div>
+      <div><b>Your girth session now · Your length session now</b> <span class="muted">(minutes, or "I don't do this yet"). Each track starts at the level and week whose session, as the plan writes it, is the closest to yours without being longer. 0, or New to pumping: Level 1, week 1. <span class="new">0.10</span></span></div>
+      <div><b>Any break of a week or more recently?</b> <span class="muted">Yes moves your starting week back 2 (never below week 1).</span></div>
+      <div><b>New to pumping?</b> <span class="muted">On by default. It keeps you at or below 6 hg in your first month.</span></div>
+      <div><b>Current working pressure</b> <span class="muted">(0–15 hg). A pressure below 8 hg keeps you at Level 1. It can only hold you back.</span></div>
+      <div><b>Most you will go to</b> <span class="muted">(optional). It caps every prescription.</span></div>
+      <div><b>"I mark or bruise easily"</b> <span class="muted">(off by default). A gentle warm-up, a gentle return after a week or more away, and lower pressure with a larger cylinder.</span></div>
+      <div><b>Tracks and days</b> <span class="muted">Interval or traditional girth, length on or off, feeders at Level 3 (on by default), training days (Mon/Wed/Fri to start).</span></div>
+    </div>
+    <div style="display:grid;gap:5mm">
+      <svg id="board" viewBox="0 0 700 250" role="img" aria-label="Boarding points by months pumped."></svg>
+      <div class="cols2" style="gap:7mm">
+        <div class="card small"><h3>Your starting pressure</h3><p class="muted">The plan starts at your answer held between the level's floor (5 hg at Level 1, 8 hg above) and its cap (Level 1: 6 hg if new and in month 0, else 8 hg; then 10 hg). The rest of your answer is kept as <b>My pressure</b>, "plan ± x": your routines run that far from the plan's figure (if new, from month two). Never above 15 hg, your device or your maximum. <span class="new">0.10</span></p></div>
+        <table class="t"><thead><tr><th>You answer</th><th>New?</th><th>The plan starts at</th><th>My pressure</th></tr></thead><tbody>
+          <tr><td class="n">4 hg</td><td>yes</td><td class="n">5.0 hg · the floor</td><td class="n">plan −1.0</td></tr>
+          <tr><td class="n">7 hg</td><td>yes</td><td class="n">6.0 hg · month-one cap</td><td class="n">plan +1.0</td></tr>
+          <tr><td class="n">7 hg</td><td>no</td><td class="n">7.0 hg</td><td class="n">the plan</td></tr>
+          <tr><td class="n">11 hg</td><td>no, month 0</td><td class="n">8.0 hg · Level 1 cap</td><td class="n">plan +3.0, asked once</td></tr>
+        </tbody></table>
+      </div>
+      <p class="tiny">The chart is where your months place you when the session question is left at Skip. When the months and the pressure point to different levels, you start at the lower one, and both reasons are shown. The placement, the week arithmetic and the pressure rule are the app's choice; the level phases follow the guidance.</p>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>3</span></div>
+</section>
+
+<!-- 4 WEEKS -->
+<section class="page">
+  <div class="top"><span class="kick">The calendar</span><h2>A week counts with 2 full sessions of a track, or 3 days</h2></div>
+  <div class="body">
+    <svg id="weeks" viewBox="0 0 1000 200" role="img" aria-label="Four example weeks: three days (or two full sessions) counts, two short days do not, a layoff, a deload week."></svg>
+    <div class="cols3">
+      <div class="card"><h3>What counts</h3><ul class="tight small">
+        <li>A week runs Monday to Sunday. It counts for a track with 3 days of its plan sessions, or 2 full sessions: sessions that together delivered two sessions' worth of what the plan asked. Two runs on one day are one session; one never counts alone. <span class="app">App's choice: 2 full sessions</span> <span class="new">0.10</span></li>
+        <li>3 days count on the third; 2 full sessions once the track's last scheduled day of the week is done.</li>
+        <li>Feeders, manual runs and your own routines never make a day count. <span class="app">App's choice</span></li>
+        <li>Each track counts its own weeks. The deload's week counts when both tracks' weeks count, or with 3 days of either that include each track. <span class="new">0.10</span></li>
+      </ul></div>
+      <div class="card"><h3>Missed days (interval girth)</h3><ul class="tight small">
+        <li>1–2 scheduled girth days missed: carry on.</li>
+        <li>3 or more missed: the week repeats (the next counting week doesn't move you on). <span class="app">App's choice: 3</span></li>
+        <li>No girth training all week: step back (the next two counting weeks don't move you on).</li>
+        <li>Never a catch-up or a double session. Weeks with a deload, a safety flag or a girth-focus block are never charged.</li>
+      </ul></div>
+      <div class="card"><h3>Breaks</h3><ul class="tight small">
+        <li>A layoff is 7 or more days since your last plan session on any track. The plan steps you back.</li>
+        <li>After a layoff it asks "Were you on a deload?" A reported deload is not a layoff, and it refunds the missed-week charges.</li>
+        <li>The streak follows your training days, not the calendar, and skips deload days. <span class="app">App's choice</span></li>
+      </ul></div>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>4</span></div>
+</section>
+
+<!-- 5 SESSION ANATOMY -->
+<section class="page">
+  <div class="top"><span class="kick">How a session is built</span><h2>Sessions grow from 14 minutes to 50, stage by stage</h2></div>
+  <div class="body">
+    <svg id="anatomy" viewBox="0 0 1000 440" role="img" aria-label="Session strips drawn to one time scale for girth Levels 1, 2, 3, traditional, feeder, length Level 1 and a girth-focus length session."></svg>
+    <div class="legend">
+      <span><i style="background:var(--girth)"></i>Work that counts as time at pressure</span>
+      <span><i style="background:var(--girth-2)"></i>Fatigue block (doesn't count)</span>
+      <span><i style="background:#BCD8DB"></i>Warm-up / prep</span>
+      <span><i style="background:#E3E8EB;border:1px solid #CBD3D8"></i>Rest (vented) / tube change</span>
+      <span><i style="background:var(--length)"></i>Traction (a pull, in pounds)</span>
+      <span><i style="background:#F2D3BF"></i>Hand release</span>
+      <span><i style="background:var(--feeder)"></i>Feeder</span>
+    </div>
+    <p class="tiny">Every strip is drawn to the same scale, from the app's own builder run with default settings. Only the dark-teal stages count as time at pressure: a second counts while the reading is at or above the level's floor (5 hg at Level 1, 8 hg above). Drops, rests, warm-up, the fatigue block, retention and traction never count. The retention hold (5 min at 4 hg or less) is off by default and not drawn.</p>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>5</span></div>
+</section>
+
+<!-- 6 GIRTH L1 -->
+<section class="page">
+  <div class="top"><span class="kick"><span class="chip g">Girth · interval</span> Level 1 · months 0–3 in the guidance</span><h2>Level 1: more time at pressure first, then more pressure</h2></div>
+  <div class="body">
+    <svg id="l1" viewBox="0 0 1000 250" role="img" aria-label="Girth Level 1 week table: sets 5 to 10 over weeks 1 to 16 with table deload rows at 5, 9, 13 and 17."></svg>
+    <div class="cols3">
+      <div class="card small"><h3>Sets follow the table</h3><p class="muted">Your place moves one row per counting week. On a table deload row you repeat the previous sets: the real rest week comes from the deload count (page 16). After row 16, 10 sets repeat until the gate. One set is a 2-minute hold with a 5-second drop, in one unbroken block.</p></div>
+      <div class="card small"><h3>Pressure follows the table, then a rule</h3><p class="muted">While sets are still rising, your pressure follows the table's row (5 → 6 → 7 hg). It only goes up, by 1 hg at most, and only once your last 3 sessions at that pressure delivered their minutes. Once sessions hold 20 minutes, it adds 1 hg per 3 counting weeks up to 8 hg (page 9). Floor 5 hg; cap 6 hg in month 0 if you're new, then 8 hg.</p></div>
+      <div class="card small"><h3>The gate to Level 2</h3><p class="muted">Each of your last 3 sessions holds 20 minutes at pressure, at 8 hg, and both have held for 2 counting weeks. The plan proposes Level 2 and you tap to move, but never on a lighter return day: it comes on the first full day back. You start Level 2 at its first row, at 8 hg. From week 10, yield can add a set (page 15).</p></div>
+    </div>
+    <svg id="l1s" viewBox="0 0 1000 70" role="img" aria-label="A week-1 session: 4-minute warm-up then 5 sets, 14 minutes 25 seconds."></svg>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>6</span></div>
+</section>
+
+<!-- 7 GIRTH L2 -->
+<section class="page">
+  <div class="top"><span class="kick"><span class="chip g">Girth · interval</span> Level 2 · months 4–6 in the guidance</span><h2>Level 2: longer sessions with rests, on to 30 minutes</h2></div>
+  <div class="body">
+    <svg id="l2" viewBox="0 0 1000 250" role="img" aria-label="Girth Level 2 week table: weeks 18 to 32, sets 10 to 15, deload rows at 21, 25 and 29, rows 27 to 32 the app's choice, gate at month 6 and 30 minutes."></svg>
+    <div class="cols3">
+      <div class="card small"><h3>What changes</h3><p class="muted">The floor rises to 8 hg: only time at 8 hg or more counts. A 3-minute vented rest comes after every 5 sets. A set is added about every 14 days, from 10 sets up to 15 (30 minutes), where the sets stop. The cap is 10 hg. <span class="app">App's choice: rows 27–32 place the guidance's rule</span></p></div>
+      <div class="card small"><h3>Pressure climbs toward 10 hg</h3><p class="muted">Every Level 2 row holds 20 minutes or more. So from 8 hg the pressure can step up 1 hg every 3 counting weeks, as long as each of your last 3 sessions held 20 minutes, up to the 10 hg cap. Moving up at 27 kPa keeps the count you built at Level 1.</p></div>
+      <div class="card small"><h3>The gate to Level 3</h3><p class="muted">Month 6 <b>and</b> each of your last 3 sessions held 30 minutes at pressure (traditional: its own planned minutes). <span class="app">App's choice: 30 as a condition</span> You carry your sets, pressure and its count into Level 3. Yield (6–12 %, page 15): three below adds a set, kept; three above takes those sets off, but the table's own still come.</p></div>
+    </div>
+    <svg id="l2s" viewBox="0 0 1000 70" role="img" aria-label="A Level 2 session: warm-up, 5 sets, 3-minute rest, 5 sets, 29 minutes 55 seconds."></svg>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>7</span></div>
+</section>
+
+<!-- 8 GIRTH L3 L4 -->
+<section class="page">
+  <div class="top"><span class="kick"><span class="chip g">Girth · interval</span> Levels 3 and 4 · months 6–12 and 12+</span><h2>Levels 3 and 4: a fatigue block, blocks of five, and your measurements in charge</h2></div>
+  <div class="body">
+    <svg id="l3s" viewBox="0 0 1000 70" role="img" aria-label="A Level 3 session with 13 sets: warm-up, fatigue block, rest, three work blocks with rests, 50 minutes 55 seconds."></svg>
+    <div class="cols2">
+      <table class="t"><thead><tr><th></th><th>Level 3 · months 6–12</th><th>Level 4 · month 12+</th></tr></thead><tbody>
+        <tr><td>Way in</td><td>month 6 and 30-min sessions at Level 2</td><td>month 12 and 20-min sessions at Level 3, then the fork</td></tr>
+        <tr><td>Week table</td><td>none: your measurements move it</td><td>none</td></tr>
+        <tr><td>Sets</td><td>at least 10; you carry yours (15 after the Level 2 table)</td><td class="n">at least 14</td></tr>
+        <tr><td>Session</td><td colspan="2">warm-up · fatigue block 15 × 30 s (doesn't count) · 3 min rest · work in blocks of 5 with 3-min rests</td></tr>
+        <tr><td>Hold lengths</td><td colspan="2">work holds 2 min, or 1–3 min; fatigue holds 30, 45 or 60 s; rest between blocks 3–5 min. More or fewer holds, the same minutes <span class="new">0.10</span></td></tr>
+        <tr><td>Pressure</td><td colspan="2">floor 8 hg, rises 1 hg per 3 counting weeks to 10 hg</td></tr>
+        <tr><td>Milestone for a raise</td><td class="n">20 min</td><td class="n">28 min</td></tr>
+        <tr><td>Yield target</td><td colspan="2">6–12 %: three below adds 2 sets, three above takes 2 away</td></tr>
+        <tr><td>Extras</td><td>feeders join · hybrid mix possible</td><td>option B: shear work in the rests</td></tr>
+      </tbody></table>
+      <div style="display:grid;gap:4mm">
+        <svg id="fork" viewBox="0 0 470 236" role="img" aria-label="Month 12 fork, once sessions hold 20 minutes: move to Level 4, or take a 4-week break on both tracks; the plan starts again by itself at Level 3, with a gentle first week at 60 % of the working pressure."></svg>
+        <div class="card small"><h3>Pausing and coming back <span class="new">0.10</span></h3><p class="muted">A paused plan offers <b>Resume where I was</b>: the same level, week and pressure (never higher), with the gentle return armed. A pause of 7+ days still counts as a layoff, so the plan still offers its step back. Or <b>Set up again</b>.</p></div>
+        <div class="card small"><h3>Hybrid mix <span class="muted" style="font-weight:400">(a setting, from Level 3)</span></h3><p class="muted">After the fatigue block, 6 five-minute traditional holds at Level 3 and 8 at Level 4, at the session's pressure with a rest between each, in place of the interval blocks.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>8</span></div>
+</section>
+
+<!-- 9 PRESSURE RISES -->
+<section class="page">
+  <div class="top"><span class="kick"><span class="chip g">Girth</span> Pressure</span><h2>Pressure rises one step at a time: first with the table, then by a rule</h2></div>
+  <div class="side" style="grid-template-columns:1fr 108mm">
+    <div style="display:grid;gap:4mm;align-content:start"><svg id="steps" viewBox="0 0 640 380" role="img" aria-label="Pressure steps from 5.0 hg: 5.9, 7.1, then 8.0 hg, the Level 1 cap; at Level 2, 8.9 and 10.0 hg, its cap."></svg><div class="card small"><h3>While it is working <span class="new">0.10</span></h3><p class="muted">Yield on target and your at-rest measurements rising (the last 4 counted weeks above the 4 before): a step every 6 counting weeks instead of 3, and when the normal one is due the card offers <b>Step up now</b> or <b>Wait</b>. The length climb and its small load steps slow the same way. Never on a return day or in the gentle week.</p></div></div>
+    <ol class="flow stack" style="gap:2.5mm">
+      <li><b>Level 1, while sets rise</b><span class="muted">Your pressure follows the table's row (5 → 6 → 7 hg) once your last 3 sessions at this pressure delivered their planned minutes. Within 1 kPa of the row's pressure counts as reached.</span></li>
+      <li><b>After that: time held and time passed</b><span class="muted">Each of your last 3 sessions held the level's milestone: 20 min at L1–L3, 28 at L4, and for traditional, its own planned minutes. You have also spent 3 counting weeks at your current pressure; moving up a level restarts that count only if it changes your pressure. <span class="app">App's choice</span></span></li>
+      <li><b>Always</b><span class="muted">Not in a deload week, a gentle return or under a safety flag. You are below the level's cap (8 hg at L1, 6 hg in month 0 if new; 10 hg from L2) and your own maximum.</span></li>
+      <li><b>The device allows it</b><span class="muted">If your cylinder's ceiling is below the next step, the plan asks you to raise the ceiling instead.</span></li>
+    </ol>
+  </div>
+  <p class="tiny">A step is at most 1 hg, rounded to a whole kPa (the pump works in whole kPa). The plan keeps its own figure exact (5, 6, 7, 8 hg); the pump takes the nearest whole kPa. From 5 hg that is 17 → 20 → 24 kPa with the table, then 27 kPa: 8.0 hg, the Level 1 cap. Level 2 continues 30 → 34 kPa: 10.0 hg, its cap (the worked example's weeks 20 and 24, page 18).</p>
+  <div class="foot"><span>The training program, start to finish</span><span>9</span></div>
+</section>
+
+<!-- 10 TRADITIONAL -->
+<section class="page">
+  <div class="top"><span class="kick"><span class="chip g">Girth · traditional</span> The other girth style</span><h2>Traditional girth: long holds that grow by the week</h2></div>
+  <div class="body">
+    <svg id="trs" viewBox="0 0 1000 70" role="img" aria-label="A traditional Level 1 session: warm-up, then three 5-minute holds with 30-second rests."></svg>
+    <div class="cols3">
+      <div class="card small"><h3>The shape</h3><p class="muted">5-minute holds (with a 5-second drop) and a 30-second rest between them. Level 1 starts at 3 holds and adds one every 4 counted weeks at the level, up to 6; Level 2 runs 6; Level 3 the fatigue block, then 6 growing to 7; Level 4, 8. <span class="app">App's choice: 4 counted weeks for the guidance's 28 days</span> <span class="new">0.10</span></p></div>
+      <div class="card small"><h3>What moves it</h3><p class="muted">The weeks at the level, as above; yield from Level 2: three below target in a row adds a hold, and it is kept. Pressure follows the interval rule (page 9), except that each of the last 3 sessions must deliver its own planned minutes (15 for 3 holds). From 5 hg that gives steps in weeks 4, 8 and 12, up to 8 hg. <span class="app">App's choice</span></p></div>
+      <div class="card small"><h3>Gates and switching</h3><p class="muted">Level 1 → 2: your last 3 sessions each held their own planned minutes, at 8 hg, for 2 counting weeks (week 15, month 3, for page 18's trainee on traditional). Levels 3 and 4: the month and those minutes. <span class="app">App's choice</span> Switching style keeps level and pressure and restarts the week at 1.</p></div>
+    </div>
+    <div class="cols2" style="grid-template-columns:1.15fr 1fr;gap:10mm">
+      <div style="display:grid;gap:2mm"><h3>The two styles at Level 1, side by side</h3><svg id="cmp" viewBox="0 0 640 150" role="img" aria-label="Level 1 interval session: warm-up then 5 two-minute holds, 10 minutes at pressure. Level 1 traditional session: warm-up, then three 5-minute holds with short rests, 15 minutes at pressure."></svg><p class="tiny">Drawn to a larger scale than page 5. The interval week-1 session holds 10 minutes at pressure; the traditional one 15, in three 5-minute holds.</p></div>
+      <table class="t"><thead><tr><th></th><th>Interval</th><th>Traditional</th></tr></thead><tbody>
+        <tr><td>One hold</td><td>2 min</td><td>5 min</td></tr>
+        <tr><td>Level 1 start</td><td>5 sets · 10 min</td><td>3 holds · 15 min</td></tr>
+        <tr><td>Rests</td><td>none at L1 · 3 min every 5 sets from L2</td><td>30 s between holds</td></tr>
+        <tr><td>Week table</td><td>Levels 1 and 2</td><td>none</td></tr>
+        <tr><td>What adds sets</td><td>the table, and yield from week 10</td><td>the weeks at the level; yield from L2</td></tr>
+        <tr><td>Pressure</td><td>the table, then the milestone rule</td><td>its own planned minutes, every 3 weeks</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>10</span></div>
+</section>
+
+<!-- 11 LENGTH 0-3 -->
+<section class="page">
+  <div class="top"><span class="kick"><span class="chip l">Length</span> Level 1 · months 0–3</span><h2>Length: a pull measured in pounds, then expansion</h2></div>
+  <div class="body">
+    <svg id="lens" viewBox="0 0 1000 70" role="img" aria-label="A Level 1 length session: hand release, warm-up, fatigue holds, strain holds, tube change, expansion, 44 minutes 5 seconds."></svg>
+    <div class="side" style="grid-template-columns:1fr 92mm">
+      <svg id="ladder" viewBox="0 0 640 300" role="img" aria-label="Calendar ladder: load rises from 2.5 lb to 5 lb and strain sets from 2 to 6 over the first 12 length weeks."></svg>
+      <div class="facts">
+        <div><b>A pull, not a pressure.</b> <span class="muted">In a close-fitting cylinder the load is pressure × girth² ÷ 4π, an upper bound. So the plan sets pounds and works out the pressure from your erect girth.</span></div>
+        <div><b>The cylinder decides.</b> <span class="muted">A bore 0.92–1.10 × your girth pulls. Any other fit runs expansion only. <span class="app">App's choice: the band</span></span></div>
+        <div><b>The first three months follow the calendar.</b> <span class="muted">It counts length weeks (3 length days, or 2 full length sessions). A strain set is added every 3 weeks, and 0.5 lb every 2 weeks up to 5 lb, at most 4 lb in month one. Sets move before load, one step per acceptance.</span></div>
+        <div><b>Start</b> <span class="muted">2.5 lb (or your current load if you're not new), at the level your months give (2 from month 3, 3 from 6, 4 from 12). Your length-session answer places the strain sets. <span class="new">0.10</span></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>11</span></div>
+</section>
+
+<!-- 12 LENGTH 3+ -->
+<section class="page">
+  <div class="top"><span class="kick"><span class="chip l">Length</span> From month 3 · Levels 2 to 4</span><h2>From month 3, your measurements steer the length track</h2></div>
+  <div class="side" style="grid-template-columns:1fr 104mm">
+    <div style="display:grid;gap:4mm">
+      <ol class="flow">
+        <li><b>Over 6 %</b><span class="muted">Measure again. A second over 6 % since the work last changed: 0.5 lb less, once in 7 days, never under 5 lb.</span></li>
+        <li><b>Under 2 % for a week</b><span class="muted">This block reached 2 % earlier: the week off. It never did: +1 strain set, up to 12, then +0.5 lb. Still under after that: a week off or a girth block is offered.</span></li>
+        <li><b>No readings, 4 weeks</b><span class="muted">+1 strain set, only up to 6.</span></li>
+        <li><b>Small steps over time</b><span class="muted">The load setting (default): 0.5 lb every 2 length weeks, to 5 lb before month 6, then to 12 lb.</span></li>
+        <li><b>Stretch outrunning erect</b><span class="muted">Stretched length rising while erect length is flat over 6 weeks: a girth-focus block. <span class="app">App's choice: the trigger</span></span></li>
+        <li><b>Otherwise</b><span class="muted">Month gates change only the level; the expansion pressure rises. Else hold.</span></li>
+      </ol>
+      <p class="tiny">First match wins, after a safety flag, a layoff and a deload. The reading is one length session's after-reading against its own before, in stretched length, the newest of the last week; target 2–6 %. From month 3 the plan runs 6 strain sets, the guidance's table. <span class="new">0.10</span></p>
+    </div>
+    <div style="display:grid;gap:4mm">
+      <div class="card small"><h3>Girth-focus block · 8 weeks</h3><p class="muted">The length session drops traction and doubles expansion to 10 × 2 min (the hand release and warm-up stay). It ends by date, scored on your girth sessions' expansion (6–8 %). The girth track pauses for the block. <span class="new">0.10</span></p></div>
+      <div class="card small"><h3>Month 12: three ways on</h3><p class="muted">Move to Level 4; an 8-week girth block; or a 4-week break on both tracks (length then comes back at 75 % of its load and climbs back to it). <span class="app">App's choice: 8 and 4 weeks</span></p></div>
+      <div class="card small"><h3>Expansion pressure</h3><p class="muted">The closing expansion rises 1 hg a month (held at 6 hg in month 0), up to 10 hg. <span class="app">App's choice</span></p></div>
+      <table class="t"><thead><tr><th>Erect girth</th><th>lb per hg</th><th>at 15 hg</th></tr></thead><tbody>
+        <tr><td class="n">4.5 in</td><td class="n">0.79</td><td class="n">11.9 lb</td></tr>
+        <tr><td class="n">5.0 in</td><td class="n">0.98</td><td class="n">14.7 lb</td></tr>
+        <tr><td class="n">5.5 in</td><td class="n">1.18</td><td class="n">17.7 lb</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>12</span></div>
+</section>
+
+<!-- 13 FEEDER -->
+<section class="page">
+  <div class="top"><span class="kick"><span class="chip f">Feeder</span> From girth Level 3</span><h2>Feeders: two short top-ups, four hours apart</h2></div>
+  <div class="body">
+    <svg id="feedday" viewBox="0 0 1000 150" role="img" aria-label="An example day: main session in the morning, first feeder 4 hours after it ends, second feeder 4 hours after the first."></svg>
+    <div class="cols3">
+      <div class="card small"><h3>What a feeder is</h3><p class="muted">5 × 2-minute holds at 75 % of the day's main girth pressure (a 30 kPa main session gives a 23 kPa feeder), 10 minutes, twice a day. No warm-up, and it isn't scored. It is offered from girth Level 3 if you opted in at setup (on by default).</p></div>
+      <div class="card small"><h3>When</h3><p class="muted">On girth days only, after that day's girth session. The next one is due 4 hours after the girth session ends and 4 hours after the last feeder's start. Six hours is the far edge, not a deadline. <span class="new">0.10</span></p></div>
+      <div class="card small"><h3>When not</h3><p class="muted">Paused in a deload week, while a deload is due and while a safety flag is up; off below Level 3. On a gentle-return day it takes 75 % of that day's reduced pressure. A feeder never counts as a training day.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>13</span></div>
+</section>
+
+<!-- 14 DECIDES -->
+<section class="page">
+  <div class="top"><span class="kick">How the program decides</span><h2>Each session, the plan asks eight questions in order</h2></div>
+  <div class="side" style="grid-template-columns:1fr 84mm">
+    <ol class="flow">
+      <li><b>Is a safety flag up?</b><span class="muted">"Something's off" before a session, or still numb 40 minutes after a pull: step back on every track, and nothing new is offered. Numbness also means a week off.</span></li>
+      <li><b>A layoff?</b><span class="muted">7+ days without a plan session on any track: step back.</span></li>
+      <li><b>Falling short?</b><span class="muted">After 3+ scored sessions, even the best of the last 3 delivered under 75 % of its target: step back. <span class="app">App's choice</span></span></li>
+      <li><b>Deload?</b><span class="muted">In a deload week, the count is due, or the target came early (reached in the first 35 % of sets, twice): deload.</span></li>
+      <li><b>Gate met?</b><span class="muted">Propose the next level; you tap to move. Not while a gentle return still runs lighter: the proposal comes on the first full day back. <span class="new">0.10</span></span></li>
+      <li><b>Yield off target?</b><span class="muted">Three in a row below: add sets (+1 at L1–2, +2 at L3–4), and they are kept. Three above: nothing at L1; the yield-added sets off at L2 (the table's own still come); 2 sets away at L3–4.</span></li>
+      <li><b>Time to raise?</b><span class="muted">The conditions on page 9, half as often while it is working.</span></li>
+      <li><b>Otherwise</b><span class="muted">Hold, and say what it is waiting for.</span></li>
+    </ol>
+    <div style="display:grid;gap:4mm">
+      <div class="card small"><h3>Rules under everything</h3><ul class="tight">
+        <li><b>No data, no change.</b> The plan never guesses from a missing reading.</li>
+        <li><b>Nothing blocks.</b> A week that doesn't qualify just doesn't count. The trainer never refuses a START.</li>
+        <li><b>Every "didn't count" says why.</b></li>
+        <li><b>Volume before load.</b></li>
+        <li><b>Your edits win.</b> The plan rewrites its own routines (with undo), but a routine you changed is left alone and the change is offered.</li>
+      </ul></div>
+      <p class="tiny">Length asks questions 1, 2 and 4 first, then its own list (page 12). A yield change is kept, and the next one needs 3 new readings.</p>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>14</span></div>
+</section>
+
+<!-- 15 MEASUREMENTS -->
+<section class="page">
+  <div class="top"><span class="kick">What it measures</span><h2>Three numbers steer the plan: time at pressure, yield and strain</h2></div>
+  <div class="body">
+    <svg id="yield" viewBox="0 0 1000 150" role="img" aria-label="Yield target: 6 percent or more at Level 1, 6 to 12 percent from Level 2; length strain 2 to 6 percent."></svg>
+    <div class="cols3">
+      <div class="card small"><h3>Time at pressure</h3><p class="muted">Seconds with the reading at or above the level's floor, in the counting stages only (page 5). It drives the milestones (the lowest of your last 3 sessions) and "falling short" (the best of your last 3). <span class="new">0.10</span> Girth sets dropped on a both-tracks day are credited when the length session delivered its expansion.</p></div>
+      <div class="card small"><h3>Yield (girth)</h3><p class="muted">After ÷ before − 1, from one session's own pair of readings: 6–12 %, the swelling a session can't avoid included. It steers from Level 1 week 10 (traditional: from Level 2), after 3 in a row. Readings from manual runs, without a same-session baseline, or taken within 4 hours of a length session are left out. <span class="new">0.10</span></p></div>
+      <div class="card small"><h3>Strain (length)</h3><p class="muted">One length session's after-reading against its own before, in stretched length: the newest of the last week acts. Target 2–6 % (page 12). The 21-day fatigue figure is shown and moves nothing. <span class="app">App's choice: one reading</span> <span class="new">0.10</span></p></div>
+    </div>
+    <p class="tiny">Two ways to measure count equally: standardised (during a 20 kPa, 30-second hold) and at rest. Each is compared only with its own kind. A measurement is due every 5 sessions, or at the 1st and 4th session of a week, counted per track <span class="new">0.10</span>. Rising at-rest readings while on target slow the calendar steps (page 9). The Tissue response test is the app's own index: off by default, and it never moves the plan.</p>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>15</span></div>
+</section>
+
+<!-- 16 DELOADS -->
+<section class="page">
+  <div class="top"><span class="kick">Rest and return</span><h2>Deloads come by training weeks, and you come back gently</h2></div>
+  <div class="body">
+    <svg id="cadence" viewBox="0 0 1000 130" role="img" aria-label="Deload cadence: after 4 counting weeks, then every 3, then every 4 from month 4."></svg>
+    <div class="side" style="grid-template-columns:1fr 1fr">
+      <div class="facts">
+        <div><b>What comes due.</b> <span class="muted">After 4 counting weeks, then every 3, then every 4 from month 4. Girth or length days both count <span class="new">0.10</span>. Time off never brings it closer. It also comes due when the girth target comes early twice. When the weeks bring it due, the app asks when it starts: From tomorrow, From next Monday or Pick a day; today's session still runs. <span class="app">App's choice: counting trained weeks</span></span></div>
+        <div><b>The deload week.</b> <span class="muted">7 days from when you start it. Sessions are logged but nothing moves: no counts, no misses charged, and the streak skips it. Feeders pause, and the length track rests entirely <span class="new">0.10</span>.</span></div>
+        <div><b>A deload you already took.</b> <span class="muted">Report 3–21 days that ended within the last 28. It becomes your latest deload, refunds missed-week charges, and brings you back gently.</span></div>
+        <div><b>A paused plan.</b> <span class="muted"><b>Resume where I was</b> keeps your level, week and pressure, never higher, and brings you back gently. A pause of 7+ days is still a layoff, so the plan still steps you back. <span class="new">0.10</span></span></div>
+      </div>
+      <div style="display:grid;gap:3mm">
+        <svg id="taper" viewBox="0 0 470 200" role="img" aria-label="Gentle return from 17 kPa: first training day 3 kPa, second 10 kPa, then 17 kPa."></svg>
+        <p class="small muted"><b style="color:var(--ink)">Gentle return.</b> Day 1 back runs 4 hg under your pressure, day 2 runs 2 hg under, then full. The work is pulled at 60 % speed instead of 75 %. It applies to girth and the length expansion, never to the pull, and reduced sessions aren't judged. It follows every deload week, every Resume, and any break if you "mark easily". No pressure step lands and no level is proposed while it runs lighter. <span class="app">App's choice: the values</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>16</span></div>
+</section>
+
+<!-- 17 BOTH TRACKS -->
+<section class="page">
+  <div class="top"><span class="kick"><span class="chip l">Length</span> <span class="chip g">Girth</span> Both tracks <span class="new">0.10</span></span><h2>On a day with both tracks, the app only ever takes away</h2></div>
+  <div class="body">
+    <svg id="shapes" viewBox="0 0 1000 150" role="img" aria-label="Two week shapes: both tracks on Monday, Wednesday and Friday, or length and girth alternating Monday to Saturday."></svg>
+    <div class="cols3">
+      <div class="card small"><h3>Order</h3><p class="muted">Length first, then girth; or length in the morning and girth in the evening. If girth runs first, the length session says the guidance puts length first, before girth work has swollen the tissue, and offers expansion only.</p></div>
+      <div class="card small"><h3>What comes off</h3><ul class="tight"><li>With a length cylinder, length ends after its pulls (no swap, no expansion) and girth keeps every set. Without one, girth gives 5 sets to length's expansion, spread across the session, always keeping a hold at its pressure. <span class="app">App's choice</span></li><li>No warm-up within 30 min of the other track's session, and girth after length leaves out its fatigue block.</li><li>The Tissue test runs only in the day's first session.</li></ul></div>
+      <div class="card small"><h3>Spacing</h3><ul class="tight"><li>After a pull, the next track is offered 40 min later (numbness should clear by then), or sooner on "It cleared".</li><li>A feeder comes 4 hours after the girth session.</li><li>Past 90 minutes of sessions in a day, START says so. It's only advice.</li></ul></div>
+    </div>
+    <p class="tiny">Changes apply to that run only: saved routines stay as they are, and the box before START lists every change. Nothing on a both-tracks day raises a pressure. A plan day that reaches 90 minutes gets an "A long training day" card, and <b>Long training days</b> offers: Alternate days, each track 3 days a week · Alternate on my days · Same days, stop growing at 90 min · Same days, no limit. <span class="new">0.10</span></p>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>17</span></div>
+</section>
+
+<!-- 18 WORKED -->
+<section class="page">
+  <div class="top"><span class="kick">A worked example · worked out from the rules</span><h2>A new trainee's first 36 weeks, as the rules play out</h2></div>
+  <div class="body">
+    <svg id="worked" viewBox="0 0 1000 372" role="img" aria-label="First 36 weeks: deloads at weeks 5, 9, 13, 17, 22, 27, 32; pressure 17 kPa, then 20 at week 4, 24 at week 11, 27 at week 16, 30 at week 20, 34 at week 24; Level 2 proposed in week 19 (month 4), Level 3 in week 36 (month 8)."></svg>
+    <div class="cols2">
+      <p class="small muted">Assumes: new to pumping, 5 hg to start, interval girth only, Mon/Wed/Fri every week, each deload taken when due, every session hitting its target minutes, and no yield readings. Everything else is the plan's defaults. The guidance's own schedule, for comparison, has Level 1 over weeks 1–17 and Level 2 over weeks 18–26 (months 4–6). The example was worked out by driving the app's own engine; its weeks are checked every time the app is built.</p>
+      <div class="card small"><h3>What to notice</h3><p class="muted">Pressure follows the table to 7 hg in month 2 and reaches 8 hg in month 3, once sessions hold 20 minutes. Level 2 is proposed on the Monday of week 19 (month 4), the first full day after a return; the pressure stays at 27 kPa, so its count carries and Level 2's first step comes in week 20. The pressure reaches the 10 hg cap in week 24, sessions hold 30 minutes from week 35, and Level 3 is proposed in week 36 (month 8). Each deload is followed by two lighter days: no step and no level lands on them.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>18</span></div>
+</section>
+
+<!-- 19 LIMITS -->
+<section class="page">
+  <div class="top"><span class="kick">Limits</span><h2>The lines the program never crosses</h2></div>
+  <div class="body">
+    <div class="tiles">
+      <div class="tile"><span class="enf">Enforced</span><span class="big">15 hg</span><span class="what">Absolute pressure</span><span class="how">Every prescription is clamped; sent as 50 kPa, rounded down.</span></div>
+      <div class="tile"><span class="enf">Enforced</span><span class="big">2 h</span><span class="what">One session</span><span class="how">Sealed time per session, on every run.</span></div>
+      <div class="tile"><span class="enf">In the plan</span><span class="big">6 hg</span><span class="what">First month</span><span class="how">For somebody new to pumping: Level 1 and length.</span></div>
+      <div class="tile"><span class="enf">In the plan</span><span class="big">8 · 10 hg</span><span class="what">Level caps</span><span class="how">8 hg at Level 1, 10 hg from Level 2. My pressure moves them, asked once.</span></div>
+      <div class="tile"><span class="enf">In the plan</span><span class="big">12 lb</span><span class="what">Pull</span><span class="how">4 lb in month one if new. Past 12 only by your answer or My pressure, never 15.</span></div>
+      <div class="tile"><span class="adv">Advice</span><span class="big">20 min</span><span class="what">One set</span><span class="how">Flagged in the editor. The plan never writes a hold over 5 minutes.</span></div>
+      <div class="tile"><span class="adv">Advice</span><span class="big">40 min</span><span class="what">Sealed</span><span class="how">A one-time note in a session. <span class="app">App's choice</span></span></div>
+      <div class="tile"><span class="adv">Advice</span><span class="big">30 min</span><span class="what">In a traction tube</span><span class="how">"Come out of the tube", repeated. <span class="app">App's choice</span></span></div>
+      <div class="tile"><span class="adv">Advice</span><span class="big">90 min</span><span class="what">A day, both tracks</span><span class="how">Before START, when the day would pass it. <span class="new">0.10</span></span></div>
+      <div class="tile"><span class="enf">Enforced</span><span class="big">Yours</span><span class="what">Device and maximum</span><span class="how">Your cylinder's ceiling and your stated maximum always clamp.</span></div>
+    </div>
+    <p class="tiny">Enforced: the app won't command past it. In the plan: the plan never prescribes past it. Advice: it tells you and lets you decide.</p>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>19</span></div>
+</section>
+
+<!-- 20 WORDS -->
+<section class="page">
+  <div class="top"><span class="kick">Words and open points</span><h2>The words used here, and what isn't settled yet</h2></div>
+  <div class="cols2" style="gap:12mm">
+    <table class="t small"><tbody>
+      <tr><td><b>hg</b></td><td>Inches of mercury, the vacuum unit the guidance uses. 1 hg = 3.386 kPa.</td></tr>
+      <tr><td><b>Time at pressure</b></td><td>Seconds held at or above the level's floor, in counting stages.</td></tr>
+      <tr><td><b>Counting week</b></td><td>Monday to Sunday, with 3 training days or 2 full sessions on the track.</td></tr>
+      <tr><td><b>Milestone</b></td><td>The time at pressure a level asks for before pressure rises.</td></tr>
+      <tr><td><b>Gate</b></td><td>The condition that ends a level: earned at girth Level 1, the month and the time held at Levels 2–3, the calendar for length.</td></tr>
+      <tr><td><b>Yield</b></td><td>How much thicker a girth session leaves you, in %.</td></tr>
+      <tr><td><b>Strain · fatigue</b></td><td>One length session's change, after against before · the 21-day mean, shown only.</td></tr>
+      <tr><td><b>Fatigue block</b></td><td>Short holds before the work at Levels 3–4. It doesn't count as time at pressure.</td></tr>
+      <tr><td><b>Traction</b></td><td>A pull in a close-fitting cylinder, set in pounds.</td></tr>
+      <tr><td><b>Expansion</b></td><td>Interval pumping at the end of a length session.</td></tr>
+      <tr><td><b>Deload · layoff</b></td><td>A planned rest week · 7+ days without training.</td></tr>
+      <tr><td><b>Gentle return</b></td><td>Two lighter days after a rest: −4 hg, then −2 hg.</td></tr>
+    </tbody></table>
+    <div style="display:grid;gap:4mm;align-content:start">
+      <h3>Not settled yet</h3>
+      <ul class="tight small">
+        <li>Whether a real pump holds a full 2 minutes at or above the floor on every set. If it coasts, sessions read short and the plan moves slower.</li>
+        <li>At Levels 1–2, a run of high yield takes off the yield-added sets, but the table's own additions still come.</li>
+        <li>A step can move the pump 4 kPa: the plan's own figure moves 1 hg, and the pump takes the nearest whole kPa (20 to 24).</li>
+        <li>The Level 1 gate's 2 weeks are whole calendar weeks, and a lighter return day neither holds nor breaks them, so a return week can count.</li>
+        <li>Level 2's rows 27–32 are the app's placement of the guidance's rule. Following them, Level 2 ends in month 8 (week 36), past the guidance's months 4–6.</li>
+        <li>Level 3 starts with the 15 sets carried from Level 2 (30 minutes), above the guidance's Level 3 main work of 20–21 minutes.</li>
+        <li>A level change that keeps the pressure keeps its count, so Level 2's first step comes one week after the move (week 20).</li>
+        <li>Whether the week with a gentle return should count toward the next pressure step. Today it counts; the step itself waits for the return to end.</li>
+        <li>Resume arms the gentle return even after a pause of a day or two.</li>
+        <li>The length load step (0.5 lb) and the traction fit band are the app's own figures.</li>
+      </ul>
+<p class="tiny">OpenPump describes what the program does. It adds no training advice of its own.</p>
+    </div>
+  </div>
+  <div class="foot"><span>The training program, start to finish</span><span>20</span></div>
+</section>
+
+<script>
+var NS='http://www.w3.org/2000/svg';
+var C={girth:'#1D6A73',girth2:'#7DAFB5',girthSoft:'#D5E8EA',prep:'#BCD8DB',rest:'#E3E8EB',restLine:'#CBD3D8',length:'#C8561F',length2:'#E59A74',lengthSoft:'#F6DCCD',man:'#F2D3BF',feeder:'#6B4FA0',feederSoft:'#E3DBF1',ink:'#16202A',muted:'#56626E',faint:'#96A1AB',rule:'#DCE2E6',paper:'#F5F7F8',grey:'#B7C0C7',warn:'#A23B32'};
+function E(n,a,t){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(t!=null)e.textContent=t;return e;}
+function A(p,n,a,t){var e=E(n,a,t);p.appendChild(e);return e;}
+function $(id){return document.getElementById(id);}
+function mmss(s){var m=Math.floor(s/60),r=s%60;return m+':'+(r<10?'0':'')+r;}
+function T(p,x,y,t,o){o=o||{};var a={x:x,y:y,'font-size':o.fs||12,fill:o.fill||C.ink,'text-anchor':o.anchor||'start'};if(o.fw)a['font-weight']=o.fw;if(o.cls)a['class']=o.cls;if(o.italic)a['font-style']='italic';if(o.tr)a.transform=o.tr;return A(p,'text',a,t);}
+
+/* ---------- session strips (one scale everywhere) ---------- */
+var PPS=640/3030; // px per second: about 640px for the longest session (girth L3, 50:55)
+var KIND={prep:[C.prep,C.ink],work:[C.girth,'#fff'],fat:[C.girth2,C.ink],rest:[C.rest,C.muted],trac:[C.length,'#fff'],tracfat:[C.length2,C.ink],man:[C.man,C.ink],swap:[C.rest,C.muted],feed:[C.feeder,'#fff']};
+function strip(p,x0,y,stages,title,total,pps){
+  pps=pps||PPS;
+  T(p,x0-12,y+24,title,{anchor:'end',fs:12.5,fw:700,cls:'sg'});
+  var x=x0;
+  stages.forEach(function(s){
+    var w=s[1]*pps,k=KIND[s[2]];
+    A(p,'rect',{x:x,y:y,width:Math.max(w-1.5,1),height:38,rx:3,fill:k[0],stroke:s[2]==='rest'||s[2]==='swap'?C.restLine:'none','stroke-width':1});
+    if(w>=84){T(p,x+6,y+16,s[0],{fs:11.5,fw:700,fill:k[1]});T(p,x+6,y+31,mmss(s[1]),{fs:11,fill:k[1]});}
+    else if(w>=34){T(p,x+w/2,y+24,s[3]||mmss(s[1]),{fs:10.5,fw:600,fill:k[1],anchor:'middle'});}
+    x+=w;
+  });
+  T(p,x+8,y+24,total,{fs:12,fw:700,fill:C.muted});
+}
+var S={
+  gL1:[['Warm-up',240,'prep'],['Work · 5 × 2 min',625,'work']],
+  gL2:[['Warm-up',365,'prep'],['Work · 5 sets',625,'work'],['Rest',180,'rest','rest'],['Work · 5 sets',625,'work']],
+  gL3:[['Warm-up',365,'prep'],['Fatigue 15 × 30 s',525,'fat'],['Rest',180,'rest','rest'],['Work · 5',625,'work'],['Rest',180,'rest','rest'],['Work · 5',625,'work'],['Rest',180,'rest','rest'],['Work · 3',375,'work']],
+  tr:[['Warm-up',240,'prep'],['Hold · 5 min',305,'work'],['Rest',30,'rest','rest'],['Hold · 5 min',305,'work'],['Rest',30,'rest','rest'],['Hold · 5 min',305,'work']],
+  fd:[['Feeder · 5 × 2 min',625,'feed']],
+  ln:[['Hand release',300,'man'],['Warm-up',240,'prep'],['Fatigue 10 × 60 s',700,'tracfat'],['Strain 2 × 5 min',660,'trac'],['Swap',120,'swap','swap'],['Expansion 5 × 2',625,'work']],
+  lf:[['Hand release',300,'man'],['Warm-up',240,'prep'],['Expansion · 10 × 2 min',1250,'work']]
+};
+(function(){
+  var p=$('anatomy'),x0=190,rows=[
+    ['Girth L1 · week 1',S.gL1,'14:25 · 10 min counts'],
+    ['Girth L2 · week 18',S.gL2,'29:55 · 20 min counts'],
+    ['Girth L3 · 13 sets',S.gL3,'50:55 · 26 min counts'],
+    ['Traditional L1',S.tr,'20:15 · 15 min counts'],
+    ['Feeder',S.fd,'10:25 · not scored'],
+    ['Length L1',S.ln,'44:05 · 10 min counts'],
+    ['Length · girth focus',S.lf,'29:50 · 20 min counts']];
+  rows.forEach(function(r,i){strip(p,x0,10+i*60,r[1],r[0],r[2]);});
+  // minute scale
+  var y=440-14;A(p,'line',{x1:x0,y1:y-8,x2:x0+60*50*PPS,y2:y-8,stroke:C.faint,'stroke-width':1});
+  for(var m=0;m<=50;m+=10){var x=x0+m*60*PPS;A(p,'line',{x1:x,y1:y-12,x2:x,y2:y-4,stroke:C.faint});T(p,x,y+8,m+' min',{fs:10,fill:C.faint,anchor:'middle'});}
+})();
+strip($('l1s'),190,14,S.gL1,'A week-1 session','14:25 · 10 min at pressure');
+strip($('l2s'),190,14,S.gL2,'A week-18 session','29:55 · 20 min at pressure');
+strip($('l3s'),190,14,S.gL3,'A 13-set Level 3 session','50:55 · 26 min at pressure');
+strip($('trs'),190,14,S.tr,'A Level 1 session','20:15 · 15 min at pressure');
+(function(){var p=$('cmp'),pp=470/1230;strip(p,110,16,[['Warm-up',240,'prep'],['Work · 5 × 2 min',625,'work']],'Interval','14:25',pp);strip(p,110,86,S.tr,'Traditional','20:15',pp);})();
+strip($('lens'),190,14,S.ln,'A Level 1 session','44:05 · pull up to 2.6 lb at 5.0 in');
+
+/* ---------- master map ---------- */
+(function(){
+  var p=$('master'),X=function(m){return 170+m*56;},R=X(14);
+  // month axis
+  var ay=448;A(p,'line',{x1:X(0),y1:ay,x2:R,y2:ay,stroke:C.faint});
+  for(var m=0;m<=14;m++){A(p,'line',{x1:X(m),y1:ay-4,x2:X(m),y2:ay+4,stroke:C.faint});T(p,X(m),ay+18,String(m),{fs:11,fill:C.muted,anchor:'middle'});}
+  T(p,X(0)-14,ay+18,'month',{fs:11,fill:C.muted,anchor:'end'});
+  [3,6,12].forEach(function(m){A(p,'line',{x1:X(m),y1:22,x2:X(m),y2:ay,stroke:C.rule,'stroke-dasharray':'3 4'});});
+  function lane(y,name,sub,color){T(p,14,y+2,name,{fs:13,fw:700,cls:'sg',fill:color});if(sub)T(p,14,y+18,sub,{fs:10.5,fill:C.muted});}
+  function line(y,m0,m1,color,dash){A(p,'line',{x1:X(m0),y1:y,x2:X(m1),y2:y,stroke:color,'stroke-width':10,'stroke-linecap':'round','stroke-dasharray':dash||''});}
+  function seg(y,m0,m1,title,lines,color,soft){var x=X(m0)+4,w=X(m1)-X(m0)-8;A(p,'rect',{x:x,y:y-58,width:w,height:40,rx:4,fill:soft});T(p,x+6,y-43,title,{fs:11.5,fw:700,fill:color,cls:'sg'});(lines||[]).forEach(function(l,i){T(p,x+6,y-29+i*0,l,{fs:10.2,fill:C.ink});});}
+  function gate(y,m,label,dashed){var x=X(m);A(p,'rect',{x:x-6,y:y-15,width:12,height:30,rx:2,fill:dashed?'#fff':C.ink,stroke:C.ink,'stroke-width':dashed?2:0,'stroke-dasharray':dashed?'3 2':''});if(label)T(p,x,y+30,label,{fs:10,fill:C.ink,anchor:'middle',fw:600});}
+  // girth interval
+  var y=92;lane(y,'Girth · interval','2-min holds',C.girth);line(y,0,14,C.girth);
+  seg(y,0,3.9,'Level 1 · weeks 1–17',['5 → 10 sets · 5 → 8 hg · 20 min'],C.girth,C.girthSoft);
+  seg(y,3.9,6,'Level 2 · wks 18–32',['10 → 15 sets · to 30 min'],C.girth,C.girthSoft);
+  seg(y,6,12,'Level 3 · no table',['fatigue block + blocks of 5 · to 10 hg · yield 6–12 %'],C.girth,C.girthSoft);
+  seg(y,12,14,'Level 4',['14+ sets · 28 min'],C.girth,C.girthSoft);
+  gate(y,3.9,'earned',true);gate(y,6,'month 6 + 30 min');gate(y,12,'month 12 + 20 min ⑂');
+  // traditional
+  y=190;lane(y,'Girth · traditional','instead of interval',C.girth);line(y,0,14,C.girth2);
+  seg(y,0,3.9,'Level 1 · 3 → 6 × 5 min',['a hold more every 4 weeks'],C.girth,C.girthSoft);
+  seg(y,3.9,6,'Level 2',['6 holds · yield'],C.girth,C.girthSoft);
+  seg(y,6,12,'Level 3',['fatigue block + 6 → 7 holds · each gate: its own planned minutes'],C.girth,C.girthSoft);
+  seg(y,12,14,'Level 4',['8 holds'],C.girth,C.girthSoft);
+  gate(y,3.9,'earned',true);gate(y,6,'month 6 + time');gate(y,12,'month 12 + time');
+  // length
+  y=288;lane(y,'Length','optional',C.length);line(y,0,14,C.length);
+  seg(y,0,3,'Level 1 · calendar',['+1 strain set / 3 wks · +0.5 lb / 2 wks'],C.length,C.lengthSoft);
+  seg(y,3,6,'Level 2',['6 strain sets · readings steer'],C.length,C.lengthSoft);
+  seg(y,6,12,'Level 3',['strain 2–6 % · sets to 12, then lb to 12'],C.length,C.lengthSoft);
+  seg(y,12,14,'Level 4',['or girth block / rest'],C.length,C.lengthSoft);
+  gate(y,3,'month 3');gate(y,6,'month 6');gate(y,12,'month 12 ⑂');
+  // feeder
+  y=362;lane(y,'Feeder','from girth Level 3',C.feeder);
+  A(p,'line',{x1:X(6),y1:y,x2:R,y2:y,stroke:C.feeder,'stroke-width':10,'stroke-linecap':'round','stroke-dasharray':'2 14'});
+  T(p,X(6)+2,y-16,'2 a day, girth days · 5 × 2 min at 75 % · 4 h after the girth session',{fs:10.5,fill:C.feeder,fw:600});
+  // deloads
+  y=410;lane(y,'Deloads','if you train every week',C.muted);
+  A(p,'line',{x1:X(0),y1:y,x2:R,y2:y,stroke:C.rule,'stroke-width':2});
+  [5,9,13,17,22,27,32,37,42,47,52,57].forEach(function(w){var m=w*7/30.44;if(m>14)return;A(p,'rect',{x:X(m)-7,y:y-7,width:14,height:14,rx:3,fill:C.grey,stroke:'#fff','stroke-width':2});});
+  T(p,X(0),y+22,'after 4 training weeks, then every 3, then every 4 from month 4',{fs:10,fill:C.muted});
+  T(p,X(12.02),y-14,'',{});
+})();
+
+/* ---------- boarding ---------- */
+(function(){
+  var p=$('board'),X=function(m){return 110+m*44;};
+  function row(y,name,color){T(p,6,y+4,name,{fs:12,fw:700,cls:'sg',fill:color});A(p,'line',{x1:X(0),y1:y,x2:X(13.2),y2:y,stroke:color,'stroke-width':8,'stroke-linecap':'round'});}
+  function flag(x,y,label,sub,up){var ty=up?y-44:y+30;A(p,'circle',{cx:x,cy:y,r:7,fill:'#fff',stroke:C.ink,'stroke-width':3});A(p,'line',{x1:x,y1:up?y-8:y+8,x2:x,y2:up?y-18:y+18,stroke:C.ink,'stroke-width':1.5});T(p,x,ty,label,{fs:10.5,fw:700,anchor:'middle'});if(sub)T(p,x,ty+13,sub,{fs:9.5,fill:C.muted,anchor:'middle'});}
+  row(70,'Interval',C.girth);
+  [[0,'L1','wk 1'],[1,'L1','wk 4'],[2,'L1','wk 8'],[3,'L1','wk 12'],[4,'L1','wk 16'],[5,'L2','row 20']].forEach(function(b){flag(X(b[0]),70,b[1],b[2],true);});
+  A(p,'rect',{x:X(6),y:62,width:X(11.6)-X(6),height:16,rx:8,fill:'#fff',stroke:C.ink,'stroke-width':2});T(p,(X(6)+X(11.6))/2,74,'Level 3 · months 6–11',{fs:10,fw:700,anchor:'middle'});
+  A(p,'rect',{x:X(12),y:62,width:X(13.2)-X(12),height:16,rx:8,fill:'#fff',stroke:C.ink,'stroke-width':2});T(p,(X(12)+X(13.2))/2,74,'L4 · 12+',{fs:10,fw:700,anchor:'middle'});
+  row(140,'Traditional',C.girth2);
+  [[0,5.6,'Level 1 · months 0–5'],[6,11.6,'Level 3 · months 6–11'],[12,13.2,'L4 · 12+']].forEach(function(b){A(p,'rect',{x:X(b[0]),y:132,width:X(b[1])-X(b[0]),height:16,rx:8,fill:'#fff',stroke:C.ink,'stroke-width':2});T(p,(X(b[0])+X(b[1]))/2,144,b[2],{fs:10,fw:700,anchor:'middle'});});
+  row(200,'Length',C.length);
+  A(p,'rect',{x:X(0),y:192,width:X(13.2)-X(0),height:16,rx:8,fill:'#fff',stroke:C.ink,'stroke-width':2});T(p,(X(0)+X(13.2))/2,204,'boards at its months\' level (2 from month 3, 3 from 6, 4 from 12) · 2.5 lb, or your current load',{fs:10,fw:700,anchor:'middle'});
+  for(var m=0;m<=13;m++){T(p,X(m),240,String(m),{fs:10,fill:C.faint,anchor:'middle'});}
+  T(p,X(0)-10,240,'months pumped',{fs:10,fill:C.faint,anchor:'end'});
+})();
+
+/* ---------- weeks ---------- */
+(function(){
+  var p=$('weeks'),D=['M','T','W','T','F','S','S'];
+  var W=[['Counts',[1,0,1,0,1,0,0],C.girth,'3 days, or 2 full sessions'],['Doesn’t count',[1,0,0,0,1,0,0],C.faint,'2 short days: no move, no penalty'],['Layoff',[0,0,0,0,0,0,0],C.warn,'7+ days: step back'],['Deload week',[2,0,2,0,2,0,0],C.grey,'nothing moves, nothing charged']];
+  W.forEach(function(w,i){var x0=20+i*248;T(p,x0,22,w[0],{fs:13,fw:700,cls:'sg',fill:w[2]});
+    w[1].forEach(function(d,j){var x=x0+j*30;A(p,'rect',{x:x,y:40,width:26,height:40,rx:4,fill:d===1?C.girth:d===2?C.grey:'#fff',stroke:d?'none':C.rule,'stroke-width':1.2});T(p,x+13,98,D[j],{fs:10.5,fill:C.muted,anchor:'middle'});});
+    T(p,x0,128,w[3],{fs:11,fill:C.muted});});
+  T(p,20,170,'A filled day had at least one plan session. Two sessions on one day are still one day.',{fs:11,fill:C.muted});
+})();
+
+/* ---------- week tables (L1, L2) ---------- */
+function weekLine(id,rows,opts){
+  var p=$(id),x0=opts.x0,dx=opts.dx;
+  A(p,'line',{x1:x0-30,y1:80,x2:x0+(rows.length-1)*dx+30,y2:80,stroke:C.girth,'stroke-width':12,'stroke-linecap':'round'});
+  opts.bands.forEach(function(b){A(p,'rect',{x:b[0],y:10,width:b[1]-b[0],height:30,rx:4,fill:b[3]});T(p,b[0]+10,30,b[2],{fs:12.5,fw:700,cls:'sg',fill:b[4]});});
+  var ly=[150,178,206];T(p,20,ly[0],'sets',{fs:11.5,fill:C.muted});T(p,20,ly[1],'minutes',{fs:11.5,fill:C.muted});T(p,20,ly[2],opts.plabel,{fs:11,fill:C.faint});
+  rows.forEach(function(r,i){var x=x0+i*dx,d=r[1]===null;
+    if(d)A(p,'rect',{x:x-13,y:67,width:26,height:26,rx:6,fill:C.grey,stroke:'#fff','stroke-width':3});else A(p,'circle',{cx:x,cy:80,r:9,fill:'#fff',stroke:C.girth,'stroke-width':4});
+    T(p,x,120,String(r[0]),{fs:12,fw:600,anchor:'middle',fill:d?C.faint:C.ink});
+    if(d){T(p,x,ly[1],'rest row',{fs:10,fill:C.faint,anchor:'middle',italic:true});T(p,x,ly[0],'('+r[4]+')',{fs:11,fill:C.faint,anchor:'middle'});return;}
+    T(p,x,ly[0],String(r[1]),{fs:13,fw:700,anchor:'middle'});T(p,x,ly[1],String(r[2]),{fs:13,anchor:'middle'});T(p,x,ly[2],r[3],{fs:11,anchor:'middle',fill:C.faint});});
+  T(p,x0,138,'',{});
+  (opts.gates||[]).forEach(function(g){A(p,'rect',{x:g[0]-6,y:58,width:12,height:44,rx:2,fill:C.ink});T(p,g[0],50,g[1],{fs:11,fw:700,anchor:'middle',cls:'sg'});});
+  if(opts.note)T(p,20,240,opts.note,{fs:10.5,fill:C.muted});
+}
+weekLine('l1',[[1,5,10,'5',0],[2,5,10,'5'],[3,6,12,'5–6'],[4,6,12,'6'],[5,null,0,'',6],[6,7,14,'6'],[7,7,14,'6–7'],[8,8,16,'7'],[9,null,0,'',8],[10,9,18,'7'],[11,9,18,'7'],[12,10,20,'7'],[13,null,0,'',10],[14,10,20,'8'],[15,10,20,'8'],[16,10,20,'8'],[17,null,0,'',10]],
+  {x0:120,dx:52,plabel:'table hg',bands:[[92,700,'MORE TIME AT PRESSURE · 5 → 10 SETS',C.girthSoft,C.girth],[712,960,'THEN MORE PRESSURE · TO 8 HG',C.girth,'#fff']],gates:[[932,'GATE']],note:'Rest rows: you repeat the sets in brackets; your real rest week comes from the deload count. One set = a 2-minute hold at the working pressure.'});
+weekLine('l2',[[18,10,20,'8'],[19,10,20,'8'],[20,11,22,'8'],[21,null,0,'',11],[22,11,22,'8'],[23,12,24,'8'],[24,12,24,'8'],[25,null,0,'',12],[26,13,26,'8–9'],[27,13,26,'9'],[28,14,28,'9'],[29,null,0,'',14],[30,14,28,'9'],[31,15,30,'9–10'],[32,15,30,'10']],
+  {x0:120,dx:56,plabel:'table hg',bands:[[92,590,'10 → 13 SETS · A 3-MIN REST AFTER EVERY 5 · FLOOR 8 HG',C.girthSoft,C.girth],[602,960,'ON TO 15 SETS · 30 MIN · APP’S CHOICE',C.feederSoft,C.feeder]],gates:[[936,'GATE']],note:'After row 32, 15 sets repeat until the gate: month 6 and 30 minutes. Every row holds 20+ minutes, the time a Level 2 pressure step needs.'});
+
+/* ---------- month-12 fork ---------- */
+(function(){
+  var p=$('fork');
+  T(p,0,18,'Month 12 and 20-minute sessions: you choose',{fs:13,fw:700,cls:'sg'});
+  A(p,'line',{x1:20,y1:110,x2:150,y2:110,stroke:C.girth,'stroke-width':10,'stroke-linecap':'round'});
+  T(p,20,96,'Level 3',{fs:11,fw:700,fill:C.girth});
+  A(p,'path',{d:'M150 110 C200 110 200 60 250 60 L450 60',stroke:C.girth,'stroke-width':10,fill:'none','stroke-linecap':'round'});
+  A(p,'path',{d:'M150 110 C200 110 200 170 250 170 L450 170',stroke:C.girth2,'stroke-width':10,fill:'none','stroke-linecap':'round','stroke-dasharray':'2 14'});
+  A(p,'rect',{x:144,y:95,width:12,height:30,rx:2,fill:C.ink});
+  T(p,262,46,'Move to Level 4',{fs:12,fw:700});T(p,262,84,'14+ sets · 28-minute milestone',{fs:10.5,fill:C.muted});
+  T(p,262,156,'Take a 4-week break',{fs:12,fw:700});T(p,262,194,'both tracks rest; back by itself',{fs:10.5,fill:C.muted});T(p,262,208,'at Level 3, the first week gentle',{fs:10.5,fill:C.muted});T(p,262,222,'at 60 % of the working pressure',{fs:10.5,fill:C.muted});
+})();
+
+/* ---------- pressure steps ---------- */
+(function(){
+  var p=$('steps'),Y=function(k){return 330-(k-14)*14;},x0=70;
+  [15,20,25,30,34].forEach(function(k){A(p,'line',{x1:x0,y1:Y(k),x2:620,y2:Y(k),stroke:C.rule});T(p,x0-8,Y(k)+4,k+' kPa',{fs:10.5,fill:C.faint,anchor:'end'});});
+  var st=[[17,'5.0'],[20,'5.9'],[24,'7.1'],[27,'8.0']],w=74,x=x0;
+  st.forEach(function(s,i){A(p,'rect',{x:x+4,y:Y(s[0]),width:w-8,height:330-Y(s[0]),rx:3,fill:i===3?C.girth:C.girth2});T(p,x+w/2,Y(s[0])-8,s[1]+' hg',{fs:13,fw:700,anchor:'middle'});T(p,x+w/2,352,i===0?'start':'step '+i,{fs:10.5,fill:C.muted,anchor:'middle'});x+=w;});
+  var bx=x+10,w2=58;
+  A(p,'rect',{x:bx-4,y:Y(34)-40,width:2*w2+8,height:330-Y(34)+40,rx:4,fill:C.girthSoft,opacity:.55});
+  T(p,bx+w2,Y(34)-26,'Level 2: to 10 hg',{fs:12,fw:700,anchor:'middle',fill:C.girth});
+  [[30,'8.9'],[34,'10.0']].forEach(function(s,i){var xx=bx+i*w2;A(p,'rect',{x:xx+3,y:Y(s[0]),width:w2-6,height:330-Y(s[0]),rx:3,fill:i===1?C.girth:C.girth2});T(p,xx+w2/2,Y(s[0])-8,s[1]+' hg',{fs:12,fw:700,anchor:'middle'});T(p,xx+w2/2,352,'L2 · '+(i+1),{fs:10.5,fill:C.muted,anchor:'middle'});});
+  T(p,x0+3*w+w/2,Y(27)+20,'Level 1 cap',{fs:10.5,fill:'#fff',anchor:'middle',fw:600});
+  T(p,bx+w2+w2/2,Y(34)+20,'L2 cap',{fs:10.5,fill:'#fff',anchor:'middle',fw:600});
+  A(p,'line',{x1:x0,y1:330,x2:620,y2:330,stroke:C.faint});
+})();
+
+/* ---------- length ladder ---------- */
+(function(){
+  var p=$('ladder'),sets=[2,2,2,3,3,3,4,4,4,5,5,5,6],lb=[2.5,2.5,3,3,3.5,3.5,4,4,4.5,4.5,5,5,5],x0=60,dx=44;
+  var Yl=function(v){return 130-(v-2)*30;},Ys=function(v){return 270-v*18;};
+  T(p,0,14,'Load, lb',{fs:12,fw:700,fill:C.length,cls:'sg'});
+  [2,3,4,5].forEach(function(v){A(p,'line',{x1:x0,y1:Yl(v),x2:x0+12*dx+10,y2:Yl(v),stroke:C.rule});T(p,x0-8,Yl(v)+4,String(v),{fs:10.5,fill:C.faint,anchor:'end'});});
+  var d='';lb.forEach(function(v,i){var x=x0+i*dx;d+=(i?' L'+x+' '+Yl(lb[i-1])+' L':'M')+x+' '+Yl(v);});d+=' L'+(x0+12*dx+10)+' '+Yl(5);
+  A(p,'path',{d:d,fill:'none',stroke:C.length,'stroke-width':3.5});
+  A(p,'line',{x1:x0,y1:Yl(4),x2:x0+4.35*dx,y2:Yl(4),stroke:C.warn,'stroke-width':1.5,'stroke-dasharray':'4 3'});T(p,x0+2,Yl(4)-6,'month one: at most 4 lb',{fs:10,fill:C.warn});
+  T(p,x0+12*dx+14,Yl(5)+4,'5 lb: Level 1 aim',{fs:10,fill:C.length,fw:600});
+  T(p,0,164,'Strain sets (5 min each)',{fs:12,fw:700,fill:C.length,cls:'sg'});
+  sets.forEach(function(v,i){var x=x0+i*dx;A(p,'rect',{x:x-12,y:Ys(v),width:24,height:270-Ys(v),rx:2,fill:C.length2});T(p,x,Ys(v)-5,String(v),{fs:11,fw:700,anchor:'middle'});T(p,x,288,String(i),{fs:10,fill:C.faint,anchor:'middle'});});
+  T(p,x0-8,288,'wk',{fs:10,fill:C.faint,anchor:'end'});
+  A(p,'line',{x1:x0-14,y1:270,x2:x0+12*dx+14,y2:270,stroke:C.faint});
+})();
+
+/* ---------- feeder day ---------- */
+(function(){
+  var p=$('feedday'),X=function(h){return 60+(h-6)*56;};
+  A(p,'line',{x1:X(6),y1:70,x2:X(22),y2:70,stroke:C.rule,'stroke-width':2});
+  for(var h=6;h<=22;h+=2){T(p,X(h),100,(h<10?'0':'')+h+':00',{fs:10.5,fill:C.faint,anchor:'middle'});A(p,'line',{x1:X(h),y1:64,x2:X(h),y2:76,stroke:C.faint});}
+  A(p,'rect',{x:X(7),y:52,width:X(7.83)-X(7),height:36,rx:3,fill:C.girth});T(p,X(7),40,'Main girth session',{fs:11,fw:700});
+  A(p,'rect',{x:X(11.83),y:52,width:X(12.0)-X(11.83),height:36,rx:2,fill:C.feeder});T(p,X(11.83),40,'Feeder 1',{fs:11,fw:700,fill:C.feeder});
+  A(p,'rect',{x:X(15.83),y:52,width:X(16.0)-X(15.83),height:36,rx:2,fill:C.feeder});T(p,X(15.83),40,'Feeder 2',{fs:11,fw:700,fill:C.feeder});
+  [[7.83,11.83],[11.83,15.83]].forEach(function(s){A(p,'path',{d:'M'+X(s[0])+' 118 L'+X(s[1])+' 118',stroke:C.feeder,'stroke-width':1.5,'marker-end':''});T(p,(X(s[0])+X(s[1]))/2,134,'4 h',{fs:11,fw:700,anchor:'middle',fill:C.feeder});A(p,'line',{x1:X(s[0]),y1:112,x2:X(s[0]),y2:124,stroke:C.feeder});A(p,'line',{x1:X(s[1]),y1:112,x2:X(s[1]),y2:124,stroke:C.feeder});});
+  T(p,X(22),140,'An example day at Level 3: main session 07:00–07:50',{fs:10.5,fill:C.muted,anchor:'end'});
+})();
+
+/* ---------- yield bands ---------- */
+(function(){
+  var p=$('yield'),X=function(v){return 200+v*55;};
+  [0,2,4,6,8,10,12].forEach(function(v){A(p,'line',{x1:X(v),y1:10,x2:X(v),y2:118,stroke:C.rule});T(p,X(v),136,v+' %',{fs:10.5,fill:C.faint,anchor:'middle'});});
+  var R=[['Girth L1 · from week 10',6,12,'6 % or more',C.girth2],['Girth L2–L4 (traditional L2+)',6,12,'6–12 %',C.girth],['Length strain',2,6,'2–6 %',C.length]];
+  R.forEach(function(r,i){var y=14+i*26;T(p,190,y+13,r[0],{fs:11.5,fw:700,anchor:'end'});A(p,'rect',{x:X(r[1]),y:y,width:Math.max(X(r[2])-X(r[1]),6),height:18,rx:3,fill:r[4]});T(p,X(r[2])+8,y+13,r[3],{fs:11,fw:700,fill:r[4]});});
+})();
+
+/* ---------- deload cadence ---------- */
+(function(){
+  var p=$('cadence'),x=20,y=40;
+  function wk(n,lbl){for(var i=0;i<n;i++){A(p,'rect',{x:x,y:y,width:22,height:22,rx:3,fill:C.girth});x+=26;}}
+  function dl(){A(p,'rect',{x:x,y:y,width:22,height:22,rx:3,fill:C.grey});x+=26;x+=8;}
+  var marks=[];
+  function lab(t){marks.push([x,t]);}
+  lab('first after 4');wk(4);dl();lab('then every 3');wk(3);dl();wk(3);dl();wk(3);dl();lab('from month 4: every 4');wk(4);dl();wk(4);dl();wk(4);dl();
+  marks.forEach(function(m){T(p,m[0],y-10,m[1],{fs:11,fw:700,fill:C.muted});});
+  T(p,20,y+48,'Each square is a counting week (3+ days of girth or length). Grey: the deload week. Missed weeks don’t count, so they push it later.',{fs:10.5,fill:C.muted});
+})();
+
+/* ---------- taper ---------- */
+(function(){
+  var p=$('taper'),Y=function(k){return 170-k*7;},x0=60,w=110;
+  [['Day 1 back','3 kPa','−4 hg',3],['Day 2','10 kPa','−2 hg',10],['Day 3 on','17 kPa','full',17]].forEach(function(b,i){var x=x0+i*(w+20);A(p,'rect',{x:x,y:Y(b[3]),width:w,height:170-Y(b[3]),rx:3,fill:i===2?C.girth:C.girth2});T(p,x+w/2,Y(b[3])-18,b[1],{fs:13,fw:700,anchor:'middle'});T(p,x+w/2,Y(b[3])-5,b[2],{fs:10.5,fill:C.muted,anchor:'middle'});T(p,x+w/2,188,b[0],{fs:11,fill:C.muted,anchor:'middle'});});
+  A(p,'line',{x1:x0-10,y1:170,x2:x0+3*w+50,y2:170,stroke:C.faint});
+  T(p,x0-10,16,'From 17 kPa (5 hg), per training day:',{fs:11,fw:700});
+})();
+
+/* ---------- week shapes ---------- */
+(function(){
+  var p=$('shapes'),D=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  function row(y,title,cells){T(p,20,y+26,title,{fs:12.5,fw:700,cls:'sg'});cells.forEach(function(c,i){var x=250+i*100;A(p,'rect',{x:x,y:y,width:92,height:40,rx:4,fill:c==='B'?C.ink:c==='L'?C.length:c==='G'?C.girth:'#fff',stroke:c?'none':C.rule});if(c)T(p,x+46,y+25,c==='B'?'length + girth':c==='L'?'length':'girth',{fs:11,fw:700,fill:'#fff',anchor:'middle'});});}
+  D.forEach(function(d,i){T(p,296+i*100,14,d,{fs:10.5,fill:C.faint,anchor:'middle'});});
+  row(24,'Same days',['B','','B','','B','','']);
+  row(84,'Alternate days',['L','G','L','G','L','G','']);
+  T(p,20,138,'Alternate days: Mon–Sat by default, and you pick which track leads.',{fs:10.5,fill:C.muted});
+})();
+
+/* ---------- worked 36 weeks ---------- */
+(function(){
+  var p=$('worked'),N=36,X=function(w){return 80+(w-1)*(880/(N-1));};
+  function band(y,w0,w1,label,fill,col){A(p,'rect',{x:X(w0)-9,y:y,width:X(w1)-X(w0)+18,height:22,rx:3,fill:fill});T(p,X(w0)-3,y+15,label,{fs:10.5,fw:700,fill:col});}
+  T(p,10,23,'guidance',{fs:10,fill:C.faint});
+  band(8,1,17,'Level 1 (weeks 1–17)',C.girthSoft,C.girth);band(8,18,26,'Level 2 (weeks 18–26)',C.girth2,C.ink);
+  T(p,10,51,'this trainee',{fs:10,fill:C.faint});
+  band(36,1,18.6,'Level 1 · weeks 1–19',C.girthSoft,C.girth);band(36,19.4,34.8,'Level 2 · weeks 19–36',C.girth2,C.ink);
+  A(p,'rect',{x:X(35.7)-9,y:36,width:X(36)-X(35.7)+18,height:22,rx:3,fill:C.girth});T(p,X(35.7)+(X(36)-X(35.7))/2,51,'L3',{fs:10.5,fw:700,fill:'#fff',anchor:'middle'});
+  var y=92;T(p,10,y+4,'weeks',{fs:10,fill:C.faint});
+  A(p,'line',{x1:X(1),y1:y,x2:X(N),y2:y,stroke:C.girth,'stroke-width':10,'stroke-linecap':'round'});
+  var dl=[5,9,13,17,22,27,32];
+  for(var w=1;w<=N;w++){if(dl.indexOf(w)>=0)A(p,'rect',{x:X(w)-8,y:y-8,width:16,height:16,rx:3,fill:C.grey,stroke:'#fff','stroke-width':2});else A(p,'circle',{cx:X(w),cy:y,r:4.5,fill:'#fff',stroke:C.girth,'stroke-width':2.2});T(p,X(w),y+22,String(w),{fs:9.5,fill:C.muted,anchor:'middle'});}
+  for(var m=1;m<=8;m++){var wm=m*30.44/7+1;A(p,'line',{x1:X(wm),y1:y+30,x2:X(wm),y2:y+38,stroke:C.faint});T(p,X(wm),y+50,'month '+m,{fs:9.5,fill:C.faint,anchor:'middle'});}
+  [19,36].forEach(function(g){A(p,'rect',{x:X(g)-3,y:32,width:6,height:30,rx:1.5,fill:C.ink});});
+  var py=356,Yk=function(k){return py-(k-16)*9;};
+  T(p,10,Yk(25),'kPa',{fs:10,fill:C.faint});
+  var seq=[[1,17],[4,20],[11,24],[16,27],[20,30],[24,34],[36.4,34]],d='';
+  seq.forEach(function(s,i){if(i===0)d='M'+X(s[0])+' '+Yk(s[1]);else d+=' L'+X(s[0])+' '+Yk(seq[i-1][1])+' L'+X(s[0])+' '+Yk(s[1]);});
+  A(p,'path',{d:d,fill:'none',stroke:C.girth,'stroke-width':3});
+  var lab={17:'',20:'20 · 5.9 hg (table 6)',24:'24 · 7.1 hg (table 7)',27:'27 · 8.0 hg',30:'30 · 8.9 hg',34:'34 · 10.0 hg, the L2 cap'};
+  seq.slice(0,6).forEach(function(s){T(p,X(s[0])+4,Yk(s[1])-6,lab[s[1]],{fs:10.5,fw:700});});
+  T(p,X(1),Yk(17)+17,'17 kPa · 5.0 hg',{fs:10.5,fw:700});
+  var ev=[[15,'10 sets: first 20-min sessions',170,'middle'],[35,'15 sets: first 30-min sessions',170,'end']];
+  ev.forEach(function(e){A(p,'line',{x1:X(e[0]),y1:y+8,x2:X(e[0]),y2:e[2]-12,stroke:C.ink,'stroke-width':1,'stroke-dasharray':'2 2'});T(p,X(e[0]),e[2],e[1],{fs:10.5,fw:700,anchor:e[3]});});
+  T(p,X(6),170,'after each deload: 2 lighter days',{fs:10,fill:C.muted,anchor:'middle'});
+})();
+</script>
+</body>
+</html>

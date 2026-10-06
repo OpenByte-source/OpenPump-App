@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only. The release APK - the one published on GitHub - carries none of this.
+
+     THE DIAGNOSTIC CONSOLE (MainActivity, in src/debug/java) is out of the downloadable app
+     by the owner's decision (docs/design/driver-seam.md, question 9): it keeps its own
+     Bluetooth connection and sends raw frames outside every safety check. It stays in the
+     builds developers make themselves. SessionActivity reaches it by class name, and only
+     when BuildConfig.DEBUG says it is here.
+
+     INTERNET and cleartext traffic are the console's log upload to a developer's own
+     computer. Release builds never hold the INTERNET permission. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application android:usesCleartextTraffic="true">
+        <!-- exported=FALSE, corrected for 1.0. It carried exported="true" with no
+             intent-filter and no permission, which is the combination that lets ANY
+             installed app start it by explicit component name - and this is the raw console
+             that drives the pump. Nothing outside this app has ever started it: the one
+             caller is SessionActivity's own explicit Intent, which works unchanged with
+             exported=false because it is the same app. The label was "PumpDebug", the one
+             user-visible place that name still appeared. -->
+        <activity
+            android:name="org.openpump.MainActivity"
+            android:exported="false"
+            android:label="Pump diagnostics" />
+    </application>
+</manifest>

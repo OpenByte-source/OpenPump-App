@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 330" width="760" height="330" role="img" aria-label="The trainer's loop" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title>The trainer's loop</title>
+<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#f1eee7"/><line x1="0" y1="0" x2="0" y2="7" stroke="#b8b1a3" stroke-width="2.5"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5d6470"/></marker></defs>
+<rect x="0.5" y="0.5" width="759" height="329" rx="10" fill="#fbfaf7" stroke="#d9d4ca"/>
+<rect x="20.0" y="40.0" width="150.0" height="80.0" rx="8" fill="#ffffff" stroke="#d9d4ca" />
+<text x="95.0" y="64.0" font-size="14" fill="#1c1e22" text-anchor="middle" font-weight="600" >Setup answers</text>
+<text x="95.0" y="84.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >months, pressure,</text>
+<text x="95.0" y="101.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >tracks, your week</text>
+<rect x="215.0" y="40.0" width="150.0" height="80.0" rx="8" fill="#eef3fb" stroke="#d9d4ca" />
+<text x="290.0" y="64.0" font-size="14" fill="#1c1e22" text-anchor="middle" font-weight="600" >The plan</text>
+<text x="290.0" y="84.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >the rules: a</text>
+<text x="290.0" y="101.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >prescription</text>
+<rect x="410.0" y="40.0" width="150.0" height="80.0" rx="8" fill="#ffffff" stroke="#d9d4ca" />
+<text x="485.0" y="64.0" font-size="14" fill="#1c1e22" text-anchor="middle" font-weight="600" >Your routine</text>
+<text x="485.0" y="84.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >saved in the Library,</text>
+<text x="485.0" y="101.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >kept up to date</text>
+<rect x="605.0" y="40.0" width="135.0" height="80.0" rx="8" fill="#ffffff" stroke="#d9d4ca" />
+<text x="672.5" y="64.0" font-size="14" fill="#1c1e22" text-anchor="middle" font-weight="600" >The run</text>
+<text x="672.5" y="84.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >the pump does</text>
+<text x="672.5" y="101.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >what it says</text>
+<rect x="470.0" y="200.0" width="190.0" height="80.0" rx="8" fill="#ffffff" stroke="#d9d4ca" />
+<text x="565.0" y="224.0" font-size="14" fill="#1c1e22" text-anchor="middle" font-weight="600" >The session, filed</text>
+<text x="565.0" y="244.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >what ran, and the</text>
+<text x="565.0" y="261.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >minutes at pressure</text>
+<rect x="245.0" y="200.0" width="190.0" height="80.0" rx="8" fill="#ffffff" stroke="#d9d4ca" />
+<text x="340.0" y="224.0" font-size="14" fill="#1c1e22" text-anchor="middle" font-weight="600" >Your readings</text>
+<text x="340.0" y="244.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >baseline and after,</text>
+<text x="340.0" y="261.0" font-size="12" fill="#5d6470" text-anchor="middle" font-weight="normal" >when the app asks</text>
+<line x1="170.0" y1="80.0" x2="213.0" y2="80.0" stroke="#5d6470" stroke-width="1.2" marker-end="url(#arr)"/>
+<line x1="365.0" y1="80.0" x2="408.0" y2="80.0" stroke="#5d6470" stroke-width="1.2" marker-end="url(#arr)"/>
+<line x1="560.0" y1="80.0" x2="603.0" y2="80.0" stroke="#5d6470" stroke-width="1.2" marker-end="url(#arr)"/>
+<path d="M672,120 L672,160 L565,160 L565,198" fill="none" stroke="#5d6470" stroke-width="1.2" marker-end="url(#arr)"/>
+<line x1="470.0" y1="240.0" x2="437.0" y2="240.0" stroke="#5d6470" stroke-width="1.2" marker-end="url(#arr)"/>
+<path d="M245,240 L150,240 L150,160 L290,160 L290,122" fill="none" stroke="#1d5bb8" stroke-width="1.8" marker-end="url(#arr)"/>
+<text x="158.0" y="176.0" font-size="12" fill="#1d5bb8" text-anchor="start" font-weight="600" >read back</text>
+<rect x="20.0" y="292.0" width="720.0" height="28.0" rx="6" fill="#eef3fb" stroke="none" />
+<text x="380.0" y="311.0" font-size="12" fill="#1c1e22" text-anchor="middle" font-weight="normal" >Where the plan reads back:  1 no data, it holds   ·   2 a week that doesn't count never blocks   ·   3 every “didn't count” says why</text>
+<text x="20.0" y="24.0" font-size="13" fill="#5d6470" text-anchor="start" font-weight="600" >The trainer's loop</text>
+</svg>

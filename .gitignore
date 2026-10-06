@@ -1,0 +1,22 @@
+# Gradle / build
+.gradle/
+build/
+*/build/
+local.properties
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Android signing — release keys live only in CI secrets
+*.keystore
+*.jks
+keystore.properties
+
+# Logs, captures and personal data never belong in the repo
+*.log
+*.btsnoop
+btsnoop_hci*
+captures/

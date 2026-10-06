@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     The widget's progress-bar fill/track (Stage D task 10, N2). A RemoteViews
+     ProgressBar cannot be tinted portably below API 31 (no ColorStateList setter
+     RemoteViews.setInt can call; RemoteViews.setColorStateList is API 31+ and this app's
+     minSdk is 24) — a layer-list progressDrawable is the one approach that works on
+     every supported API level, which is why this exists as a drawable instead of a
+     colour set from Java the way every other widget colour is.
+
+     THESE TWO HEXES ARE NOT FREE VALUES — they MUST equal Look.COMMANDED (fill) and
+     Look.SURFACEHI (track) and be updated by hand if either ever changes, because an XML
+     drawable cannot reference a Java constant. #FFF0A63C is Look.COMMANDED — AMBER, "the
+     pump is under command" (Look.java's own doc), which is exactly what a running widget's
+     progress bar reports: the cuff is under commanded pressure. #FF171C26 is
+     Look.SURFACEHI, the closest already-documented "live/active surface" constant, used
+     here in place of the round5-options.html mock's own literal hi2 token (#1d2430) so the
+     widget's track colour still traces back to Look.java's single palette rather than to
+     a third, app-wide-unused grey invented for this one drawable.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <corners android:radius="3dp" />
+            <solid android:color="#FF171C26" />
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape android:shape="rectangle">
+                <corners android:radius="3dp" />
+                <solid android:color="#FFF0A63C" />
+            </shape>
+        </clip>
+    </item>
+</layer-list>
