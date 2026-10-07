@@ -3378,3 +3378,172 @@ fetch("ideas.json",{cache:"no-store",credentials:"omit"}).then(function(r){ retu
 }).catch(function(){ /* no list: the empty state stays */ });
 })();
 </script>
+<script>
+/* ===================== on a phone the story moves one beat per swipe =====================
+   The owner, 7 Oct: "if you scroll too strong it keeps scrolling and it's not obvious what is going on
+   during the scroll; make it scroll by swipe". Below 768px only, and only while the story's engine
+   runs (html.cam-on). A finger in the story moves the page with it as usual; let go and the page goes
+   on to the next beat (or back to the one before) and stops there, however hard the flick was. Each
+   beat has a stop where its own cue has fired and its words are at rest, so the engine plays the beat
+   (the camera's glide, the words arriving) as the page lands. A beat whose words are longer than the
+   screen has a stretch instead of a stop: it is read by dragging (or flicking) through it, and only a
+   swipe past its end goes on. Past the last beat the page scrolls as any page does: the sets, the plan,
+   the sessions table, the roadmap and the footer are never held; from just below the story a swipe up
+   lands on its last beat, and at the very top a pull down is the browser's own again. A touch that
+   starts on a form control (the ceiling slider) or in anything that scrolls sideways is left alone, and
+   so are two fingers, a zoomed page, the keyboard and screen readers: those scroll freely, and a free
+   touch scroll that comes to rest in the story is taken on to the nearest beat. With reduced motion the
+   page jumps to the beat without gliding. */
+(function(){
+"use strict";
+var D=document, W=window, R=D.documentElement, HDR=64;
+var story=D.getElementById("story"); if(!story||!R.classList.contains("cam-on")||!("ontouchstart" in W)) return;
+var MQ=W.matchMedia?W.matchMedia("(max-width: 767.98px)"):null, RM=W.matchMedia?W.matchMedia("(prefers-reduced-motion: reduce)"):null;
+var secs=[].slice.call(story.querySelectorAll(".sb"));
+var FLICK=.2,      /* px/ms at the finger's release (and at least 16 px moved): a flick, not a slow drag */
+    PUSH=.3;       /* a slow drag past this share of the way to the next stop goes on to it */
+var S=[], END=0, ZONE=0, on=false;
+function now(){ return W.performance&&W.performance.now?W.performance.now():Date.now(); }
+function sy(){ return W.pageYOffset||R.scrollTop||0; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+/* ---------- the stops, from the same geometry the engine plays the story by ---------- */
+/* A beat is current from the moment its section reaches the middle of the screen. Most come to rest
+   with their section just under the header (the beat before it fully gone); a note longer than the room
+   under its window rises in the dock from .15 to .55 of its section past the cue (the engine's lift), so
+   its stretch runs from where it starts to rise to where its last line is up. The title rests at the
+   page's top, with a stretch if its own words run past the screen. END is just past the story. */
+function measure(){
+  on=!!(MQ&&MQ.matches)&&R.classList.contains("cam-on");
+  if(!on){ stopAnim(); arm(); return; }
+  var y=sy(), vh=W.innerHeight, sw=vh/2;
+  var g=secs.map(function(el){ var r=el.getBoundingClientRect(); return {el:el,t:el.querySelector(".sbt"),top:r.top+y,h:r.height}; });
+  S=g.map(function(b,k){
+    if(k===0&&b.el.classList.contains("title")){
+      var tb=b.t.getBoundingClientRect().bottom+y, nx=g[1]?g[1].top-HDR:tb;
+      return {lo:0,hi:Math.max(0,Math.round(Math.min(tb+16-vh,nx-vh*.6)))}; }
+    var dock=parseFloat(b.t.style.getPropertyValue("--dock"))||0, over=dock+b.t.offsetHeight-24-(vh-8);
+    if(over>0) return {lo:Math.round(b.top-sw+b.h*.15),hi:Math.round(b.top-sw+b.h*.55)};
+    var at=Math.round(b.top-HDR); return {lo:at,hi:at};
+  });
+  END=Math.round(story.getBoundingClientRect().bottom+y-HDR);
+  ZONE=END+Math.round(vh*.5);
+  S.push({lo:END,hi:END,after:true});
+  arm();
+}
+/* ---------- where a released page goes ---------- */
+/* v: the page's speed at release (px/ms, + is down the page); y0: where the touch began; aim: where a
+   glide still under way was headed when the finger came down, so two quick swipes go two beats */
+function target(y,v,y0,aim){
+  var k, n=S.length, dir=Math.abs(v)>=FLICK&&Math.abs(y-y0)>=16?(v>0?1:-1):0, ref=y;
+  if(aim!=null&&dir&&(aim-y)*dir>0) ref=aim;
+  /* a flick that began inside a stretch of reading carries on within it and ends at most at its end
+     (or its start, going back), even if the finger took the page past it: its last lines are read
+     before the next swipe goes on */
+  if(dir) for(k=0;k<n;k++){ var r=S[k];
+    if(r.hi>r.lo&&y0>=r.lo-1&&y0<=r.hi+1&&(dir>0?y0<r.hi-1:y0>r.lo+1)&&(aim==null||(aim-y)*dir<=0))
+      return Math.round(clamp(y+v*260,r.lo,r.hi)); }
+  /* inside a stretch of reading: a flick carries on within it, a slow release stays put */
+  for(k=0;k<n;k++){ var s=S[k];
+    if(s.hi>s.lo&&ref>=s.lo-1&&ref<=s.hi+1){
+      if(!dir) return clamp(y,s.lo,s.hi);
+      var to=ref+v*260;
+      if(dir>0&&ref<s.hi-1) return Math.round(Math.min(to,s.hi));
+      if(dir<0&&ref>s.lo+1) return Math.round(Math.max(to,s.lo));
+    } }
+  if(dir>0){ for(k=0;k<n;k++) if(S[k].lo>ref+1) return S[k].lo; return y; }
+  if(dir<0){ for(k=n-1;k>=0;k--) if(!S[k].after&&S[k].hi<ref-1) return S[k].hi; return 0; }
+  /* a slow release between two stops: on to the next if dragged far enough toward it, else back */
+  if(y>=END) return y;
+  var a=null, b=null;
+  for(k=0;k<n;k++){ if(S[k].hi<=y) a=S[k]; if(S[k].lo>=y&&!b) b=S[k]; }
+  if(!a) return b?b.lo:y;
+  if(!b) return a.hi;
+  var f=(y-a.hi)/Math.max(1,b.lo-a.hi), d=y-y0;
+  if(d>0) return f>PUSH?b.lo:a.hi;
+  if(d<0) return f<1-PUSH?a.hi:b.lo;
+  return f<.5?a.hi:b.lo;
+}
+/* ---------- the glide: it leaves at the finger's own speed and eases to rest on the stop ---------- */
+var anim=0, aimAt=null;
+function jump(y){ var sb=R.style.scrollBehavior; R.style.scrollBehavior="auto"; W.scrollTo(0,y); R.style.scrollBehavior=sb; }
+function stopAnim(){ if(anim) W.cancelAnimationFrame(anim); anim=0; aimAt=null; }
+function glideTo(to,v){
+  stopAnim(); var from=sy(), d=to-from;
+  if(Math.abs(d)<1||(RM&&RM.matches)){ jump(to); return; }
+  var ms=clamp(300+Math.abs(d)*.32,340,640), m0=clamp(d?v*ms/d:0,0,2.4), t0=0; aimAt=to;
+  function st(t){ if(!t0) t0=t; var x=Math.min(1,(t-t0)/ms);
+    /* a cubic that leaves with the finger's speed (m0) and arrives at rest */
+    var p=m0*(x*x*x-2*x*x+x)+(-2*x*x*x+3*x*x);
+    jump(from+d*p); if(x<1) anim=W.requestAnimationFrame(st); else { anim=0; aimAt=null; } }
+  anim=W.requestAnimationFrame(st);
+}
+/* ---------- the finger ---------- */
+var T=null, freeTouch=false, settleT=0;
+function skip(el){
+  for(var n=el;n&&n!==D.body&&n.nodeType===1;n=n.parentNode){
+    if(/^(INPUT|SELECT|TEXTAREA)$/.test(n.tagName)||n.isContentEditable) return true;
+    if(n.scrollWidth>n.clientWidth+1){ var ox=getComputedStyle(n).overflowX; if(ox==="auto"||ox==="scroll") return true; } }
+  return false;
+}
+function free(){ return !on||R.classList.contains("locked")||(W.visualViewport&&W.visualViewport.scale>1.01); }
+function start(e){
+  W.clearTimeout(settleT);
+  if(e.touches.length!==1||free()){ T=null; return; }
+  var y=sy();
+  if(y>ZONE||skip(e.target)){ T=null; freeTouch=true; return; }
+  var p=e.touches[0], aim=aimAt; stopAnim();
+  T={x0:p.clientX,y0:p.clientY,s0:y,own:null,aim:aim,pts:[[e.timeStamp||now(),y]]};
+  freeTouch=false;
+}
+function move(e){
+  if(!T) return;
+  if(e.touches.length!==1){ T=null; return; }
+  var p=e.touches[0], dx=p.clientX-T.x0, dy=p.clientY-T.y0;
+  if(T.own===null){
+    /* from just below the story only a swipe back up is held; at the page's very top a pull down is the
+       browser's (refresh); anywhere else in the story every swipe is */
+    if(Math.abs(dx)<3&&Math.abs(dy)<3){ if(T.s0>0&&T.s0<END-1&&e.cancelable) e.preventDefault(); return; }
+    var up=dy>0&&Math.abs(dy)>=Math.abs(dx);
+    T.own=T.s0<END-1?!(up&&T.s0<=0):up;
+    if(T.own&&!e.cancelable) T.own=false;
+    if(!T.own){ T=null; freeTouch=true; return; }
+  }
+  if(e.cancelable) e.preventDefault();
+  jump(Math.max(0,T.s0-dy)); T.pts.push([e.timeStamp||now(),sy()]); if(T.pts.length>8) T.pts.shift();
+}
+function end(e){
+  if(!T) return;
+  var t=T, n=t.pts.length; T=null;
+  /* a tap during a glide doesn't leave the page between two beats */
+  if(!t.own){ if(t.own===null&&t.aim!=null) glideTo(t.aim,0); return; }
+  /* the speed over the finger's last ~80 ms; none if it was held still before letting go */
+  var last=t.pts[n-1], tn=e.timeStamp||now(), i=n-1, v=0;
+  while(i>0&&last[0]-t.pts[i-1][0]<=80) i--;
+  if(i<n-1&&tn-last[0]<90) v=(last[1]-t.pts[i][1])/Math.max(8,last[0]-t.pts[i][0]);
+  glideTo(target(sy(),v,t.s0,t.aim),v);
+}
+/* a touch scroll the story didn't hold (it began on the slider, or below the story) that comes to rest
+   inside the story is taken on to the nearest beat */
+function settle(){
+  if(!freeTouch||T||anim||!on) return;
+  freeTouch=false; var y=sy(); if(y>=END-1) return;
+  var to=target(y,0,y,null); if(Math.abs(to-y)>=2) glideTo(to,0);
+}
+W.addEventListener("touchstart",start,{passive:true});
+/* the one listener that can hold a finger (a non-passive touchmove) is only there while the story is
+   near: elsewhere, and from 768px, the page's scrolling is exactly the browser's own */
+var armed=false;
+function arm(){ var want=on&&sy()<=ZONE; if(want===armed) return; armed=want;
+  if(want) W.addEventListener("touchmove",move,{passive:false}); else W.removeEventListener("touchmove",move,{passive:false}); }
+W.addEventListener("touchend",end,{passive:true});
+W.addEventListener("touchcancel",function(){ T=null; },{passive:true});
+W.addEventListener("scroll",function(){ arm(); if(freeTouch&&!T){ W.clearTimeout(settleT); settleT=W.setTimeout(settle,180); } },{passive:true});
+W.addEventListener("resize",function(){ stopAnim(); measure(); });
+if(W.visualViewport) W.visualViewport.addEventListener("resize",function(){ if(!T&&!anim) measure(); });
+W.addEventListener("load",measure);
+if(D.fonts&&D.fonts.ready) D.fonts.ready.then(measure);
+if(MQ&&MQ.addEventListener) MQ.addEventListener("change",measure);
+if(W.ResizeObserver) new ResizeObserver(function(){ if(!T&&!anim) measure(); }).observe(story);
+measure();
+})();
+</script>
