@@ -129,6 +129,7 @@ no lists of three in headings, leads or button rows; numbers over adjectives.
 [hidden]{display:none!important}
 html{background:var(--paper);scroll-behavior:smooth}
 html.locked,html.locked body{overflow:hidden}
+html.cam-on{overflow-anchor:none}
 body{margin:0;background-color:var(--paper);background-image:radial-gradient(var(--dot) 1px,transparent 1.4px);
   background-size:16px 16px;color:var(--ink);font:400 var(--t-body)/1.62 var(--body);overflow-x:hidden}
 @media (prefers-reduced-motion:reduce){
@@ -354,6 +355,9 @@ a:hover{background:var(--mark)}
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--mk-ghost:#2C3339;--mk-lcmd:#E8A443;--mk-lact:#9ACD32;--mk-lplan:#7FB2FF;--mk-rb:#4D565F;--mk-rbl:#2E353D;--mk-rd:#8D96A0;--mk-rdl:#5C656F} }
 :root[data-theme="dark"]{--mk-ghost:#2C3339;--mk-lcmd:#E8A443;--mk-lact:#9ACD32;--mk-lplan:#7FB2FF;--mk-rb:#4D565F;--mk-rbl:#2E353D;--mk-rd:#8D96A0;--mk-rdl:#5C656F}
 .mkp-layer,.mkp-rib{display:none}
+/* a close-up's window: drawn in the phone's own drawing, on the edge of its crop, so it moves with the phone and
+   always has the phone's screen inside it; it is only shown while the phone is at rest in that crop */
+.mk-pw .wf{fill:none;stroke:var(--ink);stroke-width:1.5px}
 /* THE MOCK'S DESKTOP STAGE (SCREENS = "MOCK", DESK_STAGE, from 768px; the owner's pick of 7 Oct: the mock's
    "4 · Hands-on" with fitted close-ups and screens that dissolve, not the sticky page): the page is laid out
    as the mock's 588 x 363 desktop stage, scaled to fit the room (--ms: one mock px), and the scroll plays it:
@@ -362,11 +366,10 @@ a:hover{background:var(--mark)}
   .mks.cam-on .story{max-width:none;padding-inline:0;padding-bottom:0}
   .mks.cam-on .cam-clip,.mks.cam-on .cam-frame,.mks.cam-on .acth,.mks.cam-on .chap{display:none}
   .mks.cam-on .mk-stage{display:block;position:absolute;inset:0;overflow:hidden}
-  /* one beat is one room's height of scroll; a link to a beat lands 0.6 of the way in, at rest */
-  .mks.cam-on .sb{min-height:calc(100svh - var(--hdr));padding:0;margin:0;scroll-margin-top:calc(var(--hdr) - .6 * (100svh - var(--hdr)))}
+  /* one beat is one room's height of scroll; a beat's stop (and where a link to it lands) is its section's top */
+  .mks.cam-on .sb{min-height:calc(100svh - var(--hdr));padding:0;margin:0;scroll-margin-top:var(--hdr)}
   .mks.cam-on .sb:last-child{min-height:calc(2 * (100svh - var(--hdr)))}
   .mks.cam-on .mkp-layer{display:block;position:absolute;inset:0;pointer-events:none}
-  .mks .mkp-win{position:absolute;border:1.5px solid var(--ink);border-radius:calc(10 * var(--ms));opacity:0}
   .mks .mkp-lab{position:absolute;font:700 max(16px,calc(8.4 * var(--ms) * var(--mf,1)))/1.3 var(--head);color:var(--ink);opacity:0}
   .mks .mkp-lab mark{--mark:var(--mk-act)}
   .mks .mkp-lab[data-col=cmd] mark{--mark:var(--mk-cmd)}
@@ -416,7 +419,6 @@ a:hover{background:var(--mark)}
   .mkp .mk-pw .sp{fill:none;stroke-width:2.2}
   .mkp .mk-pw .edge{stroke:var(--edge)}
   .mkp.cam-on .mkp-layer{display:block;position:absolute;inset:0;pointer-events:none}
-  .mkp-win{position:absolute;border:1.5px solid var(--ink);border-radius:calc(10 * var(--ms));opacity:0}
   .mkp-lab{position:absolute;font:700 max(15px,calc(9 * var(--ms) * var(--mf,1)))/1.3 var(--head);color:var(--ink);opacity:0}
   .mkp-lab mark{--mark:var(--mk-act)}
   .mkp-lab[data-col=cmd] mark{--mark:var(--mk-cmd)}
@@ -2267,7 +2269,7 @@ function measureScreens(){
 var G={}, pinEl=story.querySelector(".cam-pin");
 function measure(){
   fitWide=D.documentElement.clientWidth>=768;
-  if(MP.on){ mpClass(!fitWide); MK.st.style.clipPath=""; MK.pw.style.transform=""; MP.desk=false;
+  if(MP.on){ mpClass(!fitWide); MK.st.style.clipPath=""; MK.pw.style.transform=""; MK.pw.style.clipPath=""; MP.desk=false;
     MP.S.forEach(function(L){ var s=B[L.k].sbt; s.style.removeProperty("--mf"); if(L.flt&&L.flt.parentNode) L.flt.parentNode.removeChild(L.flt);
       s.classList.remove("mkp-nomark","mkp-bes","mkp-g");
       if(L.num){ L.num.style.removeProperty("--gfs"); L.num.style.marginTop=""; L.num.style.textAlign=""; L.num.style.opacity=L.num.style.transform=L.num.style.clipPath=""; }
@@ -2336,6 +2338,7 @@ function measure(){
   for(k=1;k<B.length;k++){ var nx=B[k+1], c=B[k]; c.cam0=c.X0+CM0*2*c.hw; c.cam1=Math.min(c.P+c.L*CM1,nx?nx.X0-20:1e9); }
   if(MK.on&&wide&&!(MP.on&&DESK_STAGE)) measureMock();
   if(MP.on&&(!wide||DESK_STAGE)) measureStage(wide);
+  ctMeasure();
 }
 function pose(b){
   var w=b.win;
@@ -3107,9 +3110,8 @@ var MP=(function(){
     var sided=!(f==="whole"&&x==="caption")&&f!=="zoom"&&f!=="title"; if(sided) side=-side;
     var kind=f==="title"?"title":fit?"fit":x==="label"?"label":x==="beside"?"beside":"caption";
     var c=b.el.getAttribute("data-col")||"act", L={k:k,kind:kind,big:!!A[k][2],sd:fit?1:side,art:m.art,spot:m.spot,col:m.col,id:m.id,c:c,
-      flip:f!=="title"&&(nt++%2===1),live:MK.hands[m.id]?m.id:null,num:b.sbt.querySelector(".dnum"),win:null,lab:null,ln:null,flt:null};
+      flip:f!=="title"&&(nt++%2===1),live:MK.hands[m.id]?m.id:null,num:b.sbt.querySelector(".dnum"),lab:null,ln:null,flt:null};
     L.parts=[].filter.call(b.sbt.children,function(e){ return e!==L.num; });
-    if(fit){ L.win=D.createElement("div"); L.win.className="mkp-win"; layer.appendChild(L.win); }
     if(x==="label"&&f==="whole"){ var mk=b.sbt.querySelector("mark"); L.lab=D.createElement("div"); L.lab.className="mkp-lab"; L.lab.setAttribute("data-col",c);
       L.lab.innerHTML="<mark></mark>"; L.lab.firstChild.textContent=mk?mk.textContent:""; layer.appendChild(L.lab);
       L.ln=D.createElementNS(svgNS,"line"); L.ln.setAttribute("stroke","var(--mk-l"+c+")"); lead.appendChild(L.ln); }
@@ -3117,11 +3119,13 @@ var MP=(function(){
     return L; });
   /* the acts along the bottom */
   var acts=[]; S.forEach(function(L,k){ var last=acts[acts.length-1]; if(!last||last.a!==ACT[k]){ var el=D.createElement("span"); el.textContent=ACT[k]; rib.appendChild(el); acts.push({a:ACT[k],el:el,from:k,to:k}); } else last.to=k; });
-  /* a control reached with the keyboard brings its beat up, at rest */
-  story.addEventListener("focusin",function(ev){ if(!MP.on||!MP.V) return; var sb=ev.target.closest&&ev.target.closest(".sb"); if(!sb||!sb.querySelector(".sbt").contains(ev.target)) return;
-    var k=B.map(function(b){ return b.el; }).indexOf(sb); if(k<0||k===MP.cur) return;
-    var y=MP.desk?B[k].top-HDR+.6*Math.max(1,B[0].h):B[k].top-G.sw+40; W.scrollTo({top:Math.max(0,Math.round(y)),behavior:"instant"}); });
-  return {on:true,S:S,acts:acts,rib:rib,layer:layer,lead:lead,T:{out:.08,m0:.08,m1:.3,i0:.28,i1:.44},BEAT:3200,cur:-1,prev:-1,from:null,t0:0,sc:1,ox:0,V:null,desk:false,shown:null,last:0,shownBeat:-1};
+  /* a control reached with the keyboard brings its beat up, at rest (a jump: its finished frame, no move) */
+  story.addEventListener("focusin",function(ev){ if(!CT.on) return; var sb=ev.target.closest&&ev.target.closest(".sb"); if(!sb||!sb.querySelector(".sbt").contains(ev.target)) return;
+    var k=B.map(function(b){ return b.el; }).indexOf(sb); if(k<0||(k===CT.k&&!CT.s)) return; ctCut(k,true); });
+  /* a close-up's window frame, in the phone's drawing (see .wf) */
+  var wf=D.createElementNS(svgNS,"rect"); wf.setAttribute("class","wf"); wf.setAttribute("vector-effect","non-scaling-stroke"); wf.style.opacity="0";
+  MK.ov.parentNode.appendChild(wf);
+  return {on:true,S:S,acts:acts,rib:rib,layer:layer,lead:lead,wf:wf,cur:-1,sc:1,ox:0,V:null,desk:false,last:0,shownBeat:-1};
 })();
 function mpClass(on){ var h=D.documentElement.classList; if(h.contains("mkp")!==on) h.toggle("mkp",on); }
 /* a note's height in mock px, as laid out at width w with font factor f (its big number left out: it
@@ -3140,7 +3144,7 @@ function mpLay(L,f,o){
     Y.pose={tx:CX-48,ty:Math.max(BOT-peek,tt+cht+10),k:.8,r:-2}; Y.clip=[TOP,0,VH-BOT,0]; Y.cap.y=tt; Y.mode="title"; Y.top=tt; Y.bottom=0; return Y; }
   if(L.kind==="fit"){ var ch=mpCapH(L,f,160), g0=L.big?70:0, fr=mpFitRect(MK.focus[L.id],VW-12,o.maxH||150), winH=Math.round(fr.h), gap=12,
       total=winH+gap+ch+g0, y0=TOP+Math.max(6,(BOT-TOP-total)/2), x0=CX-fr.w/2;
-    Y.pose={tx:CX-fr.cx*fr.k,ty:y0+winH/2-fr.cy*fr.k,k:fr.k,r:0}; Y.clip=[y0,VW-(x0+fr.w),VH-(y0+winH),x0]; Y.round=10; Y.mode="rise";
+    Y.pose={tx:CX-fr.cx*fr.k,ty:y0+winH/2-fr.cy*fr.k,k:fr.k,r:0}; Y.round=10; Y.mode="rise";
     Y.win={x:x0,y:y0,w:fr.w,h:winH}; Y.cap.y=y0+winH+gap; Y.g=Y.cap.y+ch+6; Y.spot=fr.r; Y.top=y0; Y.bottom=Y.cap.y+ch; return Y; }
   if(L.kind==="caption"){ var ch2=mpCapH(L,f,160), room=BOT-TOP-ch2-28-(L.big?80:0), k=clamp(room/250,o.kMin||.46,.95), gh=250*k+12+ch2,
       y1=L.big?TOP+6:TOP+Math.max(4,(BOT-10-TOP-gh)/2);
@@ -3168,7 +3172,7 @@ function mdLay(L,f,o){
     Y={clip:[TOP,0,VH-BOT+8,0],round:0,cap:{x:L0,w:Lw},g:null,spot:s,mode:"type",dx:-16,gw:Lw,gal:"left"};
   if(L.kind==="title"){ var cht=mpCapH(L,f,Lw+20); Y.cap={x:L0,y:mid-cht/2,w:Lw+20}; Y.pose={tx:Rc-63,ty:mid-131,k:1.05,r:-2}; Y.mode="title"; Y.top=Y.cap.y; Y.bottom=Y.cap.y+cht; return Y; }
   if(L.kind==="fit"){ var ch=mpCapH(L,f,Lw), ty=mid-(ch+(L.big?70:0))/2, fr=mpFitRect(MK.focus[L.id],R1-R0-10,BOT-TOP-40), x0=Rc-fr.w/2, y0=mid-fr.h/2;
-    Y.cap.y=ty; Y.mode="side"; Y.pose={tx:Rc-fr.cx*fr.k,ty:mid-fr.cy*fr.k,k:fr.k,r:0}; Y.clip=[y0,VW-(x0+fr.w),VH-(y0+fr.h),x0]; Y.round=10;
+    Y.cap.y=ty; Y.mode="side"; Y.pose={tx:Rc-fr.cx*fr.k,ty:mid-fr.cy*fr.k,k:fr.k,r:0}; Y.round=10;
     Y.win={x:x0,y:y0,w:fr.w,h:fr.h}; Y.g=ty+ch+10; Y.spot=fr.r; Y.top=ty; Y.bottom=ty+ch; }
   else { var label=L.kind==="label", ch2=mpCapH(L,f,Lw), gh=L.big?70:0, ty2=mid-(ch2+gh)/2, k=1.02;
     Y.cap.y=ty2; Y.mode="type"; Y.g=ty2+ch2+10; Y.top=ty2; Y.bottom=ty2+ch2;
@@ -3188,7 +3192,7 @@ function measureStage(desk){
   var M=MP, vw=G.vw, sc, V, ox=0, H;
   if(desk){ sc=Math.min(vw/588,G.pinH/339); ox=Math.max(0,(vw-588*sc)/2); H=24+G.pinH/sc; V={W:588,H:H,TOP:24,BOT:H-11,CX:294}; }
   else { sc=vw/188; H=27+G.pinH/sc; V={W:188,H:H,TOP:27,BOT:H-26,CX:94}; }
-  M.desk=desk; M.sc=sc; M.ox=ox; M.V=V; M.shown=null; M.tf=M.cs=M.spk=null;
+  M.desk=desk; M.sc=sc; M.ox=ox; M.V=V; M.tf=M.cs=M.ck=M.wk=M.spk=null;
   var de=D.documentElement.style; de.setProperty("--ms",sc.toFixed(4)+"px"); de.setProperty("--mox",ox.toFixed(1)+"px");
   var fmin=desk?Math.min(1,16/(7.8*sc)):Math.min(1,15/(8.6*sc)), lay=desk?mdLay:mpLay;
   M.S.forEach(function(L){ var sbt=B[L.k].sbt, bes=!desk&&L.kind==="beside";
@@ -3202,6 +3206,8 @@ function measureStage(desk){
       if(L.kind==="fit") o.maxH=Math.max(60,(o.maxH||150)-10); else if(L.kind==="label") o.k3=Math.max(.5,(o.k3||.72)-.03); else if(L.kind==="caption") o.kMin=Math.max(.3,(o.kMin||.46)-.02); else break;
       Y=lay(L,f,o); }
     L.f=f; L.Y=Y; L.over=Math.round(over(Y)*10)/10;
+    /* a close-up's crop, in the phone's own drawing (120 x 250): its window, where the phone stands at rest */
+    if(Y.win){ var Pq=Y.pose, wn=Y.win; Y.crop=[(wn.y-Pq.ty)/Pq.k,120-(wn.x+wn.w-Pq.tx)/Pq.k,250-(wn.y+wn.h-Pq.ty)/Pq.k,(wn.x-Pq.tx)/Pq.k]; }
     sbt.style.setProperty("--mf",f); sbt.style.width=""; if(L.lab) L.lab.style.width=(Y.lab?Y.lab.w*sc:0)+"px";
     /* where the note is held */
     var b=B[L.k]; b.dl=ox+Y.cap.x*sc; b.dw=Y.cap.w*sc; b.dock=b.dockNow=Math.round(HDR+(Y.cap.y-V.TOP)*sc);
@@ -3209,12 +3215,11 @@ function measureStage(desk){
     if(L.num){ var g3=desk?Math.min(80,V.BOT-Y.g):V.BOT-Y.g, len=(L.num.querySelector("b")||L.num).textContent.length,
         fs=Math.min(60,Math.round((g3-16)*.95),Math.round(Y.gw/Math.max(1,len*.62)));
       L.num.style.setProperty("--gfs",(Math.max(fs,18)*sc).toFixed(1)+"px"); L.num.style.marginTop=((desk?10:L.kind==="label"?8:6)*sc).toFixed(1)+"px"; L.num.style.textAlign=Y.gal; }
-    if(L.win){ var w=Y.win||{x:0,y:0,w:0,h:0}; L.win.style.cssText="left:"+(ox+w.x*sc).toFixed(1)+"px;top:"+((w.y-V.TOP)*sc).toFixed(1)+"px;width:"+(w.w*sc).toFixed(1)+"px;height:"+(w.h*sc).toFixed(1)+"px;opacity:0"; L.win._mp=""; }
     if(L.lab){ var lb=Y.lab; L.lab.style.left=(ox+lb.x*sc).toFixed(1)+"px"; L.lab.style.top=((lb.y-V.TOP)*sc).toFixed(1)+"px"; L.lab.style.textAlign=lb.align; L.lab.style.opacity="0"; L.lab._mp="";
       var a=Y.line; L.ln.setAttribute("x1",(ox+a[0]*sc).toFixed(1)); L.ln.setAttribute("y1",((a[1]-V.TOP)*sc).toFixed(1)); L.ln.setAttribute("x2",(ox+a[2]*sc).toFixed(1)); L.ln.setAttribute("y2",((a[3]-V.TOP)*sc).toFixed(1));
       L.ln.setAttribute("stroke-width",(1.3*sc).toFixed(2)); L.ln.setAttribute("stroke-dasharray",(3*sc).toFixed(1)+" "+(2.5*sc).toFixed(1)); L.ln.style.opacity="0"; L.ln._o="0"; }
     L.parts.forEach(function(e){ e._mp=""; }); if(L.num) L.num._mp=""; });
-  M.cur=-1; M.prev=-1; M.from=null; M.shownBeat=-1;
+  M.cur=-1; M.shownBeat=-1;
 }
 /* how one piece of words arrives and leaves (the mock's Stage.prototype.enter), in mock px scaled */
 function mpEnter(el,mode,e,dx,q){
@@ -3231,70 +3236,267 @@ function mpEnter(el,mode,e,dx,q){
   var key=o.toFixed(3)+tf+cp; if(el._mp===key) return; el._mp=key;
   var st=el.style; st.opacity=o.toFixed(3); st.transform=tf; st.clipPath=cp;
 }
-/* THE ONE BEAT-ADVANCE ON A PHONE: beat i arrives now. From the cue below, or a swipe. Whatever is on
-   screen (even part-way through a move) is where the move starts. */
-function goBeat(i){
-  var M=MP; if(!M.on||M.desk||i===M.cur) return;
-  var first=M.cur<0, sh=M.shown;
-  M.prev=first?-1:M.cur; M.from=first||reduce||!sh?null:{pose:{tx:sh.tx,ty:sh.ty,k:sh.k,r:sh.r},clip:sh.cl.slice(),round:sh.rr,art:sh.art};
-  M.cur=i; M.t0=now(); again();
+/* ================= THE STAGE, ONE STEP PER GESTURE (the owner, 7 Oct: "i dont want this type of things to
+   happen [a frame left mid-move, two empty window outlines]; i dont want to be able to scroll the page too fast
+   by accident", and "can we make them smoother?") =================
+   Inside the story one gesture is one beat, forward or back, at every width: a wheel notch or burst, a trackpad
+   swipe with its inertia, a finger's drag or flick, PageDown / PageUp / Space / the arrows. A change is ONE motion
+   on its progress c (0 to 1): the page glides from one beat's stop to the next and the Stage plays the change on
+   the same c. A wheel or key runs c over STEP_MS on a sine ease; a finger drags c with it (c chases the finger,
+   never faster than a timed change runs) and on release the change completes, or goes back, from where it is at
+   the speed it had, easing to rest. While a change and its hands-on moment play, input is ignored, not queued; a
+   new step needs a new gesture (wheel: a quiet gap of WHEEL_GAP ms, a turn, or deltas rising again after decaying).
+   When nothing plays the page is on a beat's stop and the Stage shows that beat's finished frame: a jump the page
+   makes on its own (Home / End, the scroll bar, find, a deep link, focus) shows the beat it lands in at once,
+   finished, and the page is then set on its stop. Outside the story the page scrolls as any page; entering it from
+   below lands on its last beat. With reduced motion a step is a cut. */
+var STEP_MS=1000, WHEEL_GAP=200, RISE=2.5, RISE_PX=8, STEP_MIN=8, FLICK=.2, PUSH=.3, CHASE=11, VMAX=1.7, HANDS_MS=1344, RM_HOLD=450;   /* (reduced motion: a cut, then a short hold, so two quick flicks are still one step) */
+var CHG={out:.18,i0:.66,ring:.84,fout:.06,fin:.9}, NOC=[-30,-30,-30,-30];
+var CT={on:false,S:[],N:0,last:0,END:0,ZONE:0,k:-1,s:0,v:0,sf:0,fy:0,readY:0,mode:"rest",a:null,done:-1e9,busyTo:0,expectY:-1,snapT:0,ptr:false,touching:false,est:0,estT:-1e9};
+function seg(x,a,b){ return clamp((x-a)/(b-a),0,1); }
+function herm(x,m0){ return m0*(x*x*x-2*x*x+x)+(-2*x*x*x+3*x*x); }
+function beatFor(y){ var i=0; for(var k=0;k<B.length;k++) if(B[k].top<=y+G.sw) i=k; return i; }
+function zoomed(){ return !!(W.visualViewport&&W.visualViewport.scale>1.01); }
+function locked(){ return D.documentElement.classList.contains("locked"); }
+function jumpY(y){ var R=D.documentElement, sb=R.style.scrollBehavior; R.style.scrollBehavior="auto"; W.scrollTo(0,y); R.style.scrollBehavior=sb; CT.expectY=W.pageYOffset; }
+function busy(t){ return CT.mode==="go"||CT.mode==="read"||CT.mode==="enter"||t<CT.busyTo; }
+function pageFor(k,s,ry){ var S=CT.S; if(s>0) return lerp(S[k].hi,S[k+1].lo,s); if(s<0) return lerp(S[k].lo,S[k-1].hi,-s); return clamp(ry,S[k].lo,S[k].hi); }
+function ctMeasure(){
+  CT.on=!!(MP.on&&MP.V&&(!G.wide||DESK_STAGE)); if(!CT.on) return;
+  var sy=W.pageYOffset, vh=G.vh, N=B.length;
+  CT.S=B.map(function(b,k){
+    if(MP.desk){ var d=k?Math.round(b.top-HDR):0; return {lo:d,hi:d}; }
+    if(k===0&&MP.S[0].kind==="title"){ var tb=b.sbt.getBoundingClientRect().bottom+sy, nx=N>1?B[1].top-HDR:tb; return {lo:0,hi:Math.max(0,Math.round(Math.min(tb+16-vh,nx-vh*.6)))}; }
+    var over=Math.round((MP.S[k].over||0)*MP.sc);
+    if(over>0) return {lo:Math.round(b.top-G.sw+b.h*.15),hi:Math.round(b.top-G.sw+b.h*.55)};
+    var at=Math.round(b.top-HDR); return {lo:at,hi:at}; });
+  CT.N=N; CT.last=CT.S[N-1].hi; CT.END=Math.round(G.end-HDR); CT.ZONE=CT.END+Math.round(vh*.5);
+  /* whatever was under way ends where it was going */
+  if(CT.k<0) CT.k=sy>CT.last+1?N-1:beatFor(sy);
+  else if(CT.s) CT.k+=Math.abs(CT.s)>=.5?(CT.s>0?1:-1):0;
+  CT.k=clamp(CT.k,0,N-1); CT.s=0; CT.v=0; CT.mode="rest"; CT.a=null; CT.busyTo=0;
+  if(sy<=CT.last+1&&!zoomed()) jumpY(clamp(sy,CT.S[CT.k].lo,CT.S[CT.k].hi)); else CT.expectY=sy;
+  arm();
 }
-/* the beat whose cue a scroll position is past */
-function beatAt(y){ var i=0; for(var k=0;k<B.length;k++) if(B[k].top<=y+G.sw) i=k; return i; }
-/* THE SWIPE'S HOOK (the pager at the end of the page): its stops are the Stage's beats. A note the room
-   can't hold (a short screen) is read across a stretch of its section (over: by how many px it rises);
-   go(y): the page is on its way to y, so that beat plays now, from the release, not when its cue is crossed */
-W.OPStage={on:function(){ return !!(MP.on&&!MP.desk&&MP.V); }, cur:function(){ return MP.cur; },
-  over:function(k){ var L=MP.S&&MP.S[k]; return L&&L.kind!=="title"?Math.round((L.over||0)*MP.sc):0; },
-  go:function(y){ if(!this.on()) return; var i=beatAt(y); MP.pin={i:i,until:now()+900}; goBeat(i); }};
-function framePhoneMock(){
-  var M=MP, sy=W.pageYOffset, N=B.length, i=beatAt(sy), t=now();
-  if(M.pin){ if(i===M.pin.i||t>M.pin.until) M.pin=null; else i=M.pin.i; }
-  if(i!==M.cur) goBeat(i);
-  var u=reduce||!M.from?1:clamp((t-M.t0)/M.BEAT,0,1), dt=M.last&&t-M.last<100?(t-M.last)/1000:1/60; M.last=t;
-  var more=mpRender(u,sy,t,dt);
-  if(u<1||more) again();
+function ctArrive(n,dir,t){ CT.k=n; CT.s=0; CT.v=0; CT.mode="rest"; CT.a=null; CT.done=reduce?-1e9:t; CT.busyTo=t+(reduce?RM_HOLD:MP.S[n].live?HANDS_MS:0);
+  jumpY(dir>0?CT.S[n].lo:CT.S[n].hi); again(); }
+function ctCut(k,toEnd){ CT.k=k; CT.s=0; CT.v=0; CT.mode="rest"; CT.a=null; CT.done=-1e9; CT.busyTo=0; jumpY(toEnd?CT.S[k].hi:CT.S[k].lo); again(); }
+function ctChange(dir,t){ var n=CT.k+dir; if(n<0||n>=CT.N) return false;
+  if(reduce){ ctArrive(n,dir,t); return true; }
+  CT.readY=W.pageYOffset; CT.mode="go"; CT.a={s0:0,s1:dir,t0:t,T:STEP_MS,sine:true}; again(); return true; }
+function ctGlide(kind,y0,y1,t,v){
+  if(reduce||Math.abs(y1-y0)<1){ jumpY(y1); CT.readY=y1; CT.mode="rest"; again(); return; }
+  var T=kind==="enter"?450:clamp(250+Math.abs(y1-y0)*.6,250,600);
+  CT.mode=kind; CT.a={y0:y0,y1:y1,t0:t,T:T,m0:clamp(v*T/(y1-y0),0,2.4)}; again(); }
+/* a wheel or a key: a long note's stretch is read first, else one change */
+function ctStep(dir,t){ var r=CT.S[CT.k], y=W.pageYOffset;
+  if(r.hi>r.lo&&(dir>0?y<r.hi-1:y>r.lo+1)){ ctGlide("read",y,dir>0?r.hi:r.lo,t,0); return; }
+  ctChange(dir,t); }
+function ctTick(t,dt){
+  var a=CT.a, x;
+  if(CT.mode==="go"){ x=clamp((t-a.t0)/a.T,0,1); var s=a.s0+(a.s1-a.s0)*(a.sine?.5-.5*Math.cos(Math.PI*x):herm(x,a.m0));
+    CT.v=(s-CT.s)/Math.max(dt,1e-3); CT.s=s;
+    if(x>=1){ if(a.s1) ctArrive(CT.k+a.s1,a.s1,t); else { CT.s=0; CT.v=0; CT.mode="rest"; CT.a=null; CT.busyTo=t; jumpY(pageFor(CT.k,0,CT.readY)); } return; }
+    jumpY(pageFor(CT.k,CT.s,CT.readY)); return; }
+  if(CT.mode==="read"||CT.mode==="enter"){ x=clamp((t-a.t0)/a.T,0,1); var y=a.y0+(a.y1-a.y0)*herm(x,a.m0); jumpY(y); CT.readY=y;
+    if(x>=1){ CT.mode="rest"; CT.a=null; CT.busyTo=t; } return; }
+  if(CT.mode==="drag"){
+    if(!reduce){ var sf=CT.sf, acc=CHASE*CHASE*(sf-CT.s)-2*CHASE*CT.v; CT.v=clamp(CT.v+acc*dt,-VMAX,VMAX); var ns=clamp(CT.s+CT.v*dt,-1,1);
+      if(sf===0&&Math.abs(ns)<1e-3&&Math.abs(CT.v)<.05){ ns=0; CT.v=0; } CT.s=ns; }
+    jumpY(reduce?CT.fy:(CT.s?pageFor(CT.k,CT.s,CT.readY):CT.readY)); }
 }
-/* from 768px: the scroll scrubs the stage, as the mock's range slider does (t = beat + u) */
-function frameDeskStage(){
-  var M=MP, sy=W.pageYOffset, line=sy+HDR+1, N=B.length, i=0, k, t=now(), bp=Math.max(1,B[0].h);
-  for(k=0;k<N;k++) if(B[k].top<=line) i=k;
-  var u=reduce?.9999:clamp((line-1-B[i].top)/bp,0,.9999), dt=M.last&&t-M.last<100?(t-M.last)/1000:1/60; M.last=t;
-  M.cur=i; M.prev=i-1;
-  /* the mock: before the first move the title stands still; after it, every beat moves from the one before */
-  var P=i>0&&!reduce?M.S[i-1]:null; M.from=P?{pose:P.Y.pose,clip:P.Y.clip,round:P.Y.round,art:P.art}:null;
-  if(mpRender(u,sy,t,dt)) again();
+/* a jump the page made on its own: the beat it landed in, finished, and later its stop */
+function ctForeign(sy){
+  var prevY=CT.expectY, N=CT.N; CT.expectY=sy;
+  if(CT.mode==="drag") return;
+  CT.mode="rest"; CT.a=null; CT.s=0; CT.v=0; CT.busyTo=0;
+  if(sy>CT.last+1){ if(CT.k!==N-1){ CT.k=N-1; CT.done=-1e9; } return; }
+  if(prevY>CT.last+1&&prevY-sy<G.vh*.5){ if(CT.k!==N-1){ CT.k=N-1; CT.done=-1e9; } jumpY(CT.last); return; }
+  var k=beatFor(sy); if(k!==CT.k){ CT.k=k; CT.done=-1e9; }
+  W.clearTimeout(CT.snapT); CT.snapT=W.setTimeout(ctSnap,160);
 }
-/* the mock's Stage.prototype.render, at u of the current beat */
-function mpRender(u,sy,t,dt){
-  var M=MP, V=M.V, sc=M.sc, ox=M.ox, T=M.T, i=M.cur, B0=M.S[i], Y=B0.Y, A0=M.from, N=M.S.length, j, more=false;
-  var mv=!A0?1:(u<T.m0?0:(u<T.m1?ease((u-T.m0)/(T.m1-T.m0)):1)), arc=Math.sin(mv*Math.PI);
-  var Q=Y.pose; if(B0.kind==="title"&&!M.desk) Q={tx:Q.tx,ty:Q.ty-Math.max(0,sy-(G.top-HDR))/sc,k:Q.k,r:Q.r};
-  var P=A0?A0.pose:Q, Pc=A0?A0.clip:Y.clip, Pr=A0?A0.round:Y.round;
+function ctSnap(){ if(!CT.on) return;
+  if(CT.ptr||CT.touching){ CT.snapT=W.setTimeout(ctSnap,160); return; }
+  if(CT.mode!=="rest"||zoomed()) return;
+  var sy=W.pageYOffset; if(sy>CT.last+1) return; var r=CT.S[CT.k], to=clamp(sy,r.lo,r.hi); if(Math.abs(to-sy)>=1){ jumpY(to); again(); } }
+function frameStage(){
+  var t=now(), sy=W.pageYOffset, dt=MP.last&&t-MP.last<100?(t-MP.last)/1000:1/60; MP.last=t;
+  if(Math.abs(sy-CT.expectY)>2) ctForeign(sy);
+  else if(CT.mode!=="rest") ctTick(t,dt);
+  sy=W.pageYOffset;
+  var k=CT.k, s=CT.s, prev=-1, cur=k, c=1;
+  if(s>1e-6&&k<CT.N-1){ prev=k; cur=k+1; c=s; } else if(s<-1e-6&&k>0){ prev=k; cur=k-1; c=-s; }
+  MP.cur=cur;
+  var more=mpRender(prev,cur,c,t-CT.done,sy,t,dt);
+  if(more||CT.mode!=="rest") again();
+}
+/* ---------- the wheel ---------- */
+var WG={t:-1e9,dir:0,peak:0,trough:0,decayed:false,used:true,native:false,acc:0};
+function ctWheel(e){
+  if(!CT.on||e.ctrlKey||locked()||zoomed()) return;
+  var f=e.deltaMode===1?40:e.deltaMode===2?W.innerHeight:1, dy=e.deltaY*f, dx=e.deltaX*f;
+  if(!dy||Math.abs(dx)>Math.abs(dy)) return;
+  var t=now(), a=Math.abs(dy), dir=dy>0?1:-1, y=W.pageYOffset;
+  var fresh=t-WG.t>WHEEL_GAP||dir!==WG.dir||(WG.decayed&&a>=Math.max(WG.trough*RISE,WG.trough+RISE_PX));
+  if(fresh) WG={t:t,dir:dir,peak:a,trough:a,decayed:false,used:busy(t),native:false,acc:0};
+  else { WG.t=t; if(!WG.decayed){ if(a>WG.peak) WG.peak=a; else if(a<WG.peak*.5){ WG.decayed=true; WG.trough=a; } } else if(a<WG.trough) WG.trough=a; }
+  if(WG.native) return;
+  /* below the story the page is the browser's, unless this would carry it into the story: then it lands on the last beat */
+  if(y>CT.last+1){
+    if(CT.mode==="enter"){ e.preventDefault(); return; }
+    if(dir>0) return;
+    var est=(fresh||t-CT.estT>300)?y:CT.est; est+=dy; CT.est=est; CT.estT=t;
+    if(est>CT.last+1) return;
+    e.preventDefault(); WG.used=true; ctGlide("enter",y,CT.last,t,0); return; }
+  /* at the last beat a new gesture down leaves the story: the browser's own scrolling */
+  if(!WG.used&&dir>0&&CT.k===CT.N-1&&!CT.s&&y>=CT.last-1){ WG.native=true; return; }
+  e.preventDefault();
+  if(WG.used) return;
+  WG.acc+=a; if(WG.acc<STEP_MIN) return;
+  WG.used=true; ctStep(dir,t);
+}
+/* ---------- the keys ---------- */
+function ctKey(e){
+  if(!CT.on||e.defaultPrevented||e.altKey||e.ctrlKey||e.metaKey||locked()) return;
+  var K=e.key, sp=K===" "||K==="Spacebar", dir=0;
+  if(K==="PageDown"||K==="ArrowDown"||(sp&&!e.shiftKey)) dir=1; else if(K==="PageUp"||K==="ArrowUp"||(sp&&e.shiftKey)) dir=-1; else return;
+  var el=e.target, tg=el&&el.tagName||"";
+  if(/^(INPUT|SELECT|TEXTAREA)$/.test(tg)||(el&&el.isContentEditable)) return;
+  if(sp&&el&&el.closest&&el.closest('button,a,summary,label,[role=button],[role=switch],[role=checkbox]')) return;
+  var y=W.pageYOffset, t=now(), amt=/Arrow/.test(K)?40:W.innerHeight*.875;
+  if(y>CT.last+1){ if(dir>0||(y-amt>CT.last+1&&CT.mode!=="enter")) return; e.preventDefault(); if(!busy(t)) ctGlide("enter",y,CT.last,t,0); return; }
+  if(dir>0&&CT.k===CT.N-1&&!CT.s&&y>=CT.last-1&&!busy(t)&&!e.repeat) return;
+  e.preventDefault();
+  if(e.repeat||busy(t)) return;
+  ctStep(dir,t);
+}
+/* ---------- the finger ---------- */
+var TT=null;
+function skipEl(el){
+  for(var n=el;n&&n!==D.body&&n.nodeType===1;n=n.parentNode){
+    if(/^(INPUT|SELECT|TEXTAREA)$/.test(n.tagName)||n.isContentEditable) return true;
+    if(n.scrollWidth>n.clientWidth+1){ var ovx=getComputedStyle(n).overflowX; if(ovx==="auto"||ovx==="scroll") return true; } }
+  return false; }
+function ctTouchStart(e){
+  CT.touching=true; if(!CT.on) return; W.clearTimeout(CT.snapT);
+  var y=W.pageYOffset, t=now();
+  if(e.touches.length!==1||locked()||zoomed()||y>CT.ZONE||skipEl(e.target)){ TT=null; return; }
+  var p=e.touches[0];
+  TT={x0:p.clientX,y0:p.clientY,s0:y,own:null,ign:busy(t),pts:[[t,y]],k0:CT.k,below:y>CT.last+1};
+}
+function ctTouchMove(e){
+  if(!TT) return;
+  if(e.touches.length!==1){ if(TT.own&&!TT.ign&&!TT.below) ctRelease(0,0); TT=null; return; }
+  if(TT.ign){ if(e.cancelable) e.preventDefault(); return; }
+  var p=e.touches[0], dx=p.clientX-TT.x0, dy=p.clientY-TT.y0;
+  if(TT.own===null){
+    if(Math.abs(dx)<3&&Math.abs(dy)<3){ if(TT.s0>0&&!TT.below&&e.cancelable) e.preventDefault(); return; }
+    var back=dy>0&&Math.abs(dy)>=Math.abs(dx);   /* the finger moving down: the page going back up */
+    var out=!back&&TT.k0===CT.N-1&&TT.s0>=CT.last-1;   /* down past the last beat: the browser's own */
+    TT.own=TT.below?back:!(back&&TT.s0<=0)&&!out;
+    if(TT.own&&!e.cancelable) TT.own=false;
+    if(!TT.own){ TT=null; return; }
+    if(!TT.below){ CT.mode="drag"; CT.a=null; CT.sf=0; CT.v=0; CT.readY=TT.s0; CT.fy=TT.s0; }
+  }
+  if(e.cancelable) e.preventDefault();
+  var t=now(), y=TT.s0-dy; TT.pts.push([t,y]); if(TT.pts.length>8) TT.pts.shift();
+  if(TT.below){ jumpY(Math.max(CT.last,y)); return; }
+  /* one beat at most per gesture: the finger reaches the stops either side and no further */
+  var S=CT.S, k=TT.k0, lo=k>0?S[k-1].hi:0, hi=k<CT.N-1?S[k+1].lo:CT.last;
+  y=clamp(y,lo,hi); CT.fy=y;
+  if(y>S[k].hi) CT.sf=(y-S[k].hi)/Math.max(1,S[k+1].lo-S[k].hi);
+  else if(y<S[k].lo) CT.sf=-(S[k].lo-y)/Math.max(1,S[k].lo-S[k-1].hi);
+  else { CT.sf=0; CT.readY=y; }
+  again();
+}
+function ctRelease(v,moved){
+  var t=now(), k=CT.k, r=CT.S[k], sf=CT.sf, flick=Math.abs(v)>=FLICK&&Math.abs(moved)>=16?(v>0?1:-1):0, to;
+  if(sf===0&&CT.s===0){ CT.mode="rest"; var y=W.pageYOffset; if(flick&&r.hi>r.lo) ctGlide("read",y,clamp(y+v*260,r.lo,r.hi),t,v); return; }
+  var side=sf?(sf>0?1:-1):(CT.s>0?1:-1);
+  to=flick?(flick===side?side:0):(Math.abs(sf)>PUSH?side:0);
+  if(reduce){ if(to) ctArrive(k+to,to,t); else { CT.mode="rest"; CT.s=0; jumpY(pageFor(k,0,CT.readY)); again(); } return; }
+  var d=to-CT.s;
+  if(Math.abs(d)<1e-4){ if(to) ctArrive(k+to,to,t); else { CT.mode="rest"; CT.s=0; jumpY(pageFor(k,0,CT.readY)); again(); } return; }
+  var T=Math.max(300,Math.abs(d)*STEP_MS), m0=clamp(CT.v*(T/1000)/d,-1.5,2.4);
+  CT.mode="go"; CT.a={s0:CT.s,s1:to,t0:t,T:T,m0:m0}; again();
+}
+function ctTouchEnd(e){
+  if(e.touches&&e.touches.length) return; CT.touching=false;
+  if(!TT){ return; } var T=TT; TT=null; if(T.ign||!T.own) return;
+  var n=T.pts.length, last=T.pts[n-1], tn=now(), i=n-1, v=0;
+  while(i>0&&last[0]-T.pts[i-1][0]<=80) i--;
+  if(i<n-1&&tn-last[0]<90) v=(last[1]-T.pts[i][1])/Math.max(8,last[0]-T.pts[i][0]);
+  var moved=last[1]-T.s0;
+  if(T.below){ var y=W.pageYOffset; if((v<=-FLICK&&Math.abs(moved)>=16)||y<CT.last+1) ctGlide("enter",y,CT.last,now(),Math.abs(v)); return; }
+  ctRelease(v,moved);
+}
+var armed=false;
+function arm(){ var want=CT.on&&W.pageYOffset<=CT.ZONE; if(want===armed) return; armed=want;
+  if(want) W.addEventListener("touchmove",ctTouchMove,{passive:false}); else W.removeEventListener("touchmove",ctTouchMove,{passive:false}); }
+/* a link: to a beat, one change if it is the next or the one before, else a cut; past the story, at once */
+function ctGo(k){ var t=now(); if(!busy(t)&&!CT.s&&Math.abs(k-CT.k)===1&&W.pageYOffset<=CT.last+1) ctChange(k-CT.k,t); else ctCut(k); }
+D.addEventListener("click",function(e){
+  if(!CT.on||e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey) return;
+  var a=e.target.closest&&e.target.closest('a[href^="#"]'); if(!a) return;
+  var id=a.getAttribute("href").slice(1), el=id&&D.getElementById(id); if(!el) return;
+  var k=-1; for(var q=0;q<B.length;q++) if(B[q].el===el||B[q].el.contains(el)) k=q;
+  var y=W.pageYOffset;
+  if(k<0&&y>CT.END&&el.getBoundingClientRect().top+y>CT.END+HDR) return;   /* below the story to below it: the browser's own */
+  e.preventDefault(); try{ W.history.pushState(null,"","#"+id); }catch(x){}
+  if(k>=0) ctGo(k); else { var R=D.documentElement, sb=R.style.scrollBehavior; R.style.scrollBehavior="auto"; el.scrollIntoView({block:"start"}); R.style.scrollBehavior=sb; }
+});
+W.addEventListener("wheel",ctWheel,{passive:false});
+W.addEventListener("keydown",ctKey);
+W.addEventListener("touchstart",ctTouchStart,{passive:true});
+W.addEventListener("touchend",ctTouchEnd,{passive:true});
+W.addEventListener("touchcancel",function(){ if(TT&&TT.own&&!TT.ign&&!TT.below){ TT=null; ctRelease(0,0); } TT=null; CT.touching=false; },{passive:true});
+W.addEventListener("mousedown",function(){ CT.ptr=true; },true);
+W.addEventListener("mouseup",function(){ CT.ptr=false; },true);
+W.OPStage={on:function(){ return CT.on; }, cur:function(){ return MP.cur; }, over:function(k){ var L=MP.S&&MP.S[k]; return L&&L.kind!=="title"?Math.round((L.over||0)*MP.sc):0; },
+  state:function(){ return {k:CT.k,s:CT.s,mode:CT.mode,busy:busy(now()),cur:MP.cur,stops:CT.S,last:CT.last,END:CT.END,step:STEP_MS}; }};
+function restOf(k,sy){ var L=MP.S[k], Y=L.Y, P=Y.pose;
+  if(L.kind==="title"&&!MP.desk) P={tx:P.tx,ty:P.ty-Math.max(0,sy-(G.top-HDR))/MP.sc,k:P.k,r:P.r};
+  return {pose:P,clip:Y.clip,crop:Y.crop||NOC,round:Y.crop?Y.round:0,art:L.art}; }
+/* the mock's Stage.prototype.render, for a change from prev to i at c (prev -1: i at rest, its hands-on clock
+   at after ms). THE CHOREOGRAPHY, the mock's T_TIGHT order on c: the old words lift away (by CHG.out), the phone
+   moves through the whole change on its small arc (-6 lift, -5 % scale, 2.5 deg roll) as the screen dissolves
+   inside it, the new words arrive from CHG.i0 while it settles, the ring once it has arrived. A close-up's crop
+   is in the phone's own drawing, so it moves with the phone, and its window frame shows only while the phone is
+   at rest in it (out by CHG.fout, in from CHG.fin): no frame is ever drawn without the phone's screen in it. */
+function mpRender(prev,i,c,after,sy,t,dt){
+  var M=MP, V=M.V, sc=M.sc, ox=M.ox, B0=M.S[i], Y=B0.Y, N=M.S.length, j, more=false, mov=prev>=0&&c<1, mv=mov?c:1, arc=Math.sin(mv*Math.PI);
+  var R1=restOf(i,sy), R0=mov?restOf(prev,sy):R1, P=R0.pose, Q=R1.pose;
   var tx=lerp(P.tx,Q.tx,mv), ty=lerp(P.ty,Q.ty,mv)-6*arc, kk=lerp(P.k,Q.k,mv)*(1-.05*arc), r=lerp(P.r,Q.r,mv)+2.5*arc*((M.desk?(B0.flip?-1:1):B0.sd)||1);
   var tf="translate("+(ox+tx*sc).toFixed(1)+"px,"+((ty-V.TOP)*sc).toFixed(1)+"px) rotate("+r.toFixed(2)+"deg) scale("+(kk*sc).toFixed(4)+")";
   if(M.tf!==tf){ M.tf=tf; MK.pw.style.transform=tf; }
-  var cl=[0,1,2,3].map(function(q){ return lerp(Pc[q],Y.clip[q],mv); }), rr=lerp(Pr,Y.round,mv);
-  var cs="inset("+((cl[0]-V.TOP)*sc).toFixed(1)+"px "+(ox+cl[1]*sc).toFixed(1)+"px "+(cl[2]*sc).toFixed(1)+"px "+(ox+cl[3]*sc).toFixed(1)+"px"+(rr>.5?" round "+(rr*sc).toFixed(1)+"px":"")+")";
+  var cl=[0,1,2,3].map(function(q){ return lerp(R0.clip[q],R1.clip[q],mv); });
+  var cs="inset("+((cl[0]-V.TOP)*sc).toFixed(1)+"px "+(ox+cl[1]*sc).toFixed(1)+"px "+(cl[2]*sc).toFixed(1)+"px "+(ox+cl[3]*sc).toFixed(1)+"px)";
   if(M.cs!==cs){ M.cs=cs; MK.st.style.clipPath=cs; }
+  var cr=[0,1,2,3].map(function(q){ return lerp(R0.crop[q],R1.crop[q],mv); }), rd=lerp(R0.round,R1.round,mv)/Math.max(.01,kk), open=cr.every(function(v){ return v<=-29.9; });
+  var ck=open?"":"inset("+cr.map(function(v){ return v.toFixed(2)+"px"; }).join(" ")+(rd>.05?" round "+rd.toFixed(2)+"px":"")+")";
+  if(M.ck!==ck){ M.ck=ck; MK.pw.style.clipPath=ck; }
+  var fo=mov?(mv<.5?(R0.crop!==NOC?1-seg(c,0,CHG.fout):0):(R1.crop!==NOC?seg(c,CHG.fin,1):0)):(R1.crop!==NOC?1:0);
+  if(fo>0){ var hs=.75/(kk*sc), g=[cr[3]+hs,cr[0]+hs,120-cr[1]-cr[3]-2*hs,250-cr[0]-cr[2]-2*hs,Math.max(0,rd-hs)].map(function(v){ return v.toFixed(2); }), wk=g.join(",")+"/"+fo.toFixed(3);
+    if(M.wk!==wk){ M.wk=wk; var wr=M.wf; wr.setAttribute("x",g[0]); wr.setAttribute("y",g[1]); wr.setAttribute("width",g[2]); wr.setAttribute("height",g[3]); wr.setAttribute("rx",g[4]); wr.style.opacity=fo.toFixed(3); } }
+  else if(M.wk!=="0"){ M.wk="0"; M.wf.style.opacity="0"; }
   /* the screen inside the phone dissolves as it moves */
-  var fromArt=A0?A0.art:B0.art;
-  if(fromArt!==B0.art&&mv<1){ mkHref(MK.a1,fromArt); mkHref(MK.a2,B0.art); MK.a2.style.opacity=mv.toFixed(3); }
+  var fromArt=R0.art;
+  if(mov&&fromArt!==B0.art){ mkHref(MK.a1,fromArt); mkHref(MK.a2,B0.art); MK.a2.style.opacity=mv.toFixed(3); }
   else { mkHref(MK.a1,B0.art); if(MK.a2.style.opacity!=="0") MK.a2.style.opacity="0"; }
-  M.shown={tx:tx,ty:ty,k:kk,r:r,cl:cl,rr:rr,art:mv>=.5?B0.art:fromArt};
-  /* the ring, once the phone has arrived */
-  var sp=Y.spot, so=(u<T.m1+.04||!sp[2])?0:Math.min(1,(u-T.m1-.04)/.1); if(B0.kind==="title") so=0; if(!A0&&sp[2]&&B0.kind!=="title") so=1;
-  var spk=sp.join(",")+B0.col+so.toFixed(2); if(M.spk!==spk){ M.spk=spk; var rc=MK.sp; rc.setAttribute("x",sp[0]); rc.setAttribute("y",sp[1]); rc.setAttribute("width",sp[2]); rc.setAttribute("height",sp[3]); rc.setAttribute("stroke",B0.col); rc.style.opacity=so.toFixed(2); }
+  /* the ring: the old one fades as the change starts, the new one comes up once the phone has arrived */
+  var RS=B0, so;
+  if(mov&&c<CHG.ring){ RS=M.S[prev]; so=1-seg(c,0,CHG.fout); } else so=mov?seg(c,CHG.ring,1):1;
+  var sp=RS.Y.spot; if(RS.kind==="title"||!sp[2]) so=0;
+  var spk=sp.join(",")+RS.col+so.toFixed(2); if(M.spk!==spk){ M.spk=spk; var rc=MK.sp; rc.setAttribute("x",sp[0]); rc.setAttribute("y",sp[1]); rc.setAttribute("width",sp[2]); rc.setAttribute("height",sp[3]); rc.setAttribute("stroke",RS.col); rc.style.opacity=so.toFixed(2); }
   /* the words: the current note's arrive, the last note's leave; the rest are out of sight */
   var atEnd=sy>G.end-G.pinB;
   for(j=0;j<N;j++){
-    var L=M.S[j], e=0, w=0, bj=B[j], LY=L.Y;
-    if(j===i){ e=!A0?1:(u>=T.i0?Math.min(1,(u-T.i0)/(T.i1-T.i0)):0); w=mv; }
-    else if(j===M.prev&&A0){ e=u<T.out?-(1-u/T.out):0; w=1-mv; }
+    var L=M.S[j], e=0, bj=B[j], LY=L.Y;
+    if(j===i) e=mov?seg(c,CHG.i0,1):1;
+    else if(j===prev&&mov) e=c<CHG.out?-(1-c/CHG.out):0;
     if(j===0&&i===0) e=Math.max(e,1);
     L.parts.forEach(function(el,q){ if(el===L.flt) return; mpEnter(el,LY.mode,e,LY.dx,LY.mode==="side"&&!M.desk?q:null); });
     if(L.num) mpEnter(L.num,"ghost",e,0,null);
-    if(L.win) mpEnter(L.win,"frame",w,0,null);
     if(L.lab){ mpEnter(L.lab,"side",e,LY.lab.dx,null);
       var lo=(j===i?clamp((e-.4)/.4,0,1):(e<0?-e:0)).toFixed(3); if(L.ln._o!==lo){ L.ln._o=lo; L.ln.style.opacity=lo; } }
     var on=j===i||e<0, pe=j===i?"auto":"none"; if(bj.sbt.style.pointerEvents!==pe) bj.sbt.style.pointerEvents=pe;
@@ -3302,19 +3504,21 @@ function mpRender(u,sy,t,dt){
     var lift=!M.desk&&on&&L.over>0?Math.round(L.over*sc*clamp((sy-(bj.top-G.sw)-bj.h*.15)/(bj.h*.4),0,1)):0;
     if(L.kind!=="title"||M.desk) dockNote(bj,on?(j===N-1&&atEnd?"end":"dock"):false,lift);
   }
-  /* the hands-on moment plays once the words are in */
-  if(B0.live){ if(MK.liveId!==B0.id){ mkDraw(MK.ov,B0.id); MK.liveId=B0.id; MK.cv=null; }
-    if(mkLive(B0.id,u,ease(clamp((u-.52)/.34,0,1)),t,dt)) more=true; }
+  /* the hands-on moment: at rest, once the words are in (the old one is kept, finished, until the phone is half way) */
+  var lv=null, lu=1, lp=1, lop=1;
+  if(mov){ if(mv<.5){ if(M.S[prev].live){ lv=M.S[prev]; lop=1-mv; } } else if(B0.live){ lv=B0; lu=c*.44; lp=0; lop=mv; } }
+  else if(B0.live){ lv=B0; lu=Math.min(1,.44+Math.max(0,after)/3200); lp=ease(clamp((lu-.52)/.34,0,1)); if(lu<.86) more=true; }
+  if(lv){ if(MK.liveId!==lv.id){ mkDraw(MK.ov,lv.id); MK.liveId=lv.id; MK.cv=null; } if(mkLive(lv.id,lu,lp,t,dt)) more=true; }
   else if(MK.liveId){ MK.ov.textContent=""; MK.liveId=null; }
+  var lok=lop.toFixed(3); if(MK.ov._o!==lok){ MK.ov._o=lok; MK.ov.style.opacity=lok; }
   setActive("run",false); setActive("radar",false);
   /* the acts strip */
   if(M.shownBeat!==i){ M.shownBeat=i; MK.st.setAttribute("aria-label",MK.beats[i].label);
     M.acts.forEach(function(a){ var on=i>=a.from&&i<=a.to; a.el.className=on?"on":(i>a.to?"done":""); if(on) M.rib.scrollLeft=Math.max(0,a.el.offsetLeft-M.rib.offsetLeft-30*sc); }); }
   return more;
 }
-function frame(){ if(G.wide){ if(MK.on) (MP.on&&DESK_STAGE?frameDeskStage:frameMock)(); else frameDoc(); } else if(MP.on) framePhoneMock(); else frameCue(); }
-var queued=false;
-function onScroll(){ if(queued) return; queued=true; W.requestAnimationFrame(function(){ queued=false; frame(); }); }
+function frame(){ if(CT.on&&MP.on&&MP.V){ frameStage(); return; } if(G.wide){ if(MK.on) frameMock(); else frameDoc(); } else frameCue(); }
+function onScroll(){ if(CT.on) arm(); again(); }
 /* on a phone the address bar coming and going changes the window's height: lay out again, from the
    pin's own height (see measure), whichever way it went */
 var lastWH="";
@@ -3408,6 +3612,8 @@ fetch("ideas.json",{cache:"no-store",credentials:"omit"}).then(function(r){ retu
 "use strict";
 var D=document, W=window, R=D.documentElement, HDR=64;
 var story=D.getElementById("story"); if(!story||!R.classList.contains("cam-on")||!("ontouchstart" in W)) return;
+/* (the mock's Stage, SCREENS = "MOCK", has its own one-step-per-gesture controller: see CT) */
+if(R.classList.contains("mks")||R.classList.contains("mk")) return;
 var MQ=W.matchMedia?W.matchMedia("(max-width: 767.98px)"):null, RM=W.matchMedia?W.matchMedia("(prefers-reduced-motion: reduce)"):null;
 var secs=[].slice.call(story.querySelectorAll(".sb"));
 var FLICK=.2,      /* px/ms at the finger's release (and at least 16 px moved): a flick, not a slow drag */
