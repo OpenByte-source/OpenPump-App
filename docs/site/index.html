@@ -55,7 +55,7 @@ NEVER, and do not let an edit reintroduce:
   isn't; sample figures that disagree with each other (dose is about mean kPa times seconds)
 LINK SLOTS (updated after the source went public, AGPL-3.0): #slot-repo and #slot-chat point at
 the GitHub repository and its "New pump" issue form. #slot-app downloads the 0.10.0 APK and links to
-Releases. The NEVER line about the source, repository and licence was lifted when the source was
+Releases (so do the hero's Download button and the header's Get the app: bump all three together). The NEVER line about the source, repository and licence was lifted when the source was
 published; the rest still stand.
 
 COLOUR LAW: amber = the pump under command · lime = action and progress · green = a verdict
@@ -542,6 +542,31 @@ a.get:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
 .chap .ct{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chap .cc{display:inline-block;width:2px;height:15px;background:var(--ink);margin-left:1px;animation:blink 1s steps(1) infinite}
 @keyframes blink{50%{opacity:0}}
+/* ---------- the header's section links and its download, from the approved desktop mock ---------- */
+.hnav,.hget{display:none}
+@media (min-width:768px){
+  .hget{display:inline-flex;align-items:center;flex:none;min-height:44px;padding:0 16px;border-radius:2px;background:var(--ink);color:var(--paper);
+    font:700 14.5px/1 var(--head);white-space:nowrap;text-decoration:none;transition:transform 160ms var(--ease),box-shadow 160ms var(--ease)}
+  .hget:hover{background:var(--ink);transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
+  .hget:active{transform:none;box-shadow:none}
+}
+@media (min-width:1024px){
+  .nd{display:none}
+  .hnav{display:flex;align-items:center;flex:none}
+  /* the dots between the links are drawn, not typed, so a screen reader hears only the names */
+  .hnav a{position:relative;display:inline-flex;align-items:center;min-height:44px;padding:0 10px;font:600 15px/1 var(--head);color:var(--ink2);
+    text-decoration:none;white-space:nowrap}
+  .hnav a+a::before{content:"";position:absolute;left:-1.5px;top:50%;width:3px;height:3px;margin-top:-1px;border-radius:50%;background:var(--ink2)}
+  .hnav a::after{content:"";position:absolute;left:10px;right:10px;bottom:9px;height:2px;background:var(--rule);transform:scaleX(0);transform-origin:left;
+    transition:transform 220ms var(--ease)}
+  .hnav a:hover{background:none;color:var(--ink)}
+  .hnav a:hover::after{transform:none}
+  .hnav a[aria-current="true"]{color:var(--ink)}
+  .hnav a[aria-current="true"]::after{transform:none;background:var(--ink)}
+}
+
+/* the hands-on controls say so ("Try it: − pull +"), in the kicker's grey */
+.try .try-k{color:var(--ink2)}
 
 .foot{border-top:1px solid var(--rule);padding-block:34px 46px 96px}
 .foot p{margin-top:6px;font-size:14.5px;color:var(--ink2)}
@@ -568,6 +593,10 @@ a.get:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
 <header class="hdr">
   <div class="hdr-in">
     <p class="wm"><svg class="wm-o" viewBox="0 0 100 100" aria-hidden="true"><circle class="o" cx="50" cy="50" r="35" fill="none" stroke-width="17"/><path class="r" d="M29,33 H71" stroke-width="3.5" stroke-dasharray="4 3.5"/><path class="a" d="M29,60 H40 L46,40 L55,70 L60,54 H69" fill="none" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/><circle class="g" cx="70" cy="54" r="5.5"/></svg>OpenPE <span>/ OpenPump</span></p>
+    <!-- from 1024px the sections as links, the one you're in marked; below that the Sections menu -->
+    <nav class="hnav" aria-label="Sections"><a href="#why" data-nav="why">Why</a><a href="#screens" data-nav="screens">Screens</a><a href="#plan" data-nav="plan">Plan</a><a href="#data" data-nav="data">Data</a><a href="#next" data-nav="next">Next</a></nav>
+    <!-- from 768px, always in reach: the same APK as the hero's Download and #slot-app (change all three at each release) -->
+    <a class="hget" href="https://github.com/OpenByte-source/OpenPump-App/releases/download/v0.10.0/OpenPump-0.10.0.apk" title="OpenPump 0.10.0 for Android 7.0 or newer, under 2 MB">Get the app</a>
     <button type="button" class="thm" id="thm" hidden aria-label="Theme: System"><svg viewBox="0 0 24 24" aria-hidden="true"><g class="i-sys"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="f"/></g><g class="i-lt"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></g><g class="i-dk"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" class="f"/></g></svg><span class="thm-l">System</span></button>
     <details class="nd" id="nd">
       <summary>Sections</summary>
@@ -655,7 +684,7 @@ a.get:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
       <p class="k">A session · 2 of 4</p>
       <h3 id="h-run">The run</h3>
       <p>The solid line is the pressure the pump reports, about four times a second. <mark>The dashed line is what it was asked to hold.</mark></p>
-      <div class="try" data-try="run"><span>Pull</span><button type="button" data-step="-1" aria-label="Lower the pull">−</button><button type="button" data-step="1" aria-label="Raise the pull">+</button><span class="sim">The app's own model of the pump, running here: the dashed line moves at once, the pump's line follows.</span></div>
+      <div class="try" data-try="run"><span class="try-k">Try it:</span><button type="button" data-step="-1" aria-label="Lower the pull">−</button><span>pull</span><button type="button" data-step="1" aria-label="Raise the pull">+</button><span class="sim">The app's own model of the pump, running here: the dashed line moves at once, the pump's line follows.</span></div>
     </div>
   </section>
 
@@ -707,7 +736,7 @@ a.get:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
       <h3 id="h-always">What never changes</h3>
       <p>Anything above your ceiling is lowered before it reaches the pump. <mark>A session ends and vents on its own</mark> after two hours under pressure.</p>
       <p class="dnum"><b>2.1–16.8</b>inHg (7–57 kPa): the ceiling, set by you</p>
-      <div class="try" data-try="ceiling"><label for="ceilrange">Your ceiling</label><input type="range" id="ceilrange" min="0" max="3" step="1" value="0"><span class="sim">Each step is one press of the app's + or −: the ceiling moves one notch.</span></div>
+      <div class="try" data-try="ceiling"><span class="try-k">Try it:</span><label for="ceilrange">your ceiling</label><input type="range" id="ceilrange" min="0" max="3" step="1" value="0"><span class="sim">Each step is one press of the app's + or −: the ceiling moves one notch.</span></div>
     </div>
   </section>
 
@@ -716,7 +745,7 @@ a.get:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
       <p class="k">When you want it</p>
       <h3 id="h-private">Kept to yourself</h3>
       <p>Settings › Privacy has a switch for each incognito feature — a disguised icon and name (Fitness log, Habits or Notes, worn on the app lock too), discreet notifications, hiding from recent apps, quick hide — plus one that turns your chosen set on and off together, off until you turn it on. <mark>STOP stays reachable, and safety alerts still ring and vibrate.</mark></p>
-      <div class="try" data-try="discreet"><button type="button" role="switch" aria-checked="false" aria-label="Discreet notifications"></button><span>Discreet notifications</span><span class="sim">The app's own notification words, with the switch off and on.</span></div>
+      <div class="try" data-try="discreet"><span class="try-k">Try it:</span><button type="button" role="switch" aria-checked="false" aria-label="Discreet notifications"></button><span>discreet notifications</span><span class="sim">The app's own notification words, with the switch off and on.</span></div>
     </div>
   </section>
 
@@ -1237,7 +1266,7 @@ function narrate(id){
   if(!chapEl||id===chapAt) return;
   chapAt=id;
   if(!id){ chapEl.classList.remove("on"); return; }
-  var link=D.querySelector('[data-nav="'+id+'"]'), text=link?link.textContent:"", num=navIds.indexOf(id)+1;
+  var link=D.querySelector('#nd [data-nav="'+id+'"]'), text=link?link.textContent:"", num=navIds.indexOf(id)+1;
   chapN.textContent=(num<10?"0":"")+num; chapEl.classList.add("on");
   W.clearInterval(chapTimer);
   if(reduce){ chapT.textContent=text; return; }
