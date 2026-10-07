@@ -1769,28 +1769,31 @@ function framePass(){
 
 /* ================= below 768px, and with reduced motion: one cue per beat =================
    A beat is current from the moment its section reaches the middle of the screen (G.sw), and that one
-   moment sets everything going, in an order that never lets two things fight:
+   moment sets everything going, in an order that never lets two notes show at once:
+     the camera sets off at the cue and glides to the beat's framing (cam). It keeps its own timing:
+       the words change while it moves (the owner's note of 24 Sept, held to on 7 Oct);
      the old note lifts away and fades (out);
      the screen inside the phone fades to the phone's own black and the new one comes up out of it
-       (scrOut + scrIn: never two screens at once, done before any new word is readable);
-     the camera glides to the beat's framing (cam), and the words change while it moves;
-     the new note arrives once the old one has gone (inAt): its kicker, then its heading word by word
-       (each rises and fades in, a beat behind the one before, as the approved story's headings do),
-       then its lines one after another, the big number sliding in as it counts up, and the
-       highlighter drawing across each marked line after the line has arrived.
+       (scrOut + scrIn: never two screens at once);
+     the new note arrives the moment the old one has gone (inAt, just after out), while the camera is
+       still gliding: its kicker, then its heading word by word (each rises and fades in, a beat
+       behind the one before, as the approved story's headings do), then its lines one after
+       another, the big number sliding in as it counts up, and the highlighter drawing across each
+       marked line after the line has arrived. It sits just under the window and follows the
+       window's edge while the camera changes it, so it is never under the window.
    Text moves by transform and opacity only. With reduced motion all of it is a cut at that same
    moment. The current note is held in the dock (position:fixed just under the window), so it never
    rolls under the camera or fades while it is the one being read.
-   PACE picks the timing: MEDIUM (the default) or CALM, everything about 1.4 times slower. */
+   PACE picks the timing: CALM (the owner's pick) or MEDIUM, everything about 1.4 times quicker. */
 var PACE="CALM";
 var PACES={
   /* ms        out  scrOut scrIn  cam  title inAt kick wStart wStag wDur bStart bStag bCap bDur markAt markDur count ring */
-  MEDIUM:[    250,  250,   300,   800, 700,  400, 440,  60,   55,  460,  120,   70,  180, 440,  220,   480,   600,  300],
-  CALM:  [    350,  350,   420,  1120, 980,  560, 616,  84,   77,  644,  168,   98,  252, 616,  308,   672,   840,  420]
+  MEDIUM:[    250,  250,   300,   800, 700,  260, 440,  60,   55,  460,  120,   70,  180, 440,  220,   480,   600,  300],
+  CALM:  [    350,  350,   420,  1120, 980,  364, 616,  84,   77,  644,  168,   98,  252, 616,  308,   672,   840,  420]
 };
 /* out: the old note lifts away; scrOut/scrIn: the screen fades to black and up again; cam: the camera's
-   glide; title: the phone's rise out of the title; inAt: when the new note starts (after the old one has
-   gone, and late enough that nothing of it is readable before its screen is fully up); kick: the kicker;
+   glide, from the cue; title: the phone's rise out of the title; inAt: when the new note starts, right
+   after the old one has gone and well inside the camera's glide; kick: the kicker;
    wStart/wStag/wDur: the heading's words, one after another; bStart/bStag/bDur: the lines after the
    heading, one after another, never more than bCap apart in all; markAt/markDur: the highlighter, after
    its line; count: the big number; ring: the focus ring, once the camera has arrived */
@@ -1802,15 +1805,18 @@ function glide(x){ return .5-.5*Math.cos(Math.PI*x); }   /* a gentle ease in and
 /* a note in the dock ("dock"), back in its own place in the page (false), or, for the last note once
    the story's end comes up the screen ("end"), left in the page exactly where the dock was at that
    moment, so it scrolls away in step with the camera, which is pinned inside the story */
-function dockNote(c,how,lift){
-  how=how||false; lift=how?(lift||0):0; var s=c.sbt.style, top=c.dockNow||c.dock;
-  if((c.fixed||false)===how&&c.lift===lift&&c.at===top) return; c.fixed=how; c.lift=lift; c.at=top;
+function dockNote(c,how,lift,cut){
+  how=how||false; lift=how?(lift||0):0; cut=how?(cut||0):0; var s=c.sbt.style, top=c.dockNow||c.dock;
+  if((c.fixed||false)===how&&c.lift===lift&&c.at===top&&c.cut===cut) return; c.fixed=how; c.lift=lift; c.at=top; c.cut=cut;
   if(how==="dock"){ s.position="fixed"; s.top=(top-lift)+"px"; s.left=c.dl+"px"; s.width=c.dw+"px"; s.marginLeft="0"; }
   else if(how==="end"){ s.position="absolute"; s.top=(top-lift+G.end-G.pinB-c.top)+"px"; s.left=(c.dl-c.sl)+"px"; s.width=c.dw+"px"; s.marginLeft="0"; }
   else { s.position=s.top=s.left=s.width=s.marginLeft=""; }
   /* a note lifted to show its end is cut at the dock line: it never goes up into the window */
   /* (open to the sides, so a list's numbers hanging left of the note aren't cut) */
-  s.clipPath=lift>0?"inset("+lift.toFixed(1)+"px -40px -40px -40px)":"";
+  /* and a note still fading out while the window grows down over its place is cut at the window's edge
+     (cut), so not even its last trace is ever under the window */
+  var ins=Math.max(lift,cut);
+  s.clipPath=ins>0?"inset("+ins.toFixed(1)+"px -40px -40px -40px)":"";
 }
 /* ---------- a note's parts, found once: kicker, heading words, lines, big numbers, highlights ---------- */
 function noteParts(c){
@@ -1933,7 +1939,9 @@ function frameCue(){
     /* a note taller than its room (a short screen) is read by scrolling: it sits still for a while,
        then rises in the dock, so its last line is in view well before the next note's cue */
     var lift=hold&&n.over>0?Math.round(n.over*clamp((sy-(n.top-G.sw)-n.h*.15)/(n.h*.4),0,1)):0;
-    dockNote(n,hold?(k===N-1&&atEnd?"end":"dock"):false,lift);
+    /* (it lifts up to 16 px as it goes, so the cut allows for that) */
+    var cut=fading&&!G.wide?Math.max(0,Math.ceil(winB+16-((n.dockNow||n.dock)-lift))):0;
+    dockNote(n,hold?(k===N-1&&atEnd?"end":"dock"):false,lift,cut);
   }
   if(more) again();
 }
