@@ -3,6 +3,8 @@
 <meta name="description" content="OpenPump is an open-source Android app that runs a Bluetooth vacuum pump, keeps the record, and hands the settings to you.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<script>/* the remembered theme, before the first paint (no choice: follow the device) */(function(){try{var t=localStorage.getItem("openpe-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})()</script>
 <!--
 OPEN PE / OPEN PUMP launch page. Third pass, the "human pass", built from the owner's picks
 (the voice as "we", the notebook look, one travelling phone, small print as a full-screen
@@ -14,8 +16,13 @@ only technical part (owner's note).
 
 LOOK: Notebook. Paper #EDF0F1 with a 16px dot grid, ink #17191C, secondary #505862, rules
 #C3CBD1, highlighter #F2E27D behind a few words per section, never whole paragraphs. Familjen
-Grotesk headings, Courier Prime text. One visual world on purpose: the page stays light in both
-colour schemes and paints its own ground. The app's phone screens keep the app's dark palette.
+Grotesk headings, Courier Prime text. DARK (owner's request, 2026-10-07): the same notebook at
+night. It follows the device by default; the header's theme button cycles System / Light / Dark
+and remembers the choice (localStorage "openpe-theme"; the tiny script in the head applies it
+before the first paint). Every page colour is a token on :root, redefined twice for dark: under
+prefers-color-scheme (when no choice was made) and under [data-theme="dark"]. Dark only changes
+shades for contrast, never the colour law below; the highlighter becomes a dark ochre so light
+ink stays readable on it. The app's phone screens keep the app's dark palette in both.
 
 THE PHONE TRAVELS: one phone starts on the left of the hero and slides from side to side through
 "Why bother" and the six screens; the text takes the free half. True 390 x 844 device pixels,
@@ -75,6 +82,15 @@ no lists of three in headings, leads or button rows; numbers over adjectives.
 <style>
 :root{
   --paper:#EDF0F1; --paper2:#F8F9F9; --ink:#17191C; --ink2:#505862; --rule:#C3CBD1; --mark:#F2E27D;
+  /* the rest of the page's colours, so dark can redefine them in one place */
+  --dot:#C3CBD1;                 /* the paper's dot grid */
+  --mark2:#FBF6D6;               /* an opened roadmap row */
+  --markfill:rgba(242,226,125,.55); /* the area under the set sketch's line */
+  --red:#B42318; --amber:#C07A16; --lime:#79AD00; --lime2:#6E9800; /* the colour law, page side */
+  --sh1:rgba(23,25,28,.1); --sh:rgba(23,25,28,.12); --sh2:rgba(23,25,28,.16); /* hard offset shadows */
+  --holdfill:rgba(248,249,249,.32);
+  --edge:transparent;            /* an outline the app card and the phone only need on a dark page */
+  --phone:0 0 0 9px #0B0D10,6px 10px 0 9px var(--sh2);
   --head:"Familjen Grotesk",Arial,sans-serif;
   --body:"Courier Prime","Courier New",monospace;
   --maxw:1180px; --pad:clamp(18px,3.2vw,32px); --hdr:64px;
@@ -83,13 +99,37 @@ no lists of three in headings, leads or button rows; numbers over adjectives.
   --ease:cubic-bezier(.22,.7,.2,1);
   color-scheme:light;
 }
+/* DARK: the same notebook at night. Twice on purpose: the device's setting when nobody chose
+   (and with no script at all), and the header button's explicit choice. Keep the two identical. */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#121519; --paper2:#1B1F25; --ink:#E4E8EC; --ink2:#B4BDC7; --rule:#3A424C; --mark:#5A4B00;
+    --dot:#2E353D; --mark2:#26230F; --markfill:rgba(90,75,0,.5);
+    --red:#FF8A7A; --amber:#E8A443; --lime:#9ACD32; --lime2:#9ACD32;
+    --sh1:rgba(0,0,0,.45); --sh:rgba(0,0,0,.5); --sh2:rgba(0,0,0,.55);
+    --holdfill:rgba(18,21,25,.3);
+    --edge:#3A424C;
+    --phone:0 0 0 9px #0B0D10,0 0 0 10.5px #4A5360,6px 10px 0 10.5px var(--sh2);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#121519; --paper2:#1B1F25; --ink:#E4E8EC; --ink2:#B4BDC7; --rule:#3A424C; --mark:#5A4B00;
+  --dot:#2E353D; --mark2:#26230F; --markfill:rgba(90,75,0,.5);
+  --red:#FF8A7A; --amber:#E8A443; --lime:#9ACD32; --lime2:#9ACD32;
+  --sh1:rgba(0,0,0,.45); --sh:rgba(0,0,0,.5); --sh2:rgba(0,0,0,.55);
+  --holdfill:rgba(18,21,25,.3);
+  --edge:#3A424C;
+  --phone:0 0 0 9px #0B0D10,0 0 0 10.5px #4A5360,6px 10px 0 10.5px var(--sh2);
+  color-scheme:dark;
+}
 *,*::before,*::after{box-sizing:border-box}
 /* Must outrank every display rule below it: without this, .notice{display:flex} beat the
    browser's own [hidden] rule and the notice could never be dismissed. */
 [hidden]{display:none!important}
-html{background:#EDF0F1;scroll-behavior:smooth}
+html{background:var(--paper);scroll-behavior:smooth}
 html.locked,html.locked body{overflow:hidden}
-body{margin:0;background-color:var(--paper);background-image:radial-gradient(#C3CBD1 1px,transparent 1.4px);
+body{margin:0;background-color:var(--paper);background-image:radial-gradient(var(--dot) 1px,transparent 1.4px);
   background-size:16px 16px;color:var(--ink);font:400 var(--t-body)/1.62 var(--body);overflow-x:hidden}
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -126,24 +166,38 @@ a:hover{background:var(--mark)}
 .linklike:hover{background:var(--mark)}
 
 /* header: wordmark and one disclosure at every width */
-.hdr{position:sticky;top:0;z-index:40;height:var(--hdr);background:#EDF0F1;border-bottom:1px solid var(--rule)}
+.hdr{position:sticky;top:0;z-index:40;height:var(--hdr);background:var(--paper);border-bottom:1px solid var(--rule)}
 .prog{position:absolute;left:0;right:0;bottom:-1px;height:14px;pointer-events:none}
 .prog svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 /* the path is built in pixels, so the stroke needs no non-scaling trick */
 .prog path{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
-.prog b{position:absolute;top:0;left:0;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:#79AD00;box-shadow:0 0 0 2px var(--paper)}
+.prog b{position:absolute;top:0;left:0;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 2px var(--paper)}
 .prog i{display:none}
 .hdr-in{position:relative;max-width:var(--maxw);height:100%;margin:0 auto;padding-inline:var(--pad);display:flex;align-items:center;gap:14px}
 .wm{flex:1;min-width:0;margin:0;font:700 17px/1 var(--head);letter-spacing:-.02em}
 .wm span{color:var(--ink2);font-weight:600}
 .wm{display:flex;align-items:center;gap:9px}
 .wm-o{width:24px;height:24px;flex:none}
+.wm-o .o{stroke:var(--ink)} .wm-o .r{stroke:var(--red)} .wm-o .a{stroke:var(--amber)} .wm-o .g{fill:var(--lime2)}
 .nd>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;
   border:1.5px solid var(--ink);border-radius:2px;font:700 14px/1 var(--head)}
 .nd>summary::-webkit-details-marker{display:none}
+/* the theme button: System, Light, Dark in turn; the icon and word show the current one (icon
+   alone on a phone, where the word wouldn't fit; its name is always in aria-label) */
+.thm{display:inline-flex;align-items:center;gap:7px;min-width:44px;min-height:44px;padding:0 12px;margin:0;border:1.5px solid var(--ink);border-radius:2px;
+  background:transparent;color:var(--ink);font:700 14px/1 var(--head);cursor:pointer}
+.thm[hidden]{display:none!important}
+.thm:hover{background:var(--mark)}
+.thm svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.thm .f{fill:currentColor;stroke:none}
+.thm-l{min-width:3.9em;text-align:left}
+.thm .i-lt,.thm .i-dk{display:none}
+.thm[data-t="light"] .i-sys,.thm[data-t="dark"] .i-sys{display:none}
+.thm[data-t="light"] .i-lt,.thm[data-t="dark"] .i-dk{display:inline}
+@media (max-width:519.98px){ .thm{padding:0;justify-content:center} .thm-l{display:none} .hdr-in{gap:10px} }
 .nd[open]>summary{background:var(--ink);color:var(--paper2)}
 .nd .sheet{position:absolute;right:var(--pad);top:calc(var(--hdr) - 6px);min-width:250px;padding:6px;background:var(--paper2);
-  border:1.5px solid var(--ink);border-radius:2px;box-shadow:6px 6px 0 rgba(23,25,28,.12)}
+  border:1.5px solid var(--ink);border-radius:2px;box-shadow:6px 6px 0 var(--sh)}
 .nd .sheet a{display:flex;align-items:center;min-height:44px;padding:0 12px;text-decoration:none;font-size:15px}
 .nd .sheet a[aria-current="true"]{font-weight:700}
 
@@ -151,15 +205,15 @@ a:hover{background:var(--mark)}
 /* margin:auto centres the card without clipping its top when it's taller than a phone screen,
    which align-items:center would do inside a scrolling container */
 .notice{position:fixed;inset:0;z-index:100;display:flex;padding:22px;overflow-y:auto;
-  background-color:var(--paper);background-image:radial-gradient(#C3CBD1 1px,transparent 1.4px);background-size:16px 16px}
+  background-color:var(--paper);background-image:radial-gradient(var(--dot) 1px,transparent 1.4px);background-size:16px 16px}
 .notice-in{width:100%;max-width:660px;margin:auto;padding:clamp(24px,5vw,46px);background:var(--paper2);border:1.5px solid var(--ink);
-  border-radius:2px;box-shadow:10px 10px 0 rgba(23,25,28,.1)}
+  border-radius:2px;box-shadow:10px 10px 0 var(--sh1)}
 .notice p{max-width:none}
 .notice h2:focus{outline:none}
 .btn.hold{position:relative;overflow:hidden;min-width:min(100%,270px);touch-action:none;
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .btn.hold:hover{transform:none;box-shadow:none}
-.hold-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(248,249,249,.32);pointer-events:none}
+.hold-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--holdfill);pointer-events:none}
 .hold-label{position:relative;z-index:1}
 #hold-hint{margin-top:10px}
 @media (max-width:480px){ .notice{padding:12px} .notice p{font-size:15px;line-height:1.55} }
@@ -193,7 +247,7 @@ a:hover{background:var(--mark)}
 .cam-clip{position:absolute;inset:0;overflow:hidden}
 .cam-frame{position:absolute;border:1.5px solid var(--ink);border-radius:18px;opacity:0;pointer-events:none}
 .camdev{position:absolute;left:0;top:0;width:390px;height:845px;transform-origin:0 0;border-radius:46px;background:#07090D;overflow:hidden;
-  box-shadow:0 0 0 9px #0B0D10,6px 10px 0 9px rgba(23,25,28,.16)}
+  box-shadow:var(--phone)}
 /* will-change is set by the script only while the camera moves, and taken off once it settles, so
    the drawn screens are re-rastered sharp at whatever magnification the camera stops at */
 .camdev-sb{position:absolute;left:0;right:0;top:0;height:49px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5;
@@ -222,7 +276,7 @@ a:hover{background:var(--mark)}
 .try button:active,.try button.press{background:var(--mark)}
 .try [role=switch]{position:relative;min-width:64px;border-radius:24px;font-size:0}
 .try [role=switch]::after{content:"";position:absolute;left:6px;top:50%;width:26px;height:26px;margin-top:-13px;border-radius:50%;background:var(--ink);transition:transform 220ms var(--ease)}
-.try [role=switch][aria-checked=true]{background:#79AD00}
+.try [role=switch][aria-checked=true]{background:var(--lime)}
 .try [role=switch][aria-checked=true]::after{transform:translateX(24px);background:var(--paper)}
 .try input[type=range]{flex:1 1 180px;min-height:48px;accent-color:var(--ink)}
 @media (max-width:767.98px){
@@ -298,12 +352,14 @@ a:hover{background:var(--mark)}
 .sk .ln{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .bench{margin-top:44px;padding-top:26px;border-top:1px solid var(--rule)}
 .bench svg{width:100%;max-width:780px;height:auto}
+.bench text.b-ceil{fill:var(--red)} .bench line.b-ceil{stroke:var(--red)} #benchtgt{stroke:var(--ink2)} .bench .b-base{stroke:var(--rule)}
+#benchfill{fill:var(--markfill)} #benchline{stroke:var(--ink)}
 .shapes{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 .shapes button{min-height:44px;padding:0 16px;border:1.5px solid var(--ink);border-radius:2px;background:transparent;color:var(--ink);font:700 14px/1 var(--head);cursor:pointer}
 .shapes button[aria-pressed="true"]{background:var(--ink);color:var(--paper2)}
 .appx{--ln:#222935;--tx:#EEF2F7;--dm:#8A94A6;--ft:#7B8697;--lime:#C8FF3D;--blue:#5B9CFF;
   background:#10141B;color:var(--tx);border-radius:16px;padding:clamp(18px,2.4vw,26px);font-family:Karla,Arial,sans-serif;line-height:1.35;
-  box-shadow:10px 10px 0 rgba(23,25,28,.12)}
+  box-shadow:inset 0 0 0 1px var(--edge),10px 10px 0 var(--sh)}
 .appx p{margin:0;max-width:none}
 .appx .am{font:600 11px/1 Karla,Arial,sans-serif;letter-spacing:.11em;text-transform:uppercase;color:var(--ft)}
 .appx .an{font:500 clamp(26px,3vw,34px)/1.1 "DM Mono",monospace;margin-top:10px}
@@ -382,8 +438,8 @@ a:hover{background:var(--mark)}
 .rm-t tr.rm-row{cursor:pointer}
 .rm-t tr.s3 td{color:var(--ink2)}
 .rm-t tr.rm-b.s3 td{border-bottom-style:dashed}
-.rm-t tr:has(.rm-tt[aria-expanded=true]) td{background:#FBF6D6}
-.rm-t .rm-drow td{padding:0 10px 16px;background:#FBF6D6;border-bottom:1.5px solid var(--ink)}
+.rm-t tr:has(.rm-tt[aria-expanded=true]) td{background:var(--mark2)}
+.rm-t .rm-drow td{padding:0 10px 16px;background:var(--mark2);border-bottom:1.5px solid var(--ink)}
 /* the cards, below 900px */
 .rm-cards{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
 .rm-cards li{background:var(--paper2);border:1.5px solid var(--ink);border-radius:2px;padding:8px 14px 12px;cursor:pointer;min-width:0}
@@ -479,7 +535,7 @@ a.get:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
 .xp-rules li{position:relative;padding-left:18px}
 .xp-rules li::before{content:"";position:absolute;left:2px;top:calc(.75em - 3px);width:6px;height:6px;background:var(--ink2)}
 .chap{position:fixed;left:var(--pad);bottom:18px;z-index:30;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 2 * var(--pad));
-  padding:9px 14px;background:var(--paper2);border:1.5px solid var(--ink);border-radius:2px;box-shadow:4px 4px 0 rgba(23,25,28,.12);
+  padding:9px 14px;background:var(--paper2);border:1.5px solid var(--ink);border-radius:2px;box-shadow:4px 4px 0 var(--sh);
   font:700 14px/1 var(--head);opacity:0;transform:translateY(12px);transition:opacity 320ms var(--ease),transform 320ms var(--ease);pointer-events:none}
 .chap.on{opacity:1;transform:none}
 .chap .cn{font:400 13px/1 var(--body);color:var(--ink2)}
@@ -511,7 +567,8 @@ a.get:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
 
 <header class="hdr">
   <div class="hdr-in">
-    <p class="wm"><svg class="wm-o" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="35" fill="none" stroke="#17191C" stroke-width="17"/><path d="M29,33 H71" stroke="#B42318" stroke-width="3.5" stroke-dasharray="4 3.5"/><path d="M29,60 H40 L46,40 L55,70 L60,54 H69" fill="none" stroke="#C07A16" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="70" cy="54" r="5.5" fill="#6E9800"/></svg>OpenPE <span>/ OpenPump</span></p>
+    <p class="wm"><svg class="wm-o" viewBox="0 0 100 100" aria-hidden="true"><circle class="o" cx="50" cy="50" r="35" fill="none" stroke-width="17"/><path class="r" d="M29,33 H71" stroke-width="3.5" stroke-dasharray="4 3.5"/><path class="a" d="M29,60 H40 L46,40 L55,70 L60,54 H69" fill="none" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/><circle class="g" cx="70" cy="54" r="5.5"/></svg>OpenPE <span>/ OpenPump</span></p>
+    <button type="button" class="thm" id="thm" hidden aria-label="Theme: System"><svg viewBox="0 0 24 24" aria-hidden="true"><g class="i-sys"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="f"/></g><g class="i-lt"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></g><g class="i-dk"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" class="f"/></g></svg><span class="thm-l">System</span></button>
     <details class="nd" id="nd">
       <summary>Sections</summary>
       <nav class="sheet" aria-label="Sections">
@@ -528,6 +585,29 @@ a.get:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
     <div class="prog" aria-hidden="true"><svg viewBox="0 0 1000 14" preserveAspectRatio="none"><path id="progpath" d=""></path></svg><b id="progdot"></b><i id="prog"></i></div>
   </div>
 </header>
+<script>
+/* the theme button: System (follow the device) > Light > Dark > System. The choice is kept in
+   localStorage when the browser allows it, and applied before paint by the script in the head. */
+(function(){
+  var b=document.getElementById("thm"), R=document.documentElement; if(!b) return;
+  var ORDER=["system","light","dark"], WORD={system:"System",light:"Light",dark:"Dark"},
+      HINT={system:"follows your device",light:"always light",dark:"always dark"};
+  function cur(){ var t=R.getAttribute("data-theme"); return t==="light"||t==="dark"?t:"system"; }
+  function show(t){
+    var nx=ORDER[(ORDER.indexOf(t)+1)%3];
+    b.setAttribute("data-t",t); b.querySelector(".thm-l").textContent=WORD[t];
+    b.setAttribute("aria-label","Theme: "+WORD[t]+", "+HINT[t]);
+    b.title="Theme: "+WORD[t]+" ("+HINT[t]+"). Press for "+WORD[nx]+".";
+  }
+  b.addEventListener("click",function(){
+    var t=ORDER[(ORDER.indexOf(cur())+1)%3];
+    if(t==="system") R.removeAttribute("data-theme"); else R.setAttribute("data-theme",t);
+    try{ if(t==="system") localStorage.removeItem("openpe-theme"); else localStorage.setItem("openpe-theme",t); }catch(e){}
+    show(t);
+  });
+  show(cur()); b.hidden=false;
+})();
+</script>
 
 <div class="chap" id="chap" aria-hidden="true"><span class="cn" id="chapn"></span><span class="ct" id="chapt"></span><span class="cc"></span></div>
 <main id="main">
@@ -679,12 +759,12 @@ a.get:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--mark)}
     <div class="bench">
       <div role="img" id="benchimg" aria-label="Sample data. A fixed set drawn as five square pulls to one pressure, each dropping to a lower one, under a dashed target line and a red dashed line marking the ceiling you set.">
         <svg viewBox="0 0 620 150" aria-hidden="true">
-          <text x="616" y="15" text-anchor="end" fill="#B42318" font-family="Courier Prime, monospace" font-size="12">the ceiling you set</text>
-          <line x1="0" y1="24" x2="620" y2="24" stroke="#B42318" stroke-width="1.4" stroke-dasharray="7 5"/>
-          <line id="benchtgt" x1="0" y1="46" x2="620" y2="46" stroke="#505862" stroke-width="1.4" stroke-dasharray="6 5"/>
-          <line x1="0" y1="128" x2="620" y2="128" stroke="#C3CBD1" stroke-width="1"/>
-          <path id="benchfill" fill="rgba(242,226,125,.55)" stroke="none"></path>
-          <path id="benchline" fill="none" stroke="#17191C" stroke-width="2.2" stroke-linejoin="round"></path>
+          <text class="b-ceil" x="616" y="15" text-anchor="end" font-family="Courier Prime, monospace" font-size="12">the ceiling you set</text>
+          <line class="b-ceil" x1="0" y1="24" x2="620" y2="24" stroke-width="1.4" stroke-dasharray="7 5"/>
+          <line id="benchtgt" x1="0" y1="46" x2="620" y2="46" stroke-width="1.4" stroke-dasharray="6 5"/>
+          <line class="b-base" x1="0" y1="128" x2="620" y2="128" stroke-width="1"/>
+          <path id="benchfill" stroke="none"></path>
+          <path id="benchline" fill="none" stroke-width="2.2" stroke-linejoin="round"></path>
         </svg>
       </div>
       <div class="shapes" role="group" aria-label="Kind of set">
