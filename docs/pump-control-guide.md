@@ -865,7 +865,8 @@ The guided start is on by default. Before a run, OpenPump waits for the cuff to 
   runs when **Done** is tapped, before the first step that can command pressure (the warm-up),
   with the same target, waits, questions and stops (its words say "The pump starts", since the
   routine already has); its pass goes on to that step, whose table
-  write takes over from the pull. A failed or stopped check ends the run with a vent, as at a start.
+  write takes over from the pull. A failed or stopped check ends the run with a vent, as at a start;
+  its summary says it stopped at the start check, with the minutes by hand.
   A routine with a Tissue response test before it starts as it always did.
 
 ### Seal check

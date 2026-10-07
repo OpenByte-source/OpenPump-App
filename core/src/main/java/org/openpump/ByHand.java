@@ -69,8 +69,13 @@ public final class ByHand {
      *  Tunica release"), the routine's otherwise. Discreet: never the step. */
     public static String widgetName(String name, String phase, boolean discreet) {
         String p = phase == null ? "" : phase.trim();
-        return discreet || p.length() == 0 ? name : p;
+        if (discreet || p.length() == 0) return name;
+        // The changeover's notification line is too long for the widget's (E2-3).
+        return SWAP_WAITING.equals(p) ? SWAP_WIDGET : p;
     }
+
+    /** The widget's changeover line - short enough for its one line (E2-3). */
+    public static final String SWAP_WIDGET = "By hand · swap cylinder · tap I’ve swapped";
 
     /* ---- THE START CHECK WAITS FOR THE FIRST PRESSURE (the owner's answer on H-2) ---- */
 
@@ -114,7 +119,39 @@ public final class ByHand {
                    .replace("start the routine anyway", "start the pump anyway")
                    .replace("starts the routine with no seal verdict",
                             "starts the pump with no seal verdict")
-                   .replace("Continue to session", "Continue");
+                   .replace("Continue to session", "Continue")
+                   // E2-5: mid-run a minute unanswered ends the run, and it is filed.
+                   .replace("the pump is released.", "the run ends and is saved.")
+                   .replace("this start ends.", "the run ends and is saved.");
+    }
+
+    /**
+     * IS A WAIT BY HAND LATE YET (E2-2)? Only once its planned time has passed: the
+     * changeover's 2:00 and the release's 5:00 are the plan, and a wait inside them is not the
+     * run running late - the "+m:ss", the Time cell and the predicted end hold still until
+     * `plannedEndAt`.
+     */
+    public static boolean waitIsLate(long now, long plannedEndAt) {
+        return now >= plannedEndAt;
+    }
+
+    /** The Start confirm's first line for a routine that opens by hand (E2-1): what really
+     *  comes first. `before` is what runs ahead of the routine (a measurement), "" for none,
+     *  with its rough time already in it. */
+    public static String startConfirmFirst(String stageName, String before) {
+        String b = before == null ? "" : before.trim();
+        String step = bare(stageName);
+        if (step.length() == 0) step = "A step";
+        String hand = step + ", by hand — the pump starts after you press Done";
+        return "First: " + (b.length() == 0 ? hand : b + ", then " + hand);
+    }
+
+    /** What the summary says of a run stopped at the start check after its by-hand step
+     *  (E2-4): where it stopped, and the minutes by hand - never "ran exactly to plan", and no
+     *  peak set against nothing asked. */
+    public static String stoppedAtCheck(long byHandSec) {
+        return "Stopped at the start check after the step done by hand — "
+            + Model.Fmt.t(byHandSec) + " by hand, with nothing commanded by the routine.";
     }
 
     /** Has nothing before step `idx` of `plan` been able to command pressure (every step

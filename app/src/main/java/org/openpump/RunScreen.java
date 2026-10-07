@@ -1705,11 +1705,14 @@ final class RunScreen {
             s.mode = QuickAdjust.MODE_REST;
             s.lenField = QuickAdjust.REST;
             s.byHand = ByHand.is(cur);
-            s.timeUp = a.awaitingAck && ByHand.waitsAfterClock(cur);
+            // A by-hand step that waits - the release past 0:00, the changeover from its start -
+            // shows what is left of its planned time, then 0:00, and holds still (H-7, E2-2):
+            // it never counts the wait up - the NOW card's "so far" says that.
+            s.timeUp = a.awaitingAck && ByHand.is(cur);
             s.head = s.byHand ? ByHand.head(ventConfirmed()) : QuickAdjust.HEAD_REST;
-            // Once the release's time is up its cell holds still at 0:00 left (H-7): it no
-            // longer counts the wait up - the NOW card's "so far" says that.
-            s.v[QuickAdjust.REST] = s.timeUp ? 0 : (int) ((cur.durMs + 500L) / 1000L);
+            s.v[QuickAdjust.REST] = s.timeUp
+                ? (int) ((Math.max(0L, a.presetFireAt - now) + 999L) / 1000L)
+                : (int) ((cur.durMs + 500L) / 1000L);
             s.elapsed = (int) (Math.max(0L, cur.durMs - Math.max(0L, a.presetFireAt - now)) / 1000L);
             if (cur.awaitAck) s.blocked = "The cylinder change has no length — it waits for you.";
             else if (a.awaitingAck && ByHand.waitsAfterClock(cur))
@@ -3246,7 +3249,9 @@ final class RunScreen {
                 long leftMs = Math.max(0L, a.restNowEndAt - now);
                 a.runCountdown.setText(Model.Fmt.t((leftMs + 999) / 1000));
             } else {
-                long leftMs = a.presetFireAt - now;
+                // E2-6: before its step is armed (the first upload's settle) the countdown is the
+                // step's full time, never the settle's "0:01".
+                long leftMs = dispIdx != a.planIdx ? cur.durMs : a.presetFireAt - now;
                 if (leftMs < 0) leftMs = 0;
                 a.runCountdown.setText(Model.Fmt.t((leftMs + 999) / 1000));
             }
@@ -4608,7 +4613,9 @@ final class RunScreen {
         // The release says BY HAND on this line, never REST (ByHand).
         n.byHand = !a.restingNow && ByHand.waitsAfterClock(cur);
         n.resting = resting;
-        n.restLeftMs = a.restingNow ? a.restNowEndAt - now : a.presetFireAt - now;
+        // E2-6: before its step is armed, the step's full time - never the settle's "0:01".
+        n.restLeftMs = a.restingNow ? a.restNowEndAt - now
+            : dispIdx != a.planIdx ? cur.durMs : a.presetFireAt - now;
         // After an inserted rest the step it interrupted comes back under pressure; after a
         // planned one, the next step - or the after-test's pull - does.
         n.pullNext = a.restingNow || (nxt != null ? !nxt.rest : assessAfter);

@@ -31411,7 +31411,7 @@ public final class WiringCheck {
         String[] handName = { "startSession", "beginAssessOrSession" };
         for (int i = 0; i < hand.length; i++) {
             String b = body228(act, hand[i], "SessionActivity.java", handName[i], violations);
-            if (b != null && b.indexOf("if(startCheckMidRun){resumeAfterStartCheck();return;}") < 0)
+            if (b != null && b.indexOf("if(startCheckMidRun){resumeAfterStartCheck(") < 0)
                 violations.add("SessionActivity.java: invariant 251 - " + handName[i] + " no "
                     + "longer hands a start check passed mid-run back to the run it paused");
         }
@@ -31431,6 +31431,17 @@ public final class WiringCheck {
             violations.add("RunScreen.java: invariant 251 - ventConfirmed no longer asks the "
                 + "watch, the still-up test and the reading - a by-hand step could say vented "
                 + "over a cuff still at pressure");
+        // (g) E2-2: a wait by hand inside its planned time is not pushed on as lateness.
+        String th = body228(act, "void\\s+tickHold\\s*\\(", "SessionActivity.java", "tickHold",
+            violations);
+        if (th != null) {
+            int late = th.indexOf("ByHand.waitIsLate(now,presetFireAt)");
+            int push = th.indexOf("presetFireAt+=step;");
+            if (late < 0 || push < 0 || late > push)
+                violations.add("SessionActivity.java: invariant 251 - a wait by hand counts as "
+                    + "late inside its planned time again (tickHold must ask ByHand.waitIsLate "
+                    + "before it pushes)");
+        }
         String gs = body228(act, "void\\s+showGuidedStart\\s*\\(", "SessionActivity.java",
             "showGuidedStart", violations);
         if (gs != null && gs.indexOf("ByHand.startWords(") < 0)
@@ -31489,6 +31500,8 @@ public final class WiringCheck {
             + " runStopWhy = RunStopReason.WHY_TWO_HOURS; finishSession(true); return true; }\n"
             + "private void tickRun() { long now = 0; if (checkGrossCap(now)) return;"
             + " if (awaitingAck) x(); }\n"
+            + "private void tickHold(long now) { if (awaitingAck && byHandPlaying()"
+            + " && !ByHand.waitIsLate(now, presetFireAt)) return; presetFireAt += step; }\n"
             + "private boolean beginRunFlow() { startCheckDeferred = ByHand.deferStartCheck(r, a,"
             + " b, c); if (startCheckDeferred) { beginAssessOrSession(r); return true; }"
             + " if (model.guidedStart) { beginGuidedStart(r); return true; } return true; }\n"
@@ -31559,6 +31572,8 @@ public final class WiringCheck {
             { "S", "vented on the watch's word alone",
               " && (n || a.lastKpa < VENTED_READOUT_KPA)", "" },
             { "A", "the routine starts, said after Done", "ByHand.startWords(x, startCheckMidRun)", "x" },
+            { "A", "a planned wait by hand counted late",
+              " if (awaitingAck && byHandPlaying() && !ByHand.waitIsLate(now, presetFireAt)) return;", "" },
         };
         for (int i = 0; i < bad.length; i++) {
             String s2 = screen, l2 = look, a2 = act, v2 = service;

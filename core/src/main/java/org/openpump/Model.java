@@ -5172,6 +5172,16 @@ public final class Model {
          */
         public int stopWhy = RunStopReason.WHY_NONE;
         public int stopLimSec;
+        /**
+         * E2-4 (by hand, 2026-10-07): THE RUN STOPPED AT THE START CHECK AFTER ITS BY-HAND
+         * STEP, and this is how long it ran - the minutes by hand - in seconds; 0 for every
+         * other session. The summary says that (ByHand#stoppedAtCheck) instead of "ran exactly
+         * to plan" or a peak set against nothing asked. Written only when not 0, so every
+         * other record is as it was byte for byte.
+         *
+         * MIGRATION: absent on every session filed before it - 0, the truth about them.
+         */
+        public long byHandStopSec;
         public Double cmdPeakKpa;
         public int afterPullKpa, carriedInKpa;
         public boolean carriedFromPull;
@@ -5446,6 +5456,7 @@ public final class Model {
                 o.put("stWhy", stopWhy);
                 o.put("stLim", stopLimSec);
             }
+            if (byHandStopSec > 0) o.put("bhChk", byHandStopSec);
             o.put("cmdPk", cmdPeakKpa == null ? "" : String.valueOf(cmdPeakKpa.doubleValue()));
             o.put("aPull", afterPullKpa);
             o.put("carIn", carriedInKpa);
@@ -5599,6 +5610,9 @@ public final class Model {
             // every session no limit stopped - no reason, and none is guessed.
             s.stopWhy = o.optInt("stWhy", RunStopReason.WHY_NONE);
             s.stopLimSec = o.optInt("stLim", 0);
+            // MIGRATION (E2-4): absent before it, and on every run not stopped at the start
+            // check after a step by hand - 0.
+            s.byHandStopSec = Math.max(0L, o.optLong("bhChk", 0L));
             s.cmdPeakKpa = parseNullableDouble(o.optString("cmdPk", ""));
             s.afterPullKpa = o.optInt("aPull", 0);
             s.carriedInKpa = o.optInt("carIn", 0);

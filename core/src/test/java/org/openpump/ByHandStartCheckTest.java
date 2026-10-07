@@ -147,6 +147,43 @@ class ByHandStartCheckTest {
             .text.contains("vented"));
     }
 
+    @Test void theDeviceRechecksPolish() throws Exception {
+        // E2-1: the Start confirm says what really comes first.
+        assertEquals("First: Tunica release, by hand — the pump starts after you press Done",
+            ByHand.startConfirmFirst("Tunica release — by hand", ""));
+        assertEquals("First: measure (about 1 min), then Tunica release, by hand — the pump "
+            + "starts after you press Done",
+            ByHand.startConfirmFirst("Tunica release — by hand", "measure (about 1 min)"));
+        // E2-2: a wait is late only once its planned time has passed.
+        assertFalse(ByHand.waitIsLate(1_000L, 120_000L));
+        assertTrue(ByHand.waitIsLate(120_000L, 120_000L));
+        // E2-3: the widget's changeover line is the short one; the notification keeps its own.
+        assertEquals("By hand · swap cylinder · tap I’ve swapped",
+            ByHand.widgetName("Length L3", ByHand.SWAP_WAITING, false));
+        assertEquals("Length L3", ByHand.widgetName("Length L3", ByHand.SWAP_WAITING, true));
+        // E2-4: a run stopped at the start check after its by-hand step.
+        Model.Sess s = new Model.Sess();
+        s.peakKpa = Double.valueOf(5.8);
+        s.cmdPeakKpa = Double.valueOf(0.0);
+        s.presetsDone = 1;
+        s.byHandStopSec = 320L;
+        String said = Summary.noticed(s, false);
+        assertEquals("Stopped at the start check after the step done by hand — 5:20 by hand, "
+            + "with nothing commanded by the routine.", said);
+        assertFalse(said.contains("asked") || said.contains("to plan"), said);
+        assertEquals(320L, Model.Sess.fromJson(s.toJson()).byHandStopSec);
+        s.byHandStopSec = 0L;
+        assertFalse(s.toJson().has("bhChk"), "0 is not written");
+        assertTrue(Summary.noticed(s, false).contains("asked for"), "any other run: as before");
+        // E2-5: a minute unanswered mid-run ends the run, and it is saved.
+        assertEquals("With no answer in a minute, the run ends and is saved.",
+            ByHand.startWords("With no answer in a minute, this start ends.", true));
+        assertEquals("With no answer in a minute, the run ends and is saved.",
+            ByHand.startWords("With no answer in a minute, the pump is released.", true));
+        assertEquals("With no answer in a minute, this start ends.",
+            ByHand.startWords("With no answer in a minute, this start ends.", false));
+    }
+
     @Test void theChangeoverWaitSaysWaitingNotATime() {
         // H-5: the notification and widget lead while the changeover waits.
         String said = ByHand.notification("Swap to your girth cylinder — next is x", false, true);

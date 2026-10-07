@@ -14168,8 +14168,8 @@ public class SessionActivity extends Activity
     private void startSession(Model.Routine r) {
         if (refuseArmOutsideRun("startSession")) return;   // D2, invariant 65
         // A START CHECK RUN MID-RUN (H-2) hands back to the run it paused, never a new one:
-        // "Start anyway" and a skipped seal check arrive here.
-        if (startCheckMidRun) { resumeAfterStartCheck(); return; }
+        // "Start anyway" and a skipped seal check arrive here - not a pass (E2-7).
+        if (startCheckMidRun) { resumeAfterStartCheck(false); return; }
         planIdx = -1; batchBase = 0; batchCount = 0;
         byHandGateIdx = -1;
         byHandWaitMs = 0L;
@@ -14866,7 +14866,7 @@ public class SessionActivity extends Activity
         // watchdog branch instead of the run's, for the rest of the session.
         sealResultShowing = false;
         // ...and a check passed mid-run (H-2) goes back to the run it paused.
-        if (startCheckMidRun) { resumeAfterStartCheck(); return; }
+        if (startCheckMidRun) { resumeAfterStartCheck(true); return; }
         if (Tau.runsBefore(r)) { beginAssessment(r, false); return; }
         startSession(r);
     }
@@ -16085,14 +16085,17 @@ public class SessionActivity extends Activity
 
     private void showSealCheck(Model.Routine r) {
         body.removeAllViews();
-        enterFlow(Nav.SCR_SEAL, Nav.STEP_SEAL);
+        // E2-5: mid-run (after Done) the check is no numbered step of a start.
+        enterFlow(Nav.SCR_SEAL, startCheckMidRun ? -1 : Nav.STEP_SEAL);
         Ui.head(this, body, "Seal check");
         Ui.chip(this, body, "Checking the seal…",
             "holding " + Model.Fmt.p(model.sealCheckKpa) + " and coasting — please hold still",
             Ui.SURF, Ui.CMD);
         Ui.note(this, body, "Measured during a coasting hold, never after StopWork — stopping "
             + "vents, which would measure the valve instead of the seal.");
-        Ui.note(this, body, "next: " + r.name + " · " + Model.Fmt.t(model.routineSec(r))
+        // E2-5: mid-run, what comes next is the held step, not the whole routine.
+        if (startCheckMidRun) Ui.note(this, body, "next: " + midRunNextName());
+        else Ui.note(this, body, "next: " + r.name + " · " + Model.Fmt.t(model.routineSec(r))
             + " · peak " + Model.Fmt.p(model.peak(r)));
         // Skippable, in the same shape showAssessVent offers and for the same reason: a
         // screen whose only way past is ending the session is a disabled control with no
@@ -16186,7 +16189,8 @@ public class SessionActivity extends Activity
         body.removeAllViews();
         // Still the seal-check step, and the cuff is still held at the check pressure — the
         // bar stays absent, the step indicator stays on Seal check.
-        enterFlow(Nav.SCR_SEAL, Nav.STEP_SEAL);
+        // E2-5: mid-run (after Done) the check is no numbered step of a start.
+        enterFlow(Nav.SCR_SEAL, startCheckMidRun ? -1 : Nav.STEP_SEAL);
         Ui.head(this, body, "Seal check");
         int commanded = model.sealCheckKpa;
         String evidence = " · from " + validSamples + " reading"
@@ -16294,7 +16298,8 @@ public class SessionActivity extends Activity
 
     private void showSealVenting(Model.Routine r) {
         body.removeAllViews();
-        enterFlow(Nav.SCR_SEAL, Nav.STEP_SEAL);
+        // E2-5: mid-run (after Done) the check is no numbered step of a start.
+        enterFlow(Nav.SCR_SEAL, startCheckMidRun ? -1 : Nav.STEP_SEAL);
         Ui.head(this, body, "Seal check");
         Ui.chip(this, body, "Venting before reseat…",
             "confirming the earlier hold actually dropped before starting a new one",
@@ -18500,6 +18505,19 @@ public class SessionActivity extends Activity
      *  (resumeAfterStartCheck), at startCheckResumeIdx. */
     boolean startCheckMidRun;
     int startCheckResumeIdx = -1;
+    /** E2-4: the run being filed ended at the start check after its by-hand step. Set by
+     *  finishSession as it stands the check down, read once by fileSession. */
+    boolean stoppedAtCheck;
+
+    /** E2-5: what the start check run mid-run goes on to - the held step's stage name. */
+    private String midRunNextName() {
+        int i = startCheckResumeIdx;
+        if (runRoutine == null || i < 0 || i >= plan.size()) return "the next step";
+        int si = plan.get(i).stageIdx;
+        if (si < 0 || si >= runRoutine.stages.size()) return "the next step";
+        String n = runRoutine.stages.get(si).name;
+        return n == null || n.trim().length() == 0 ? "the next step" : n.trim();
+    }
 
     /**
      * THE DEFERRED START CHECK (H-2): Done ended the release, and the next step is the first
@@ -18526,12 +18544,14 @@ public class SessionActivity extends Activity
 
     /** The deferred start check passed (or was started anyway): the run goes on from the step
      *  it was held at, its table written again first, on the run screen. */
-    private void resumeAfterStartCheck() {
+    private void resumeAfterStartCheck(boolean passed) {
         startCheckMidRun = false;
         int idx = startCheckResumeIdx;
         startCheckResumeIdx = -1;
         restRearmPending = true;
-        log("--- start check passed mid-run: on to step " + (idx + 1) + " ---");
+        // E2-7: the log says which - a pass, or a start without one.
+        log("--- start check " + (passed ? "passed" : "not passed (started anyway or without "
+            + "waiting)") + " mid-run: on to step " + (idx + 1) + " ---");
         if (idx < 0) return;
         playPreset(idx);
         if (running && runRoutine != null && !assessBusy()) showRun(runRoutine);
@@ -26900,6 +26920,13 @@ public class SessionActivity extends Activity
         long step = RunEdit.heldAdvanceMs(heldLastTickAt, now);
         heldLastTickAt = now;
         if (step <= 0) return;
+        /* E2-2: A WAIT BY HAND INSIDE ITS PLANNED TIME IS NOT LATE. The changeover waits from
+         * its start, so every second of its 2:00 was pushed on to the step and the run:
+         * "+0:02" on the line, the Time cell and the predicted end climbing while the step was
+         * on plan. Nothing moves until the planned time has passed (ByHand#waitIsLate); the
+         * gate still holds the step (Advance returns while awaitingAck). */
+        if (!holding && !restingNow && awaitingAck && byHandPlaying()
+                && !ByHand.waitIsLate(now, presetFireAt)) return;
         presetFireAt += step;
         setPresetDuration(planIdx, plan.get(planIdx).durMs + step);
         // S01 - THE ROUTINE CARD'S OWN "+m:ss", run-wide rather than one set's: this is one
@@ -27484,6 +27511,8 @@ public class SessionActivity extends Activity
         awaitingAck = false;
         byHandGateIdx = -1;
         startCheckDeferred = false;
+        // E2-4: a run that ends at the start check after its by-hand step is filed as that.
+        stoppedAtCheck = startCheckMidRun;
         startCheckMidRun = false;
         startCheckResumeIdx = -1;
         // A run that ended during a rest step must not leave the flag standing: the next
@@ -27938,6 +27967,9 @@ public class SessionActivity extends Activity
         // one line that stays, and the same line on the summary reopened from History.
         rec.stopWhy = aborted ? runStopWhy : RunStopReason.WHY_NONE;
         rec.stopLimSec = aborted ? runStopLimSec : 0;
+        // E2-4: stopped at the start check after the by-hand step - the minutes by hand.
+        rec.byHandStopSec = aborted && stoppedAtCheck ? Math.max(1L, rec.durSec) : 0L;
+        stoppedAtCheck = false;
         rec.cmdPeakKpa = Double.valueOf(commandedPeakKpa);
         rec.afterPullKpa = ranAtAll ? assessAfterArmedKpa : 0;
         rec.carriedInKpa = ranAtAll ? carriedInKpa : 0;
@@ -29590,6 +29622,9 @@ public class SessionActivity extends Activity
             Ui.note(this, col, run == null
                 ? "No as-run recording for this session — filed before the recorder existed, "
                   + "or nothing survived to save."
+                // E2-4: a run stopped at the start check after its by-hand step did not run to
+                // plan - it is said as what it was.
+                : sess.byHandStopSec > 0 ? ByHand.stoppedAtCheck(sess.byHandStopSec)
                 : "This session ran exactly to plan — nothing to chart block by block.");
         } else {
             BlockChartView chart = new BlockChartView(this, blocks);
@@ -41195,8 +41230,13 @@ public class SessionActivity extends Activity
             model.measLog.due(model.meas, sessionsThisTrainingWeek(r)));
         boolean endHold = model.endHoldForMeasure && model.std.kpa > 0
             && (measDue || model.measLog.latestPre() != null);
+        // E2-1: a routine that opens by hand runs its start check after Done, not first
+        // (ByHand#deferStartCheck) - so the box says what really comes first.
+        boolean byHandFirst = ByHand.deferStartCheck(r, model.guidedStart,
+            model.sealBeforeRoutine, Tau.runsBefore(r));
         SessionPlan.Steps plan = SessionPlan.of(measDue, model.std.on, model.std.sec,
-            model.guidedStart, model.sealBeforeRoutine, Tau.runsBefore(r), Tau.runsAfter(r),
+            model.guidedStart && !byHandFirst, model.sealBeforeRoutine && !byHandFirst,
+            Tau.runsBefore(r), Tau.runsAfter(r),
             r.assess != null ? r.assess.dur : 0, endHold);
 
         LinearLayout outer = new LinearLayout(this);
@@ -41209,6 +41249,11 @@ public class SessionActivity extends Activity
         // polish DG-1: one plain line - "First: pull to pressure (under a minute)" - in place
         // of a capitals label over a lowercase fragment.
         String about = SessionPlan.about(plan.beforeSec);
+        if (byHandFirst)
+            planLine(box, ByHand.startConfirmFirst(r.stages.get(0).name,
+                plan.before.isEmpty() ? "" : SessionPlan.chain(plan.before)
+                    + (about.isEmpty() ? "" : " (" + about + ")")));
+        else
         planLine(box, plan.before.isEmpty() ? "The first set starts straight away."
             : "First: " + SessionPlan.chain(plan.before)
               + (about.isEmpty() ? "" : " (" + about + ")"));
