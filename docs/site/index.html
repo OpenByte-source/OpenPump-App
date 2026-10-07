@@ -3239,9 +3239,17 @@ function goBeat(i){
   M.prev=first?-1:M.cur; M.from=first||reduce||!sh?null:{pose:{tx:sh.tx,ty:sh.ty,k:sh.k,r:sh.r},clip:sh.cl.slice(),round:sh.rr,art:sh.art};
   M.cur=i; M.t0=now(); again();
 }
+/* the beat whose cue a scroll position is past */
+function beatAt(y){ var i=0; for(var k=0;k<B.length;k++) if(B[k].top<=y+G.sw) i=k; return i; }
+/* THE SWIPE'S HOOK (the pager at the end of the page): its stops are the Stage's beats. A note the room
+   can't hold (a short screen) is read across a stretch of its section (over: by how many px it rises);
+   go(y): the page is on its way to y, so that beat plays now, from the release, not when its cue is crossed */
+W.OPStage={on:function(){ return !!(MP.on&&!MP.desk&&MP.V); }, cur:function(){ return MP.cur; },
+  over:function(k){ var L=MP.S&&MP.S[k]; return L&&L.kind!=="title"?Math.round((L.over||0)*MP.sc):0; },
+  go:function(y){ if(!this.on()) return; var i=beatAt(y); MP.pin={i:i,until:now()+900}; goBeat(i); }};
 function framePhoneMock(){
-  var M=MP, sy=W.pageYOffset, anchor=sy+G.sw, N=B.length, i=0, k, t=now();
-  for(k=0;k<N;k++) if(B[k].top<=anchor) i=k;
+  var M=MP, sy=W.pageYOffset, N=B.length, i=beatAt(sy), t=now();
+  if(M.pin){ if(i===M.pin.i||t>M.pin.until) M.pin=null; else i=M.pin.i; }
   if(i!==M.cur) goBeat(i);
   var u=reduce||!M.from?1:clamp((t-M.t0)/M.BEAT,0,1), dt=M.last&&t-M.last<100?(t-M.last)/1000:1/60; M.last=t;
   var more=mpRender(u,sy,t,dt);
@@ -3290,7 +3298,9 @@ function mpRender(u,sy,t,dt){
     if(L.lab){ mpEnter(L.lab,"side",e,LY.lab.dx,null);
       var lo=(j===i?clamp((e-.4)/.4,0,1):(e<0?-e:0)).toFixed(3); if(L.ln._o!==lo){ L.ln._o=lo; L.ln.style.opacity=lo; } }
     var on=j===i||e<0, pe=j===i?"auto":"none"; if(bj.sbt.style.pointerEvents!==pe) bj.sbt.style.pointerEvents=pe;
-    if(L.kind!=="title"||M.desk) dockNote(bj,on?(j===N-1&&atEnd?"end":"dock"):false);
+    /* (on a short phone, a note the room can't hold rises as its section is read, cut at its top line, as before) */
+    var lift=!M.desk&&on&&L.over>0?Math.round(L.over*sc*clamp((sy-(bj.top-G.sw)-bj.h*.15)/(bj.h*.4),0,1)):0;
+    if(L.kind!=="title"||M.desk) dockNote(bj,on?(j===N-1&&atEnd?"end":"dock"):false,lift);
   }
   /* the hands-on moment plays once the words are in */
   if(B0.live){ if(MK.liveId!==B0.id){ mkDraw(MK.ov,B0.id); MK.liveId=B0.id; MK.cv=null; }
@@ -3422,6 +3432,8 @@ function measure(){
       var tb=b.t.getBoundingClientRect().bottom+y, nx=g[1]?g[1].top-HDR:tb;
       return {lo:0,hi:Math.max(0,Math.round(Math.min(tb+16-vh,nx-vh*.6)))}; }
     var dock=parseFloat(b.t.style.getPropertyValue("--dock"))||0, over=dock+b.t.offsetHeight-24-(vh-8);
+    /* the mock's Stage (SCREENS = "MOCK"): its own notes, fitted to the room; only one that still isn't has a stretch */
+    if(W.OPStage&&W.OPStage.on()) over=W.OPStage.over(k);
     if(over>0) return {lo:Math.round(b.top-sw+b.h*.15),hi:Math.round(b.top-sw+b.h*.55)};
     var at=Math.round(b.top-HDR); return {lo:at,hi:at};
   });
@@ -3434,7 +3446,8 @@ function measure(){
 /* v: the page's speed at release (px/ms, + is down the page); y0: where the touch began; aim: where a
    glide still under way was headed when the finger came down, so two quick swipes go two beats */
 function target(y,v,y0,aim){
-  var k, n=S.length, dir=Math.abs(v)>=FLICK&&Math.abs(y-y0)>=16?(v>0?1:-1):0, ref=y;
+  /* (a flick is counted from where the swipe began, so a hard one whose drag already passed a near stop still goes one beat) */
+  var k, n=S.length, dir=Math.abs(v)>=FLICK&&Math.abs(y-y0)>=16?(v>0?1:-1):0, ref=dir?y0:y;
   if(aim!=null&&dir&&(aim-y)*dir>0) ref=aim;
   /* a flick that began inside a stretch of reading carries on within it and ends at most at its end
      (or its start, going back), even if the finger took the page past it: its last lines are read
@@ -3469,6 +3482,8 @@ function jump(y){ var sb=R.style.scrollBehavior; R.style.scrollBehavior="auto"; 
 function stopAnim(){ if(anim) W.cancelAnimationFrame(anim); anim=0; aimAt=null; }
 function glideTo(to,v){
   stopAnim(); var from=sy(), d=to-from;
+  /* the Stage plays the beat it is going to from now, as the page glides there */
+  if(W.OPStage&&to<END-1) W.OPStage.go(to);
   if(Math.abs(d)<1||(RM&&RM.matches)){ jump(to); return; }
   var ms=clamp(300+Math.abs(d)*.32,340,640), m0=clamp(d?v*ms/d:0,0,2.4), t0=0; aimAt=to;
   function st(t){ if(!t0) t0=t; var x=Math.min(1,(t-t0)/ms);
