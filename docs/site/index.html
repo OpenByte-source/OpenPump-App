@@ -1531,6 +1531,8 @@ function measure(){
   B.forEach(function(b){ dockNote(b,false); var s=b.sbt.style; s.transition="none"; s.opacity=""; s.clipPath=""; s.pointerEvents="";
     s.transform=""; [].forEach.call(b.sbt.children,function(e){ e.style.opacity=e.style.transform=""; e._o=e._t=undefined; });
     [].forEach.call(b.sbt.querySelectorAll("mark"),function(m){ m.style.removeProperty("--mk"); m._mk=undefined; });
+    if(b.words) b.words.forEach(function(w){ w.style.opacity=w.style.transform=""; w._o=w._t=undefined; });
+    if(b.kids) b.kids.forEach(function(e){ e.style.opacity=e.style.transform=""; e._o=e._t=undefined; });
     restNote(b); b.on=undefined; b.o=undefined; b.cp=undefined; b.offAt=0; b.dockNow=0; });
   cur=-1; tw=null; shown=null; scrOn=""; scrPrev=""; camDone=0;
   var vw=D.documentElement.clientWidth, vh=W.innerHeight, wide=vw>=768, sr=story.getBoundingClientRect(), sy=W.pageYOffset;
@@ -1820,9 +1822,9 @@ var LIVE={
 (function wire(){
   RUN.init(); CEIL.init(); LOCK.set(reduce);
   var run=story.querySelector('[data-try="run"]');
-  if(run) [].forEach.call(run.querySelectorAll("button"),function(bt){ bt.addEventListener("click",function(){ played.run=true; RUN.press(+bt.getAttribute("data-step")); }); });
-  var rg=D.getElementById("ceilrange"); if(rg){ rg.max=CEIL.n-1; rg.addEventListener("input",function(){ played.ceiling=true; CEIL.show(+rg.value,true); }); }
-  var sw=story.querySelector('[data-try="discreet"] [role=switch]'); if(sw) sw.addEventListener("click",function(){ played.discreet=true; LOCK.set(!LOCK.on); });
+  if(run) [].forEach.call(run.querySelectorAll("button"),function(bt){ bt.addEventListener("click",function(){ played.run=G.wide?"you":true; RUN.press(+bt.getAttribute("data-step")); }); });
+  var rg=D.getElementById("ceilrange"); if(rg){ rg.max=CEIL.n-1; rg.addEventListener("input",function(){ played.ceiling=G.wide?"you":true; CEIL.show(+rg.value,true); }); }
+  var sw=story.querySelector('[data-try="discreet"] [role=switch]'); if(sw) sw.addEventListener("click",function(){ played.discreet=G.wide?"you":true; LOCK.set(!LOCK.on); });
 })();
 var played={run:reduce,ceiling:reduce,discreet:reduce};
 function liveFor(b,u){
@@ -2083,44 +2085,71 @@ function frameCue(){
   if(more) again();
 }
 /* ================= from 768px: the words scroll, the phone stays beside them =================
-   The note at the middle of the screen is the current one (the same cue line as on a phone). When it
-   changes the phone glides to its framing (DOC_CAM, a short timed move: the camera keeps its own
-   timing), the screen dissolves into the next one inside the phone (DOC_DIS), and the focus ring comes
-   up once it has settled; a note's hands-on moment plays as the note arrives there. The words are an
-   ordinary column: each part rises in and fills in over the last stretch above the bottom edge as it
-   scrolls up, and its highlighter draws across as it does. With reduced motion all of it is a plain
-   switch at the same cue, and the words simply scroll. */
-var DOC_CAM=Math.round(CAM_MS*.62), DOC_DIS=Math.round((SCR_OUT+SCR_IN)*.62);
+   The approved mock's desktop ("the words scroll, the phone stays beside them", with tighter timing,
+   screens that dissolve and the hands-on moments), on the page's own scroll:
+   THE WORDS. Every block sits dim and a little low until it comes up past the reading line, then rises
+   and fills in over the next stretch of scroll (DOC_IN of the screen), both ways. A heading arrives
+   word by word, each a beat behind the one before, and a highlighter draws across once its line is in.
+   THE PHONE follows the note at the middle of the screen: it eases toward that note's framing (a fifth
+   of the remaining way each frame, the mock's lerp), whole or leaning in on the detail fitted to it, and
+   the focus ring, in the note's colour, comes up over the last stretch of the move.
+   THE SCREEN dissolves into the next one over a quarter of a beat of scroll from the change (or,
+   once scrolling stops, in DOC_DIS at most), both ways.
+   THE HANDS-ON MOMENTS play with the scroll as their note comes up to the middle (the pull steps up
+   and the trace follows, the ceiling moves notch by notch, the switch turns discreet on), and back
+   again; once you have tried one yourself, the scroll leaves it alone.
+   With reduced motion: no rise, no fade, no glide, a plain screen switch, the moments in their final
+   state. */
+var DOC_IN=.2, DOC_LINE=.88, DOC_LERP=.2, DOC_DIS=600, docLast=0, docDist=0, docChangeY=0, docChangeT=0, docLive={};
 function wordsIn(){
-  var vh=W.innerHeight;
-  B.forEach(function(b){ if(!b.kids) b.kids=[].slice.call(b.sbt.children).concat([b.el.querySelector(".acth")]).filter(Boolean);
-    b.kids.forEach(function(el){ var r=el.getBoundingClientRect(), e=reduce?1:clamp((vh-18-r.top)/96,0,1), q=easeOut(e);
-      var o=reduce||e>=1?"":(.12+.88*q).toFixed(3), tf=reduce||e>=1?"":"translateY("+((1-q)*12).toFixed(1)+"px)";
+  var vh=W.innerHeight, L=vh*DOC_LINE, R=vh*DOC_IN;
+  B.forEach(function(b){
+    if(!b.kids){ var p=noteParts(b); b.kids=[b.el.querySelector(".acth")].concat([].slice.call(b.sbt.children)).filter(Boolean); b.words=p.words; }
+    b.kids.forEach(function(el){
+      /* (the title's words are on screen from the first paint, so they are never held back) */
+      var r=el.getBoundingClientRect(), e=reduce||b.frame==="title"?1:clamp((L-r.top)/R,0,1), q=ease(e), hd=b.words.length&&/^H[1-3]$/.test(el.tagName);
+      /* a heading moves word by word, so the heading itself stays put */
+      var o=reduce||e>=1||hd?"":(.12+.88*q).toFixed(3), tf=reduce||e>=1||hd?"":"translateY("+((1-q)*12).toFixed(1)+"px)";
       if(el._o!==o){ el._o=o; el.style.opacity=o; } if(el._t!==tf){ el._t=tf; el.style.transform=tf; }
-      if(!reduce) [].forEach.call(el.querySelectorAll("mark"),function(m){ var mk=Math.round(clamp((e-.5)/.5,0,1)*100)+"%"; if(m._mk!==mk){ m._mk=mk; m.style.setProperty("--mk",mk); } }); }); });
+      if(hd){ var n=b.words.length; b.words.forEach(function(w,k){ var st=n>1?k/(n-1)*.45:0, ew=reduce?1:ease(clamp((e-st)/.55,0,1)), iq=1-ew;
+          var wo=ew>=1?"":(.08+.92*ew).toFixed(3), wt=ew>=1?"":"translate("+(iq*((((k*37+11)%9)-4)*3)).toFixed(1)+"px,"+(iq*(18+((k*53+7)%5)*4)).toFixed(1)+"px) rotate("+(iq*(((k*29+5)%7)-3)*2.4).toFixed(2)+"deg)";
+          if(w._o!==wo){ w._o=wo; w.style.opacity=wo; } if(w._t!==wt){ w._t=wt; w.style.transform=wt; } }); }
+      if(!reduce) [].forEach.call(el.querySelectorAll("mark"),function(m){ var mk=Math.round(clamp((e-.55)/.45,0,1)*100)+"%"; if(m._mk!==mk){ m._mk=mk; m.style.setProperty("--mk",mk); } });
+    }); });
+}
+/* how far a note has come up to the middle of the screen, 0 to 1, for its hands-on moment */
+function upTo(b){ var r=b.sbt.getBoundingClientRect(); return clamp((G.sw-r.top)/(W.innerHeight*.22),0,1); }
+function liveScroll(){
+  B.forEach(function(b){ if(!b.live) return; var u=reduce?1:upTo(b), k=b.live;
+    if(played[k]==="you") return;   /* tried by hand: left as you left it */
+    if(k==="run"){ var on=u>.5; if(docLive.run!==on){ if(docLive.run!==undefined||on) RUN.press(on?1:-1); docLive.run=on; } }
+    if(k==="ceiling"){ var at=Math.round(u*(CEIL.n-1)); if(docLive.ceiling!==at){ docLive.ceiling=at; CEIL.show(at,!reduce&&docLive.ceilSeen); docLive.ceilSeen=true; } }
+    if(k==="discreet"){ var dz=u>.55; if(docLive.discreet!==dz){ docLive.discreet=dz; LOCK.set(dz); } } });
 }
 function frameDoc(){
-  var sy=W.pageYOffset, anchor=sy+G.sw, N=B.length, i=0, k, t=now(), more=false, first=cur<0;
+  var sy=W.pageYOffset, anchor=sy+G.sw, N=B.length, i=0, k, t=now(), more=false, first=cur<0, dt=docLast?Math.min(.1,(t-docLast)/1000):0;
+  docLast=t;
   for(k=0;k<N;k++) if(B[k].top<=anchor) i=k;
   var b=B[i];
-  if(i!==cur){ var was=cur>=0?B[cur]:null;
-    tw=!first&&!reduce&&shown?{from:shown,t0:t,ms:DOC_CAM,sc0:(was&&was.screen===b.screen)?(scrollAt[b.screen]||0):b.scroll}:null;
-    cur=i; camDone=0; }
-  var target=camAt(b,sy), c=target, cp=1;
-  if(tw){ var p=clamp((t-tw.t0)/tw.ms,0,1); cp=glide(p); c=mixCam(tw.from,target,cp); if(p<1) more=true; else tw=null; }
-  if(!tw&&!camDone) camDone=t;
+  var target=camAt(b,sy), c=target;
+  function far(a){ return Math.abs(a.tx-target.tx)+Math.abs(a.ty-target.ty)+Math.abs(a.k-target.k)*400; }
+  if(i!==cur){ cur=i; docChangeY=sy; docChangeT=t; docDist=shown?far(shown):0; }
+  /* the camera eases toward its framing, a fifth of the way per 60th of a second */
+  if(shown&&!reduce&&!first){ var f=1-Math.pow(1-DOC_LERP,dt*60); c=mixCam(shown,target,f);
+    if(far(c)<.3) c=target; else more=true; }
+  var rv=docDist>1?1-far(c)/docDist:1;
   shown=c; placeCam(c);
-  /* the screen dissolves into the next one, inside the phone */
-  if(scrOn!==b.screen){ scrPrev=first||reduce?"":scrOn; scrOn=b.screen; scrT0=t; }
-  var da=scrPrev?clamp((t-scrT0)/DOC_DIS,0,1):1;
-  if(da<1){ showScreens(scrPrev,scrOn,+glide(da).toFixed(3)); more=true; } else { scrPrev=""; showScreens(scrOn,"",0); }
-  setScroll(b.screen,tw&&tw.sc0!==undefined?lerp(tw.sc0,b.scroll,cp):b.scroll);
+  /* the screen dissolves over a quarter of a beat of scroll from the change, or in DOC_DIS once it stops */
+  if(scrOn!==b.screen){ scrPrev=first||reduce?"":scrOn; scrOn=b.screen; }
+  var da=scrPrev?Math.max(clamp(Math.abs(sy-docChangeY)/(.25*Math.max(1,b.h)),0,1),clamp((t-docChangeT)/DOC_DIS,0,1)):1;
+  if(da<1){ showScreens(scrPrev,scrOn,+ease(da).toFixed(3)); more=true; } else { scrPrev=""; showScreens(scrOn,"",0); }
+  setScroll(b.screen,b.scroll);
   var story_on=sy<G.end-HDR;
   setActive("run",story_on&&(b.screen==="run"||scrPrev==="run"));
   setActive("radar",story_on&&(b.screen==="connect"||scrPrev==="connect"));
-  var ro=reduce?1:(camDone?clamp((t-camDone)/RING_MS,0,1):0); if(ro<1&&camDone) more=true;
-  ringOn(b,c.k,ro);
-  if(!tw) liveFor(b,1);
+  /* the ring comes up over the last stretch of the move (the mock: from 0.6 to 0.9 of it) */
+  ringOn(b,c.k,reduce?1:clamp((rv-.6)/.3,0,1));
+  liveScroll();
   wordsIn();
   if(more) again();
 }
