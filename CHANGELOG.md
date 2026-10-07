@@ -325,7 +325,9 @@ backup.
   plain rests still say REST. The tunica release now waits for **Done**: its 5 minutes count
   down as a guide, at 0:00 it says "Done when you are", and the pump stays vented with nothing
   commanded until you tap Done. No control says "rest" during it (+30 s, the strip's Time),
-  and the home-screen widget names it too.
+  and the home-screen widget names it too. A routine that opens by hand starts on that step
+  with nothing pulled; the guided start (or seal check) runs when you tap Done, before the
+  warm-up.
 - The ROUTINE card on the run screen keeps the plan's total instead of letting it climb while
   the run plays; time added by a Pause, an inserted rest, a changeover wait or at-pressure
   timing now shows beside it as "+m:ss", the way the NOW card already reports it for one set.

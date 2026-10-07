@@ -1135,6 +1135,8 @@ final class RunScreen {
         String head = "";
         /** A step done by hand is playing: its length cell is "Time", never "Rest length". */
         boolean byHand;
+        /** ...and it is the release with its time up: the cell is "Time left", 0:00 (H-7). */
+        boolean timeUp;
         /** A set figure on its way to the pump, and the pump not answering. */
         final boolean[] sending = new boolean[QuickAdjust.FIELDS];
         boolean notConfirmed;
@@ -1703,8 +1705,11 @@ final class RunScreen {
             s.mode = QuickAdjust.MODE_REST;
             s.lenField = QuickAdjust.REST;
             s.byHand = ByHand.is(cur);
+            s.timeUp = a.awaitingAck && ByHand.waitsAfterClock(cur);
             s.head = s.byHand ? ByHand.HEAD : QuickAdjust.HEAD_REST;
-            s.v[QuickAdjust.REST] = (int) ((cur.durMs + 500L) / 1000L);
+            // Once the release's time is up its cell holds still at 0:00 left (H-7): it no
+            // longer counts the wait up - the NOW card's "so far" says that.
+            s.v[QuickAdjust.REST] = s.timeUp ? 0 : (int) ((cur.durMs + 500L) / 1000L);
             s.elapsed = (int) (Math.max(0L, cur.durMs - Math.max(0L, a.presetFireAt - now)) / 1000L);
             if (cur.awaitAck) s.blocked = "The cylinder change has no length — it waits for you.";
             else if (a.awaitingAck && ByHand.waitsAfterClock(cur))
@@ -1863,7 +1868,8 @@ final class RunScreen {
         boolean locked = s.grid && s.dropLocked
             && (f == QuickAdjust.DROP || f == QuickAdjust.DROP_TIME);
         boolean handTime = s.byHand && f == QuickAdjust.REST;
-        setText(c.label, handTime ? ByHand.STRIP_LABEL : RunEdit.stripLabel(f));
+        setText(c.label, handTime ? (s.timeUp ? ByHand.STRIP_TIME_UP : ByHand.STRIP_LABEL)
+                                  : RunEdit.stripLabel(f));
         setText(c.value, locked ? "—" : QuickAdjust.value(f, s.v[f]));
         c.value.setTextColor(s.sending[f] || s.notConfirmed ? Ui.CMD : locked ? Ui.DIM : Ui.TEXT);
         String lessWhy = stripRefusal(s, f, -1), moreWhy = stripRefusal(s, f, 1);
@@ -1871,7 +1877,8 @@ final class RunScreen {
         c.plus.setTextColor(moreWhy != null ? Look.STEP_KEY_AT_LIMIT : Ui.TEXT);
         String shown = (locked ? "none" : QuickAdjust.value(f, s.v[f]))
             + (s.sending[f] ? ", sending" : s.notConfirmed ? ", not confirmed" : "");
-        String name = handTime ? ByHand.STRIP_SPOKEN : QuickAdjust.SPOKEN[f];
+        String name = handTime ? (s.timeUp ? "time left" : ByHand.STRIP_SPOKEN)
+                               : QuickAdjust.SPOKEN[f];
         String less = "Less " + name + ", " + shown + " now" + (lessWhy != null ? ". " + lessWhy : "");
         String more = "More " + name + ", " + shown + " now" + (moreWhy != null ? ". " + moreWhy : "");
         if (!less.contentEquals(orEmpty(c.minus.getContentDescription())))
@@ -2835,6 +2842,13 @@ final class RunScreen {
                 return;
             }
             StripNow s = stripNow(System.currentTimeMillis());
+            // A STEP THAT WAITS HAS NO TIME TO ADD (the device walk's H-3): refused as the
+            // strip's own + is - the release once its time is up, and the changeover.
+            if (s.mode == QuickAdjust.MODE_REST && s.blocked != null) {
+                a.toast(s.blocked);
+                stripHaptic(v, true);
+                return;
+            }
             if (s.mode == QuickAdjust.MODE_WORK) {
                 if (a.holdMayBeUp()) {
                     a.toast("Paused — resume first. Nothing was changed.");
@@ -3480,7 +3494,9 @@ final class RunScreen {
                     // judged against the commanded pull.
                     a.tupClockPaused, dev != null, a.lastKpa,
                     a.tupClockPaused ? commandedKpa : chipTarget,
-                    a.tupClockPaused ? RunChip.PULL : chipPhase);
+                    a.tupClockPaused ? RunChip.PULL : chipPhase,
+                    // A step done by hand says so, never "Resting" (ByHand, H-1).
+                    ByHand.is(cur) && !a.restingNow);
             a.runChip.setText(chip.text);
             if (a.runChipDot != null) a.runChipDot.setBackground(dot(chip.tone));
         }
@@ -4590,7 +4606,10 @@ final class RunScreen {
         int kind = RunLook.liveKind(a.holding, resting, stageKind, n.dropPhase);
         int col = runColour(kind);
 
-        n.narrow = a.holding && !fitsOneLine(a.runStatusL, RunLook.PAUSED);
+        // Too narrow for the line in full - a pause, the changeover's or the by-hand wait's:
+        // said short (the device walk's H-4). A line with no short form is unchanged.
+        n.narrow = false;
+        n.narrow = !fitsOneLine(a.runStatusL, RunLook.statusLeft(n));
         /* ---- the status line: words always, colour when the setting says so ---- */
         a.runStatusL.setText(RunLook.statusLeft(n));
         // The right half is paintRoutineStrip's own figure (invariant 170), read back.

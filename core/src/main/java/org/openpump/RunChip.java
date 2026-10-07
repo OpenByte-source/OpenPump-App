@@ -49,8 +49,23 @@ public final class RunChip {
     public static RunChip of(boolean armed, boolean resting, boolean restNotDown,
                              boolean vented, boolean clockPaused, boolean hasReading,
                              double readingKpa, double targetKpa, int phase) {
+        return of(armed, resting, restNotDown, vented, clockPaused, hasReading, readingKpa,
+                  targetKpa, phase, false);
+    }
+
+    /** The same, told whether the vented step is one done BY HAND (ByHand, the device walk's
+     *  H-1): it says "By hand", never "Resting" - a plain rest keeps its words. */
+    public static RunChip of(boolean armed, boolean resting, boolean restNotDown,
+                             boolean vented, boolean clockPaused, boolean hasReading,
+                             double readingKpa, double targetKpa, int phase, boolean byHand) {
         if (!armed)
             return new RunChip(Look.DIM, "Starting — nothing is commanded yet");
+        if (resting && byHand) {
+            if (restNotDown)
+                return new RunChip(Look.COMMANDED, "By hand — the pump has not come down yet");
+            if (vented) return new RunChip(Look.SAFE, "By hand — the pump is vented");
+            return new RunChip(Look.DIM, "By hand — nothing is being commanded");
+        }
         if (resting) {
             // A rest commands nothing, so it cannot be short of anything.
             if (restNotDown)

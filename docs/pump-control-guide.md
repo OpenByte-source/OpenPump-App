@@ -860,6 +860,12 @@ The guided start is on by default. Before a run, OpenPump waits for the cuff to 
   from the first pull, however many times the person chooses to keep waiting. A question left
   unanswered for **60 seconds** ends the attempt. Both of these end with a vent.
 - Its time counts toward the two-hour stop.
+- **A routine that opens with a step done by hand** (a length session's tunica release) starts on
+  that step with nothing sent: no guided pull, and no seal check where that is on. The same check
+  runs when **Done** is tapped, before the first step that can command pressure (the warm-up),
+  with the same target, waits, questions and stops; its pass goes on to that step, whose table
+  write takes over from the pull. A failed or stopped check ends the run with a vent, as at a start.
+  A routine with a Tissue response test before it starts as it always did.
 
 ### Seal check
 

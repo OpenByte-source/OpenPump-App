@@ -72,6 +72,45 @@ public final class ByHand {
         return discreet || p.length() == 0 ? name : p;
     }
 
+    /* ---- THE START CHECK WAITS FOR THE FIRST PRESSURE (the owner's answer on H-2) ---- */
+
+    /** Does `r` open with a step done by hand (its first stage a manual rest)? */
+    public static boolean opensByHand(Model.Routine r) {
+        if (r == null || r.stages.isEmpty()) return false;
+        Model.Stage st = r.stages.get(0);
+        return st != null && st.rest && st.manual;
+    }
+
+    /**
+     * WHETHER THE START CHECK MOVES TO THE FIRST PRESSURE (the owner, 2026-10-07): a routine
+     * that opens with a step done by hand starts straight on that step with the pump
+     * uncommanded - no pull before a vented release - and the start check (the guided start,
+     * or the seal check where it is on) runs when Done is tapped, right before the first
+     * pressure. Only when a check would run at all (`guided` or `sealBefore`), and never with a
+     * before-assessment due (`assessBefore`), whose own pull comes before stage 1 as it always
+     * has. Every other routine starts exactly as before.
+     */
+    public static boolean deferStartCheck(Model.Routine r, boolean guided, boolean sealBefore,
+                                          boolean assessBefore) {
+        return opensByHand(r) && (guided || sealBefore) && !assessBefore;
+    }
+
+    /** With the check deferred, is `p` the step it must run before - the first that is not a
+     *  vented rest (the first that can command pressure)? */
+    public static boolean startCheckBefore(boolean deferred, Model.Preset p) {
+        return deferred && p != null && !p.rest;
+    }
+
+    /** Has nothing before step `idx` of `plan` been able to command pressure (every step
+     *  before it a vented rest)? A run rejoined there has not had its first pressure - nor,
+     *  when it opened by hand, its start check. */
+    public static boolean noPressureBefore(java.util.List<Model.Preset> plan, int idx) {
+        if (plan == null) return true;
+        for (int i = 0; i < idx && i < plan.size(); i++)
+            if (plan.get(i) != null && !plan.get(i).rest) return false;
+        return true;
+    }
+
     /** Is `p` a step done by hand - vented, commanding nothing? */
     public static boolean is(Model.Preset p) {
         return p != null && p.rest && p.manual;
@@ -116,13 +155,33 @@ public final class ByHand {
 
     /** The status line: "BY HAND · 4:32 LEFT", then "BY HAND · DONE WHEN YOU ARE". */
     public static String status(long leftMs, boolean timeUp) {
-        if (timeUp) return WORD + " · " + WHEN_READY.toUpperCase(java.util.Locale.US);
+        return status(leftMs, timeUp, false);
+    }
+
+    /** ...and where the line is too narrow for the wait's words, "BY HAND · TAP DONE". */
+    public static String status(long leftMs, boolean timeUp, boolean narrow) {
+        if (timeUp) return WORD + " · "
+            + (narrow ? "TAP DONE" : WHEN_READY.toUpperCase(java.util.Locale.US));
         return WORD + " · " + RunLook.left(leftMs) + " LEFT";
     }
+
+    /** The strip's length cell once the release's time is up: what is left, 0:00, and fixed
+     *  (the device walk's H-7) - the wait itself is the NOW card's "so far". */
+    public static final String STRIP_TIME_UP = "Time left";
+    /** The notification's and the widget's words while the changeover waits (H-5): no frozen
+     *  "2:00 left", the same thing the screen says. */
+    public static final String SWAP_WAITING =
+        "By hand · Change cylinder · waiting — tap “I’ve swapped”";
 
     /** The notification's lead: "By hand · Tunica release", or "By hand · Done when you are"
      *  once the guide time is up. */
     public static String notification(String name, boolean timeUp) {
+        return notification(name, timeUp, false);
+    }
+
+    /** ...and the changeover, which waits from its start: SWAP_WAITING. */
+    public static String notification(String name, boolean timeUp, boolean swap) {
+        if (swap) return SWAP_WAITING;
         if (timeUp) return "By hand · " + WHEN_READY;
         String n = bare(name);
         return n.length() == 0 ? "By hand" : "By hand · " + n;

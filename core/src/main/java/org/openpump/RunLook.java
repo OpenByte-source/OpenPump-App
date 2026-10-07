@@ -234,7 +234,8 @@ public final class RunLook {
         public boolean ramp;
         /** Which step of the ramp is playing, and of how many; 0 when not counted. */
         public int stepK, stepN;
-        /** The status line is too narrow for the paused line in full: say it short. */
+        /** The status line is too narrow for the paused line, the changeover's or the by-hand
+         *  wait's in full: say it short. */
         public boolean narrow;
     }
 
@@ -255,6 +256,10 @@ public final class RunLook {
     /** ...and when that does not fit the line (the device check found it wrapping): the
      *  Resume button beside it says the rest. */
     public static final String PAUSED_SHORT = "PAUSED · PRESSURE KEPT";
+    /** The changeover's line, and its short form where the line is too narrow (the device
+     *  walk's H-4: cut to "CHANGE CYLINDER · TAP I’VE…" at 360 dp); the button says the rest. */
+    public static final String SWAP = "CHANGE CYLINDER · TAP I’VE SWAPPED";
+    public static final String SWAP_SHORT = "CHANGE CYLINDER";
 
     /**
      * THE STATUS LINE'S LEFT HALF: the phase, named once - never "STAGE n OF m" (the stage bar
@@ -274,8 +279,10 @@ public final class RunLook {
         if (n == null) return "";
         if (n.holding) return n.narrow ? PAUSED_SHORT : PAUSED;
         // A step done by hand says so, where a rest would say REST (ByHand).
-        if (n.byHand && (n.armed || n.awaitingAck)) return ByHand.status(n.restLeftMs, n.awaitingAck);
-        if (n.awaitingAck) return "CHANGE CYLINDER · TAP I’VE SWAPPED";
+        if (n.byHand && (n.armed || n.awaitingAck))
+            return ByHand.status(n.restLeftMs, n.awaitingAck, n.narrow);
+        // ...and the changeover's, said short where the line is too narrow for it (H-4).
+        if (n.awaitingAck) return n.narrow ? SWAP_SHORT : SWAP;
         if (!n.armed) return "STARTING";
         if (n.resting) {
             if (pullWarning(n)) return "PULL IN " + left(n.restLeftMs);

@@ -1,0 +1,112 @@
+package org.openpump;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+/**
+ * THE DEVICE WALK'S ROUND (EMUHAND, 2026-10-07) and THE OWNER'S ANSWER ON H-2.
+ *
+ * H-2: a routine that opens with a step done by hand starts straight on it with the pump
+ * uncommanded; the start check runs when Done is tapped, right before the first pressure.
+ * The rule is ByHand#deferStartCheck / #startCheckBefore; the run's wiring (beginRunFlow,
+ * playPreset, the check's own pass handing back to the run) is WiringCheck invariant 251 (e).
+ * H-1, H-3, H-4, H-5, H-7: the words and the fold below.
+ */
+class ByHandStartCheckTest {
+
+    @Test void aLengthRoutineThatOpensByHandDefersItsStartCheckToTheWarmUp() {
+        Model m = ByHandStageTest.puller();
+        Model.Routine r = ByHandStageTest.lengthRoutine(m);
+        assertTrue(ByHand.opensByHand(r));
+        assertTrue(ByHand.deferStartCheck(r, true, false, false), "the guided start waits");
+        assertTrue(ByHand.deferStartCheck(r, false, true, false), "so does the seal check");
+        assertFalse(ByHand.deferStartCheck(r, false, false, false), "no check, nothing to move");
+        assertFalse(ByHand.deferStartCheck(r, true, false, true),
+            "a before-assessment's pull keeps the start as it was");
+        // The check runs before the first step that can command pressure: the pump warm-up,
+        // straight after the release - never before the release itself.
+        List<Model.Preset> plan = m.plan(r);
+        assertFalse(ByHand.startCheckBefore(true, plan.get(0)), "not before the release");
+        int first = -1;
+        for (int i = 0; i < plan.size() && first < 0; i++)
+            if (ByHand.startCheckBefore(true, plan.get(i))) first = i;
+        assertEquals(1, first, "before the step after the release");
+        assertTrue(RunShape.isWarmUp(r.stages.get(plan.get(first).stageIdx)), "the warm-up");
+        assertFalse(ByHand.startCheckBefore(false, plan.get(first)), "only when deferred");
+        // A rejoin at the release or at the warm-up has had no pressure - the check still
+        // runs; past the warm-up it was had.
+        assertTrue(ByHand.noPressureBefore(plan, 0));
+        assertTrue(ByHand.noPressureBefore(plan, first));
+        assertFalse(ByHand.noPressureBefore(plan, first + 1));
+    }
+
+    @Test void aRoutineThatDoesNotOpenByHandStartsAsBefore() {
+        Model m = new Model();
+        Model.Set s = Model.Set.fixed(m.newSetId(), "Work", 20, 10, 60, 5, 50, 600);
+        m.sets.add(s);
+        Model.Routine r = new Model.Routine();
+        r.id = m.newRoutineId();
+        r.stages.add(Model.Stage.of("Work", Model.STAGE_WORK, new String[]{ s.id }));
+        m.routines.add(r);
+        assertFalse(ByHand.opensByHand(r));
+        assertFalse(ByHand.deferStartCheck(r, true, true, false));
+        // A plain rest first is not by hand either.
+        Model.Routine rr = new Model.Routine();
+        rr.stages.add(Model.Stage.restOf("Rest", 60));
+        assertFalse(ByHand.deferStartCheck(rr, true, false, false));
+        assertFalse(ByHand.opensByHand(null));
+        assertFalse(ByHand.opensByHand(new Model.Routine()));
+    }
+
+    @Test void theChipUnderTheChartSaysByHandNeverResting() {
+        // H-1: RunChip's sentence over a step done by hand; a plain rest keeps its own.
+        RunChip vented = RunChip.of(true, true, false, true, false, true, 0, 0, RunChip.PULL, true);
+        assertEquals("By hand — the pump is vented", vented.text);
+        assertEquals(Look.SAFE, vented.tone);
+        RunChip notDown = RunChip.of(true, true, true, false, false, true, 9, 0, RunChip.PULL, true);
+        assertEquals("By hand — the pump has not come down yet", notDown.text);
+        assertEquals(Look.COMMANDED, notDown.tone);
+        assertEquals("Resting — the cuff is vented",
+            RunChip.of(true, true, false, true, false, true, 0, 0, RunChip.PULL).text);
+        assertFalse(RunChip.of(true, true, false, false, false, false, 0, 0, RunChip.PULL, true)
+            .text.toLowerCase(java.util.Locale.US).contains("rest"));
+    }
+
+    @Test void theLinesSayShortWhereTheyDoNotFit() {
+        // H-4: the changeover's line and the by-hand wait's have short forms.
+        RunLook.Now n = new RunLook.Now();
+        n.armed = true; n.resting = true; n.awaitingAck = true;
+        assertEquals(RunLook.SWAP, RunLook.statusLeft(n));
+        n.narrow = true;
+        assertEquals("CHANGE CYLINDER", RunLook.statusLeft(n));
+        n.byHand = true;
+        assertEquals("BY HAND · TAP DONE", RunLook.statusLeft(n));
+        n.narrow = false;
+        assertEquals("BY HAND · DONE WHEN YOU ARE", RunLook.statusLeft(n));
+    }
+
+    @Test void aWaitByHandIsFoldedIntoThePlanOnceItEnds() {
+        // H-4: the "+m:ss" a wait added comes out when Done or I've swapped ends it.
+        assertEquals(30_000L, RunEdit.foldWait(197_000L, 167_000L), "a pause's own share stays");
+        assertEquals(0L, RunEdit.foldWait(167_000L, 167_000L));
+        assertEquals(0L, RunEdit.foldWait(10_000L, 167_000L), "never below nothing");
+        assertEquals("47:12 / 66:50", RunEdit.routineElapsedLine(2_832_000L, 4_010_000L,
+            RunEdit.foldWait(167_000L, 167_000L)));
+    }
+
+    @Test void theChangeoverWaitSaysWaitingNotATime() {
+        // H-5: the notification and widget lead while the changeover waits.
+        String said = ByHand.notification("Swap to your girth cylinder — next is x", false, true);
+        assertEquals(ByHand.SWAP_WAITING, said);
+        assertTrue(said.contains("waiting — tap “I’ve swapped”"));
+        assertEquals("By hand · Tunica release",
+            ByHand.notification("Tunica release — by hand", false, false));
+        // H-7: the strip's cell once the release's time is up.
+        assertEquals("Time left", ByHand.STRIP_TIME_UP);
+    }
+}

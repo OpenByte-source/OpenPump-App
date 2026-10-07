@@ -1598,7 +1598,10 @@ planned total, for example "17:44 / 29:55". The total is every stage of the rout
 work, rests and fatigue block. It leaves out the guided start and the tissue tests. The elapsed
 time is real time, and it stops while the link to the pump is lost. Time added by a Pause, an
 inserted rest, a changeover wait or at-pressure timing shows beside it as "+m:ss"; +30 s, Skip and
-Coming steps change the planned total instead.
+Coming steps change the planned total instead. A wait by hand (the tunica release past its 5
+minutes, or the changeover) shows as "+m:ss" while it lasts, and joins the planned total once Done
+or I've swapped ends it, so the rest of the run does not read late. Where the line is too narrow,
+the changeover's reads "CHANGE CYLINDER" and the release's wait "BY HAND · TAP DONE".
 
 In the last ten seconds of a rest before a pull, the line pulses and reads "PULL IN 0:10".
 Settings › On the run screen › **Vibrate before the pull** (off by default) adds one short buzz

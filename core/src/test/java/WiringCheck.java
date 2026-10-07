@@ -31258,7 +31258,16 @@ public final class WiringCheck {
      *       whole clock (PreRunHold.wholeForStopSec), asks nothing about a wait (no
      *       awaitingAck, no by-hand test), and ends the run with its reason
      *       (WHY_TWO_HOURS, then finishSession(true)); tickRun asks it before anything that
-     *       reads the gate.
+     *       reads the gate;
+     *   (e) H-2 (the owner, 2026-10-07): a routine that opens by hand starts on that step with
+     *       nothing commanded - beginRunFlow asks ByHand.deferStartCheck( before the guided
+     *       start can run - and the start check runs before the first pressure: playPreset
+     *       asks ByHand.startCheckBefore( before it can upload or arm anything, and
+     *       beginDeferredStartCheck ends the rest (resting = false, so the rest's own vent
+     *       guard cannot stop the check's pull) and has the table rewritten after it
+     *       (restRearmPending); the check's pass hands back to the paused run in startSession
+     *       and beginAssessOrSession (startCheckMidRun -> resumeAfterStartCheck), which plays
+     *       the held step.
      */
     static void checkByHand(String screen, String act, String look, List<String> violations) {
         checkByHand(screen, act, look, null, violations);
@@ -31365,6 +31374,48 @@ public final class WiringCheck {
                 violations.add("SessionActivity.java: invariant 251 - tickRun no longer asks the "
                     + "two-hour stop before anything that reads the gate");
         }
+        // (e) the start check of a routine that opens by hand runs before its first pressure.
+        String flow = body228(act, "boolean\\s+beginRunFlow\\s*\\(", "SessionActivity.java",
+            "beginRunFlow", violations);
+        if (flow != null) {
+            int defer = flow.indexOf("ByHand.deferStartCheck(");
+            int guided = flow.indexOf("beginGuidedStart(r)");
+            if (defer < 0 || guided < 0 || defer > guided)
+                violations.add("SessionActivity.java: invariant 251 - a routine that opens by "
+                    + "hand pulls before its vented step again (beginRunFlow must ask "
+                    + "ByHand.deferStartCheck before the guided start)");
+        }
+        if (pp != null) {
+            int ask = pp.indexOf("ByHand.startCheckBefore(startCheckDeferred,");
+            int run = pp.indexOf("beginDeferredStartCheck(idx);return;");
+            int up = pp.indexOf("uploadBatch(");
+            int arm = pp.indexOf("sendStartSlot(");
+            if (ask < 0 || run < 0 || (up >= 0 && up < ask) || (arm >= 0 && arm < ask))
+                violations.add("SessionActivity.java: invariant 251 - the first pressure of a "
+                    + "routine that opened by hand no longer waits for its start check "
+                    + "(playPreset must ask ByHand.startCheckBefore before it uploads or arms)");
+        }
+        String dc = body228(act, "void\\s+beginDeferredStartCheck\\s*\\(", "SessionActivity.java",
+            "beginDeferredStartCheck", violations);
+        if (dc != null && (dc.indexOf("resting=false;") < 0 || dc.indexOf("restRearmPending=true;") < 0
+                || dc.indexOf("beginGuidedStart(runRoutine)") < 0
+                || dc.indexOf("beginSealCheck(runRoutine)") < 0))
+            violations.add("SessionActivity.java: invariant 251 - the deferred start check no "
+                + "longer ends the rest, has the table rewritten after it, or runs the same check "
+                + "a start runs");
+        String[] hand = { "void\\s+startSession\\s*\\(", "void\\s+beginAssessOrSession\\s*\\(" };
+        String[] handName = { "startSession", "beginAssessOrSession" };
+        for (int i = 0; i < hand.length; i++) {
+            String b = body228(act, hand[i], "SessionActivity.java", handName[i], violations);
+            if (b != null && b.indexOf("if(startCheckMidRun){resumeAfterStartCheck();return;}") < 0)
+                violations.add("SessionActivity.java: invariant 251 - " + handName[i] + " no "
+                    + "longer hands a start check passed mid-run back to the run it paused");
+        }
+        String ra = body228(act, "void\\s+resumeAfterStartCheck\\s*\\(", "SessionActivity.java",
+            "resumeAfterStartCheck", violations);
+        if (ra != null && ra.indexOf("playPreset(idx);") < 0)
+            violations.add("SessionActivity.java: invariant 251 - a start check passed mid-run "
+                + "no longer plays the step it held");
     }
 
     static void checkByHandFiles(String dir, List<String> violations) throws IOException {
@@ -31403,15 +31454,29 @@ public final class WiringCheck {
             + " if (running && ByHand.waitsAfterClock(plan.get(planIdx))) { awaitingAck = true;"
             + " return; }"
             + " playPreset(idx); } }\n"
-            + "private void playPreset(int idx) { awaitingAck = false;"
-            + " byHandGateIdx = ByHand.waitsAfterClock(p) ? idx : -1; }\n"
+            + "private void playPreset(int idx) {"
+            + " if (ByHand.startCheckBefore(startCheckDeferred, plan.get(idx))) {"
+            + " beginDeferredStartCheck(idx); return; }"
+            + " if (x) { uploadBatch(idx); return; } awaitingAck = false;"
+            + " byHandGateIdx = ByHand.waitsAfterClock(p) ? idx : -1; sendStartSlot(0, s); }\n"
             + "String skipPresetOrWhy() { awaitingAck = false; byHandGateIdx = -1; return null; }\n"
             + "private boolean checkGrossCap(long now) { if (!running) return false;"
             + " double sealed = PreRunHold.wholeForStopSec(a, b, c, d);"
             + " if (!Plan.grossCapReached(sealed)) return false;"
             + " runStopWhy = RunStopReason.WHY_TWO_HOURS; finishSession(true); return true; }\n"
             + "private void tickRun() { long now = 0; if (checkGrossCap(now)) return;"
-            + " if (awaitingAck) x(); }\n";
+            + " if (awaitingAck) x(); }\n"
+            + "private boolean beginRunFlow() { startCheckDeferred = ByHand.deferStartCheck(r, a,"
+            + " b, c); if (startCheckDeferred) { beginAssessOrSession(r); return true; }"
+            + " if (model.guidedStart) { beginGuidedStart(r); return true; } return true; }\n"
+            + "private void beginDeferredStartCheck(int idx) { resting = false;"
+            + " restRearmPending = true; if (g) beginGuidedStart(runRoutine);"
+            + " else beginSealCheck(runRoutine); }\n"
+            + "private void resumeAfterStartCheck() { int idx = 1; playPreset(idx); }\n"
+            + "private void startSession(Model.Routine r) { if (refuseArmOutsideRun(x)) return;"
+            + " if (startCheckMidRun) { resumeAfterStartCheck(); return; } planIdx = -1; }\n"
+            + "private void beginAssessOrSession(Model.Routine r) { sealResultShowing = false;"
+            + " if (startCheckMidRun) { resumeAfterStartCheck(); return; } startSession(r); }\n";
         String service = "private void pushWidget() { RemoteViews v = PumpWidgetProvider.prepareLive("
             + "this, ByHand.widgetName(snapName, snapPhase, snapDiscreet), 1, 2, l, p); }\n";
         List<String> v = new ArrayList<String>();
@@ -31451,6 +31516,18 @@ public final class WiringCheck {
             { "A", "the stop asked only outside a wait",
               "private void tickRun() { long now = 0; if (checkGrossCap(now)) return;",
               "private void tickRun() { long now = 0; if (awaitingAck) return; if (checkGrossCap(now)) return;" },
+            { "A", "the start pulls before a vented first step again",
+              "startCheckDeferred = ByHand.deferStartCheck(r, a, b, c);", "" },
+            { "A", "the first pressure armed before its start check",
+              " if (ByHand.startCheckBefore(startCheckDeferred, plan.get(idx))) {"
+              + " beginDeferredStartCheck(idx); return; }", "" },
+            { "A", "the check's pull stopped by the rest's own vent guard", "resting = false;", "" },
+            { "A", "the table the check wrote played as the run's", " restRearmPending = true;", "" },
+            { "A", "a check passed mid-run starts a new run",
+              " if (startCheckMidRun) { resumeAfterStartCheck(); return; } planIdx = -1;",
+              " planIdx = -1;" },
+            { "A", "a check passed mid-run never plays the held step", "playPreset(idx); }\nprivate void startSession",
+              "}\nprivate void startSession" },
         };
         for (int i = 0; i < bad.length; i++) {
             String s2 = screen, l2 = look, a2 = act, v2 = service;

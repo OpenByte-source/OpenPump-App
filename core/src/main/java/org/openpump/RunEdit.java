@@ -1535,6 +1535,13 @@ public final class RunEdit {
         return done < 0 ? 0L : Math.min(done, Math.max(0L, totalMs));
     }
 
+    /** The run's "+m:ss" once a wait BY HAND has ended (the device walk's H-4): its time is
+     *  taken back out, never below nothing - so the wait becomes part of the planned total, as
+     *  a +30 s does, and the run does not read late for the rest of it. */
+    public static long foldWait(long addedMs, long waitMs) {
+        return Math.max(0L, addedMs - Math.max(0L, waitMs));
+    }
+
     public static String routineElapsedLine(long doneMs, long growingTotalMs, long addedMs) {
         long plannedMs = growingTotalMs - addedMs;
         if (plannedMs < 0) plannedMs = 0;
