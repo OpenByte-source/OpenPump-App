@@ -2212,21 +2212,16 @@ var DW=390, DH=845, HDR=64, SC=390/392.7;   /* SC: one app dp in phone px */
    own screens redrawn from captures, or "DRAWN", the same nine screens in the approved mock's flat
    drawing style, made from the app's own layout with its own words (the <template id="drawn-screens">
    after the camera, written by a build step from the drawn set's screens.json).
-   ?screens=drawn or ?screens=real in the address overrides it, so both can be looked at side by side.
    The drawn set carries its own named parts (where a beat's part isn't drawn, its other one is used)
    and the live moments' hooks, and has no scrolled content.
    Or "MOCK" (the owner's approved mock "A", 7 Oct): the page and its phone are the mock's own, its
    drawings and its motion: below 768px its phone preview (see goBeat), from 768px its desktop stage
-   (DESK_STAGE, the "4 · Hands-on" stage; false: the sticky page, frameMock, kept for comparison).
-   REVIEW ONLY, REMOVE BEFORE PUSH: ?screens=mock, ?screens=drawn or ?screens=real in the address
-   overrides the switch, so the three can be looked at side by side. */
+   (DESK_STAGE, the "4 · Hands-on" stage; false: the sticky page, frameMock, kept for comparison). */
 var SCREENS="MOCK";
 /* DESK_STAGE (the owner's pick, 7 Oct): from 768px the mock's "4 · Hands-on" stage, scrubbed by the scroll.
    false: the earlier sticky page ("the words scroll, the phone stays beside them", frameMock), kept so the two
-   can be compared. REVIEW ONLY, REMOVE BEFORE PUSH: ?desk=sticky or ?desk=stage in the address overrides it. */
+   can be compared. */
 var DESK_STAGE=true;
-try{ var qsD=/[?&]desk=(sticky|stage)\b/i.exec(W.location.search); if(qsD) DESK_STAGE=qsD[1].toLowerCase()==="stage"; }catch(e){}
-try{ var qsS=/[?&]screens=(real|drawn|mock)\b/i.exec(W.location.search); if(qsS) SCREENS=qsS[1].toUpperCase(); }catch(e){}
 (function(){ var tp=D.getElementById("drawn-screens"); if(SCREENS!=="DRAWN"||!tp||!tp.content) return;
   [].forEach.call(dev.querySelectorAll(".scr"),function(s){ s.parentNode.removeChild(s); });
   dev.insertBefore(D.importNode(tp.content,true),dev.querySelector(".camdev-sb").nextSibling); dev.classList.add("drawn"); })();
