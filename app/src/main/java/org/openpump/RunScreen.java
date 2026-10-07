@@ -1710,8 +1710,10 @@ final class RunScreen {
             // it never counts the wait up - the NOW card's "so far" says that.
             s.timeUp = a.awaitingAck && ByHand.is(cur);
             s.head = s.byHand ? ByHand.head(ventConfirmed()) : QuickAdjust.HEAD_REST;
+            // ...0:00 once the planned time has passed, never a rounded-up 0:01 (E3-1).
             s.v[QuickAdjust.REST] = s.timeUp
-                ? (int) ((Math.max(0L, a.presetFireAt - now) + 999L) / 1000L)
+                ? ByHand.timeLeftSec(a.presetFireAt - now,
+                    a.byHandLate || ByHand.waitsAfterClock(cur))
                 : (int) ((cur.durMs + 500L) / 1000L);
             s.elapsed = (int) (Math.max(0L, cur.durMs - Math.max(0L, a.presetFireAt - now)) / 1000L);
             if (cur.awaitAck) s.blocked = "The cylinder change has no length — it waits for you.";

@@ -135,6 +135,21 @@ public final class ByHand {
         return now >= plannedEndAt;
     }
 
+    /** "Time left" in whole seconds for a by-hand step that waits (E3-1): rounded up while its
+     *  planned time runs, as every countdown here is, and 0 - never 0:01 - once that time has
+     *  passed (`late`), however the held clock's few milliseconds fall. */
+    public static int timeLeftSec(long leftMs, boolean late) {
+        if (late) return 0;
+        return (int) ((Math.max(0L, leftMs) + 999L) / 1000L);
+    }
+
+    /** What a run stopped at the start check after Done files as its minutes by hand (E3-2):
+     *  the run's clock when Done was tapped - the by-hand step alone, never the check's own
+     *  seconds - at least 1; 0 for any other ending. */
+    public static long byHandStopSec(boolean aborted, boolean stoppedAtCheck, long secAtDone) {
+        return aborted && stoppedAtCheck ? Math.max(1L, secAtDone) : 0L;
+    }
+
     /** The Start confirm's first line for a routine that opens by hand (E2-1): what really
      *  comes first. `before` is what runs ahead of the routine (a measurement), "" for none,
      *  with its rough time already in it. */

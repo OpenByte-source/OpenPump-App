@@ -14530,6 +14530,7 @@ public class SessionActivity extends Activity
         // ...and the release's own gate is armed for THIS step only: its guide time runs,
         // and Advance raises the gate when it is up (ByHand).
         byHandGateIdx = ByHand.waitsAfterClock(p) ? idx : -1;
+        byHandLate = false;     // a new step: no wait of its own has run late yet (E3-1)
         /* THE MID-RUN CHECK APPEARS WHEN THE REST DOES. midRunCheckOffered() turns on with
          * `resting`, but the row that reads it is only built by showRun - so the check used
          * to appear on whatever redraw happened to come next rather than when the rest it
@@ -18508,6 +18509,11 @@ public class SessionActivity extends Activity
     /** E2-4: the run being filed ended at the start check after its by-hand step. Set by
      *  finishSession as it stands the check down, read once by fileSession. */
     boolean stoppedAtCheck;
+    /** E3-2: the run's clock, in seconds, when Done started the deferred start check - the
+     *  by-hand step's minutes a run stopped at that check files. */
+    long byHandSecAtDone;
+    /** E3-1: the by-hand wait playing now has passed its planned time (tickHold pushed it). */
+    boolean byHandLate;
 
     /** E2-5: what the start check run mid-run goes on to - the held step's stage name. */
     private String midRunNextName() {
@@ -18531,6 +18537,9 @@ public class SessionActivity extends Activity
         startCheckDeferred = false;
         startCheckMidRun = true;
         startCheckResumeIdx = idx;
+        // E3-2: the minutes by hand are the run's clock NOW, at Done - the check's own
+        // seconds that follow are not by hand.
+        byHandSecAtDone = session.elapsedMs(System.currentTimeMillis(), LINK_TIMEOUT_MS) / 1000L;
         if (pendingAdvance != null) { ui.removeCallbacks(pendingAdvance); pendingAdvance = null; }
         awaitingAck = false;
         byHandGateIdx = -1;
@@ -26935,7 +26944,7 @@ public class SessionActivity extends Activity
         // above). See RunEdit#routineElapsedLine for why this is never displayed alone.
         routineAddedMs += step;
         // ...the share of it a wait BY HAND added, folded into the plan when it ends (H-4).
-        if (awaitingAck && byHandPlaying()) byHandWaitMs += step;
+        if (awaitingAck && byHandPlaying()) { byHandWaitMs += step; byHandLate = true; }
         /* AND THE TUP BOOKKEEPING KEEPS STEP, because this is the one place all three
          * pauses lengthen a preset. With "at pressure only" timing the NOW card reports
          * against tupBaseDurMs, and an inserted REST or a changeover - both VENTED - was
@@ -27968,8 +27977,9 @@ public class SessionActivity extends Activity
         rec.stopWhy = aborted ? runStopWhy : RunStopReason.WHY_NONE;
         rec.stopLimSec = aborted ? runStopLimSec : 0;
         // E2-4: stopped at the start check after the by-hand step - the minutes by hand.
-        rec.byHandStopSec = aborted && stoppedAtCheck ? Math.max(1L, rec.durSec) : 0L;
+        rec.byHandStopSec = ByHand.byHandStopSec(aborted, stoppedAtCheck, byHandSecAtDone);
         stoppedAtCheck = false;
+        byHandSecAtDone = 0L;
         rec.cmdPeakKpa = Double.valueOf(commandedPeakKpa);
         rec.afterPullKpa = ranAtAll ? assessAfterArmedKpa : 0;
         rec.carriedInKpa = ranAtAll ? carriedInKpa : 0;

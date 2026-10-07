@@ -31442,6 +31442,10 @@ public final class WiringCheck {
                     + "late inside its planned time again (tickHold must ask ByHand.waitIsLate "
                     + "before it pushes)");
         }
+        // (h) E3-2: the minutes by hand are taken at Done, never the run's whole clock.
+        if (dc != null && dc.indexOf("byHandSecAtDone=session.elapsedMs(") < 0)
+            violations.add("SessionActivity.java: invariant 251 - the minutes by hand of a run "
+                + "stopped at the check after Done are no longer taken at Done");
         String gs = body228(act, "void\\s+showGuidedStart\\s*\\(", "SessionActivity.java",
             "showGuidedStart", violations);
         if (gs != null && gs.indexOf("ByHand.startWords(") < 0)
@@ -31505,7 +31509,8 @@ public final class WiringCheck {
             + "private boolean beginRunFlow() { startCheckDeferred = ByHand.deferStartCheck(r, a,"
             + " b, c); if (startCheckDeferred) { beginAssessOrSession(r); return true; }"
             + " if (model.guidedStart) { beginGuidedStart(r); return true; } return true; }\n"
-            + "private void beginDeferredStartCheck(int idx) { resting = false;"
+            + "private void beginDeferredStartCheck(int idx) {"
+            + " byHandSecAtDone = session.elapsedMs(now, LINK_TIMEOUT_MS) / 1000L; resting = false;"
             + " restRearmPending = true; if (g) beginGuidedStart(runRoutine);"
             + " else beginSealCheck(runRoutine); }\n"
             + "private void resumeAfterStartCheck() { int idx = 1; playPreset(idx); }\n"
@@ -31572,6 +31577,8 @@ public final class WiringCheck {
             { "S", "vented on the watch's word alone",
               " && (n || a.lastKpa < VENTED_READOUT_KPA)", "" },
             { "A", "the routine starts, said after Done", "ByHand.startWords(x, startCheckMidRun)", "x" },
+            { "A", "the minutes by hand taken at the run's end",
+              " byHandSecAtDone = session.elapsedMs(now, LINK_TIMEOUT_MS) / 1000L;", "" },
             { "A", "a planned wait by hand counted late",
               " if (awaitingAck && byHandPlaying() && !ByHand.waitIsLate(now, presetFireAt)) return;", "" },
         };

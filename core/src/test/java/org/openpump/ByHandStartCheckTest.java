@@ -184,6 +184,20 @@ class ByHandStartCheckTest {
             ByHand.startWords("With no answer in a minute, this start ends.", false));
     }
 
+    @Test void theThirdChecksTwoFixes() {
+        // E3-1: "Time left" rounds up while the planned time runs, and is 0:00 once it passed -
+        // the held clock's few milliseconds ahead never read as 0:01.
+        assertEquals(120, ByHand.timeLeftSec(119_400L, false));
+        assertEquals(1, ByHand.timeLeftSec(250L, false));
+        assertEquals(0, ByHand.timeLeftSec(250L, true), "late: 0:00, not 0:01");
+        assertEquals(0, ByHand.timeLeftSec(-40L, false));
+        // E3-2: the minutes by hand are the clock at Done, not the check's seconds after it.
+        assertEquals(300L, ByHand.byHandStopSec(true, true, 300L));
+        assertEquals(1L, ByHand.byHandStopSec(true, true, 0L), "at least a second");
+        assertEquals(0L, ByHand.byHandStopSec(true, false, 300L), "not stopped at the check");
+        assertEquals(0L, ByHand.byHandStopSec(false, true, 300L), "not stopped at all");
+    }
+
     @Test void theChangeoverWaitSaysWaitingNotATime() {
         // H-5: the notification and widget lead while the changeover waits.
         String said = ByHand.notification("Swap to your girth cylinder — next is x", false, true);
