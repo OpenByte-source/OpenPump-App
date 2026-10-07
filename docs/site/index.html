@@ -344,6 +344,126 @@ a:hover{background:var(--mark)}
   .mk.cam-on .sb[data-col=cmd] mark{--mark:var(--mk-cmd)}
   .mk.cam-on .sb[data-col=plan] mark{--mark:var(--mk-plan)}
 }
+/* THE MOCK'S PHONE (SCREENS = "MOCK", below 768px; the owner's pick of 7 Oct: the approved mock "A"'s own
+   phone preview, its Stage played beat by beat): the page is laid out as the mock's 188-wide phone stage,
+   scaled to the window (--ms: one mock px, set by the script to the window's width / 188; --mf: a note's
+   font factor, below 1 only where the site's longer words would not otherwise fit, never under 15 px).
+   The words of the current note are held where the mock puts its caption; the phone, its window frame,
+   a label with its dashed leader and the acts strip along the bottom are the mock's, drawn in the pin. */
+:root{--mk-ghost:#D6DCE0;--mk-lcmd:#C07A16;--mk-lact:#5E8A00;--mk-lplan:#3F74D6;--mk-rb:#B4BCC3;--mk-rbl:#D3D9DD;--mk-rd:#6B747D;--mk-rdl:#9AA3AB}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--mk-ghost:#2C3339;--mk-lcmd:#E8A443;--mk-lact:#9ACD32;--mk-lplan:#7FB2FF;--mk-rb:#4D565F;--mk-rbl:#2E353D;--mk-rd:#8D96A0;--mk-rdl:#5C656F} }
+:root[data-theme="dark"]{--mk-ghost:#2C3339;--mk-lcmd:#E8A443;--mk-lact:#9ACD32;--mk-lplan:#7FB2FF;--mk-rb:#4D565F;--mk-rbl:#2E353D;--mk-rd:#8D96A0;--mk-rdl:#5C656F}
+.mkp-layer,.mkp-rib{display:none}
+/* THE MOCK'S DESKTOP STAGE (SCREENS = "MOCK", DESK_STAGE, from 768px; the owner's pick of 7 Oct: the mock's
+   "4 · Hands-on" with fitted close-ups and screens that dissolve, not the sticky page): the page is laid out
+   as the mock's 588 x 363 desktop stage, scaled to fit the room (--ms: one mock px), and the scroll plays it:
+   each section is one beat's stretch of scroll (--beat), its words held where the mock puts them. */
+@media (min-width:768px){
+  .mks.cam-on .story{max-width:none;padding-inline:0;padding-bottom:0}
+  .mks.cam-on .cam-clip,.mks.cam-on .cam-frame,.mks.cam-on .acth,.mks.cam-on .chap{display:none}
+  .mks.cam-on .mk-stage{display:block;position:absolute;inset:0;overflow:hidden}
+  /* one beat is one room's height of scroll; a link to a beat lands 0.6 of the way in, at rest */
+  .mks.cam-on .sb{min-height:calc(100svh - var(--hdr));padding:0;margin:0;scroll-margin-top:calc(var(--hdr) - .6 * (100svh - var(--hdr)))}
+  .mks.cam-on .sb:last-child{min-height:calc(2 * (100svh - var(--hdr)))}
+  .mks.cam-on .mkp-layer{display:block;position:absolute;inset:0;pointer-events:none}
+  .mks .mkp-win{position:absolute;border:1.5px solid var(--ink);border-radius:calc(10 * var(--ms));opacity:0}
+  .mks .mkp-lab{position:absolute;font:700 max(16px,calc(8.4 * var(--ms) * var(--mf,1)))/1.3 var(--head);color:var(--ink);opacity:0}
+  .mks .mkp-lab mark{--mark:var(--mk-act)}
+  .mks .mkp-lab[data-col=cmd] mark{--mark:var(--mk-cmd)}
+  .mks .mkp-lab[data-col=plan] mark{--mark:var(--mk-plan)}
+  .mks .mkp-lead{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
+  .mks .mkp-lead line{fill:none;opacity:0}
+  .mks.cam-on .mkp-rib{display:flex;position:absolute;left:calc(var(--mox,0px) + 18 * var(--ms));right:calc(var(--mox,0px) + 18 * var(--ms));bottom:calc(6 * var(--ms));
+    gap:calc(12 * var(--ms));justify-content:center;white-space:nowrap;overflow:hidden;font:700 max(12px,calc(6 * var(--ms)))/1 var(--head);letter-spacing:.05em;color:var(--mk-rb)}
+  .mks .mkp-rib span{flex:none;padding-top:calc(4 * var(--ms));border-top:calc(2 * var(--ms)) solid var(--mk-rbl)}
+  .mks .mkp-rib span.done{color:var(--mk-rd);border-top-color:var(--mk-rdl)}
+  .mks .mkp-rib span.on{color:var(--ink);border-top-color:var(--ink)}
+  /* the notes, at the mock's desktop caption sizes; out of the page's flow, held by the script */
+  .mks.cam-on .sb .sbt{position:absolute;left:0;top:0;width:calc(214 * var(--ms));max-width:none;margin:0;padding:0;pointer-events:none;
+    font-size:max(16px,calc(7.8 * var(--ms) * var(--mf,1)));line-height:1.55}
+  .mks.cam-on .sb .sbt.mkp-g{display:flex;flex-direction:column}
+  .mks.cam-on .sb .sbt.mkp-g>.dnum{order:9}
+  .mks.cam-on .sb .k{font:700 max(12px,calc(6.8 * var(--ms) * var(--mf,1)))/1 var(--head);letter-spacing:.04em;margin:0 0 calc(4 * var(--ms))}
+  .mks.cam-on .sb h2,.mks.cam-on .sb h3{font:700 max(20px,calc(12.5 * var(--ms) * var(--mf,1)))/1.1 var(--head);letter-spacing:-.01em;margin:0 0 calc(3 * var(--ms))}
+  .mks.cam-on .sb p,.mks.cam-on .sb ol.steps{margin:0;max-width:none}
+  .mks.cam-on .sb p+p{margin-top:.5em}
+  .mks.cam-on .sb ol.steps{margin-top:calc(3 * var(--ms));padding-left:calc(12 * var(--ms))}
+  .mks.cam-on .sb ol.steps li{margin-top:calc(1 * var(--ms))}
+  .mks.cam-on .sb .fact{margin-top:calc(5 * var(--ms));padding-top:calc(4 * var(--ms));font:700 max(14.5px,calc(7.6 * var(--ms) * var(--mf,1)))/1.35 var(--head);color:var(--ink2)}
+  .mks.cam-on .sb .try{margin-top:calc(6 * var(--ms))}
+  .mks.cam-on .sb p.dnum{display:block;margin-top:calc(10 * var(--ms));font:700 max(12px,calc(7.5 * var(--ms)))/1.2 var(--head);letter-spacing:.05em;text-transform:uppercase;color:var(--ink2)}
+  .mks.cam-on .sb p.dnum b{display:block;margin-bottom:calc(3 * var(--ms));font:700 var(--gfs,44px)/.9 var(--head);letter-spacing:-.04em;color:var(--mk-ghost);white-space:nowrap}
+  .mks.cam-on .sb .sbt.mkp-nomark mark{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+  .mks.cam-on .sb mark{--mark:var(--mk-act)}
+  .mks.cam-on .sb[data-col=cmd] mark{--mark:var(--mk-cmd)}
+  .mks.cam-on .sb[data-col=plan] mark{--mark:var(--mk-plan)}
+  /* the title, at the mock's desktop title sizes */
+  .mks.cam-on .sb h1{font-size:max(34px,calc(25 * var(--ms) * var(--mf,1)));line-height:1.04;letter-spacing:-.025em;margin:0 0 calc(9 * var(--ms))}
+  .mks.cam-on .sb .lead{font-size:max(16px,calc(8 * var(--ms) * var(--mf,1)));line-height:1.5}
+  .mks.cam-on .sb .get-row{margin-top:calc(9 * var(--ms));gap:calc(6 * var(--ms))}
+  .mks.cam-on .sb a.get{min-height:44px;padding:calc(5 * var(--ms)) calc(8 * var(--ms));font:700 max(15px,calc(8.4 * var(--ms)))/1 var(--head)}
+  .mks.cam-on .sb .get-note{flex:1 1 calc(80 * var(--ms));font:700 max(13px,calc(6.6 * var(--ms)))/1.25 var(--head);color:var(--ink2)}
+  .mks.cam-on .sb .sbt>p.get-fp{margin-top:calc(9 * var(--ms));font-size:13.5px}
+  .mks.cam-on .sb.title .sbt>p:last-child{margin-top:calc(10 * var(--ms));font:700 max(15px,calc(8 * var(--ms)))/1 var(--head);color:var(--ink2)}
+}
+@media (max-width:767.98px){
+  html.mkp{--ms:calc(100vw / 188)}
+  .mkp.cam-on .story{max-width:none;padding-inline:0}
+  .mkp.cam-on .cam-clip,.mkp.cam-on .cam-frame{display:none}
+  .mkp.cam-on .mk-stage{display:block;position:absolute;inset:0;overflow:hidden}
+  .mkp .mk-pw{position:absolute;left:0;top:0;width:120px;height:250px;transform-origin:0 0;filter:drop-shadow(3px 4px 0 var(--mksh))}
+  .mkp .mk-pw svg{display:block;width:120px;height:250px;overflow:visible}
+  .mkp .mk-pw .sp{fill:none;stroke-width:2.2}
+  .mkp .mk-pw .edge{stroke:var(--edge)}
+  .mkp.cam-on .mkp-layer{display:block;position:absolute;inset:0;pointer-events:none}
+  .mkp-win{position:absolute;border:1.5px solid var(--ink);border-radius:calc(10 * var(--ms));opacity:0}
+  .mkp-lab{position:absolute;font:700 max(15px,calc(9 * var(--ms) * var(--mf,1)))/1.3 var(--head);color:var(--ink);opacity:0}
+  .mkp-lab mark{--mark:var(--mk-act)}
+  .mkp-lab[data-col=cmd] mark{--mark:var(--mk-cmd)}
+  .mkp-lab[data-col=plan] mark{--mark:var(--mk-plan)}
+  .mkp-lead{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
+  .mkp-lead line{fill:none;opacity:0}
+  .mkp.cam-on .mkp-rib{display:flex;position:absolute;left:calc(12 * var(--ms));right:calc(10 * var(--ms));bottom:calc(10 * var(--ms));gap:calc(6 * var(--ms));
+    white-space:nowrap;overflow:hidden;font:700 calc(6.2 * var(--ms))/1 var(--head);letter-spacing:.05em;color:var(--mk-rb)}
+  .mkp-rib span{flex:none;padding-top:calc(4 * var(--ms));border-top:calc(2 * var(--ms)) solid var(--mk-rbl)}
+  .mkp-rib span.done{color:var(--mk-rd);border-top-color:var(--mk-rdl)}
+  .mkp-rib span.on{color:var(--ink);border-top-color:var(--ink)}
+  /* the notes, at the mock's caption sizes */
+  .mkp.cam-on .sb .sbt{position:relative;top:auto;margin:0 0 0 calc(14 * var(--ms));width:calc(160 * var(--ms));max-width:none;padding:0;
+    font-size:max(15px,calc(8.6 * var(--ms) * var(--mf,1)));line-height:1.5}
+  .mkp.cam-on .sb .sbt.mkp-g{display:flex;flex-direction:column}
+  .mkp.cam-on .sb .sbt.mkp-g>.dnum{order:9}
+  .mkp.cam-on .sb .k{font:700 max(12px,calc(7.5 * var(--ms) * var(--mf,1)))/1 var(--head);letter-spacing:.04em;margin:0 0 calc(4 * var(--ms))}
+  .mkp.cam-on .sb h2,.mkp.cam-on .sb h3{font:700 max(20px,calc(11.5 * var(--ms) * var(--mf,1)))/1.1 var(--head);letter-spacing:-.01em;margin:0 0 calc(3 * var(--ms))}
+  .mkp.cam-on .sb p,.mkp.cam-on .sb ol.steps{margin:0;max-width:none}
+  .mkp.cam-on .sb p+p{margin-top:.5em}
+  .mkp.cam-on .sb ol.steps{margin-top:calc(3 * var(--ms));padding-left:calc(12 * var(--ms))}
+  .mkp.cam-on .sb ol.steps li{margin-top:calc(1 * var(--ms))}
+  .mkp.cam-on .sb .fact{margin-top:calc(5 * var(--ms));padding-top:calc(4 * var(--ms));font:700 max(13.5px,calc(7.6 * var(--ms) * var(--mf,1)))/1.35 var(--head);color:var(--ink2)}
+  .mkp.cam-on .sb .try{margin-top:calc(6 * var(--ms))}
+  /* the big number, as the mock's pale figure under the note (--gfs: its size, from the room left) */
+  .mkp.cam-on .sb p.dnum{display:block;margin-top:calc(6 * var(--ms));font:700 max(12px,calc(7.5 * var(--ms)))/1.2 var(--head);letter-spacing:.05em;text-transform:uppercase;color:var(--ink2)}
+  .mkp.cam-on .sb p.dnum b{display:block;margin-bottom:calc(3 * var(--ms));font:700 var(--gfs,44px)/.9 var(--head);letter-spacing:-.04em;color:var(--mk-ghost);white-space:nowrap}
+  /* a label beside the phone carries the marked words; the note keeps them for screen readers only */
+  .mkp.cam-on .sb .sbt.mkp-nomark mark{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+  /* beside the phone (the mock's flowLines): the words wrap beside it and run on under it */
+  .mkp.cam-on .sb .sbt.mkp-bes{line-height:1.28}
+  .mkp.cam-on .sb .sbt.mkp-bes .k{margin-bottom:calc(4.5 * var(--ms))}
+  .mkp.cam-on .sb .sbt.mkp-bes h2,.mkp.cam-on .sb .sbt.mkp-bes h3{line-height:1.13;margin-bottom:calc(4 * var(--ms))}
+  .mkp-flt{float:right;shape-outside:margin-box}
+  .mkp.cam-on .sb mark{--mark:var(--mk-act)}
+  .mkp.cam-on .sb[data-col=cmd] mark{--mark:var(--mk-cmd)}
+  .mkp.cam-on .sb[data-col=plan] mark{--mark:var(--mk-plan)}
+  /* the title, at the mock's title sizes */
+  .mkp.cam-on .sb.title .sbt{padding-top:calc(18 * var(--ms))}
+  .mkp.cam-on .sb h1{font-size:calc(19 * var(--ms));line-height:1.04;letter-spacing:-.025em;margin:0 0 calc(9 * var(--ms))}
+  .mkp.cam-on .sb .lead{font-size:max(15px,calc(8.6 * var(--ms)));line-height:1.5}
+  .mkp.cam-on .sb .get-row{margin-top:calc(9 * var(--ms));gap:calc(6 * var(--ms))}
+  .mkp.cam-on .sb a.get{min-height:44px;padding:calc(5 * var(--ms)) calc(8 * var(--ms));font:700 calc(8.4 * var(--ms))/1 var(--head)}
+  .mkp.cam-on .sb .get-note{flex:1 1 calc(80 * var(--ms));font:700 max(13px,calc(6.6 * var(--ms)))/1.25 var(--head);color:var(--ink2)}
+  .mkp.cam-on .sb .sbt>p.get-fp{margin-top:calc(9 * var(--ms));font-size:13.5px}
+  .mkp.cam-on .sb.title .sbt>p:last-child{margin-top:calc(10 * var(--ms));font:700 calc(8 * var(--ms))/1 var(--head);color:var(--ink2)}
+}
 
 
 /* ---------- the app inside the phone, in its own faces (docs/site/fonts, Apache-2.0) ---------- */
@@ -2093,11 +2213,17 @@ var DW=390, DH=845, HDR=64, SC=390/392.7;   /* SC: one app dp in phone px */
    ?screens=drawn or ?screens=real in the address overrides it, so both can be looked at side by side.
    The drawn set carries its own named parts (where a beat's part isn't drawn, its other one is used)
    and the live moments' hooks, and has no scrolled content.
-   Or "MOCK" (the owner's approved mock "A", 7 Oct): from 768px the page and its phone are the mock's
-   own desktop, its drawings and its motion (see frameMock); below 768px the phone keeps the REAL set.
+   Or "MOCK" (the owner's approved mock "A", 7 Oct): the page and its phone are the mock's own, its
+   drawings and its motion: below 768px its phone preview (see goBeat), from 768px its desktop stage
+   (DESK_STAGE, the "4 · Hands-on" stage; false: the sticky page, frameMock, kept for comparison).
    REVIEW ONLY, REMOVE BEFORE PUSH: ?screens=mock, ?screens=drawn or ?screens=real in the address
    overrides the switch, so the three can be looked at side by side. */
 var SCREENS="MOCK";
+/* DESK_STAGE (the owner's pick, 7 Oct): from 768px the mock's "4 · Hands-on" stage, scrubbed by the scroll.
+   false: the earlier sticky page ("the words scroll, the phone stays beside them", frameMock), kept so the two
+   can be compared. REVIEW ONLY, REMOVE BEFORE PUSH: ?desk=sticky or ?desk=stage in the address overrides it. */
+var DESK_STAGE=true;
+try{ var qsD=/[?&]desk=(sticky|stage)\b/i.exec(W.location.search); if(qsD) DESK_STAGE=qsD[1].toLowerCase()==="stage"; }catch(e){}
 try{ var qsS=/[?&]screens=(real|drawn|mock)\b/i.exec(W.location.search); if(qsS) SCREENS=qsS[1].toUpperCase(); }catch(e){}
 (function(){ var tp=D.getElementById("drawn-screens"); if(SCREENS!=="DRAWN"||!tp||!tp.content) return;
   [].forEach.call(dev.querySelectorAll(".scr"),function(s){ s.parentNode.removeChild(s); });
@@ -2141,6 +2267,11 @@ function measureScreens(){
 var G={}, pinEl=story.querySelector(".cam-pin");
 function measure(){
   fitWide=D.documentElement.clientWidth>=768;
+  if(MP.on){ mpClass(!fitWide); MK.st.style.clipPath=""; MK.pw.style.transform=""; MP.desk=false;
+    MP.S.forEach(function(L){ var s=B[L.k].sbt; s.style.removeProperty("--mf"); if(L.flt&&L.flt.parentNode) L.flt.parentNode.removeChild(L.flt);
+      s.classList.remove("mkp-nomark","mkp-bes","mkp-g");
+      if(L.num){ L.num.style.removeProperty("--gfs"); L.num.style.marginTop=""; L.num.style.textAlign=""; L.num.style.opacity=L.num.style.transform=L.num.style.clipPath=""; }
+      L.parts.forEach(function(e){ e.style.clipPath=""; }); }); }
   if(MK.on) mkScale();
   measureScreens();
   /* every note back in its own place, with nothing left over from the other way of playing it */
@@ -2203,7 +2334,8 @@ function measure(){
     var m=Math.max(0,Math.min(b.L/2-HW,vh-8-(b.dock+b.th-24),160));
     b.hw=b.L/2-m; b.X0=b.P+m; }
   for(k=1;k<B.length;k++){ var nx=B[k+1], c=B[k]; c.cam0=c.X0+CM0*2*c.hw; c.cam1=Math.min(c.P+c.L*CM1,nx?nx.X0-20:1e9); }
-  if(MK.on&&wide) measureMock();
+  if(MK.on&&wide&&!(MP.on&&DESK_STAGE)) measureMock();
+  if(MP.on&&(!wide||DESK_STAGE)) measureStage(wide);
 }
 function pose(b){
   var w=b.win;
@@ -2466,9 +2598,9 @@ var LIVE={
   if(SCREENS==="DRAWN"){ RUN.init=DRUN.init; RUN.tick=DRUN.tick; RUN.press=DRUN.press; }
   RUN.init(); CEIL.init(); LOCK.set(reduce);
   var run=story.querySelector('[data-try="run"]');
-  if(run) [].forEach.call(run.querySelectorAll("button"),function(bt){ bt.addEventListener("click",function(){ played.run=G.wide?"you":true; RUN.press(+bt.getAttribute("data-step")); }); });
-  var rg=D.getElementById("ceilrange"); if(rg){ rg.max=CEIL.n-1; rg.addEventListener("input",function(){ played.ceiling=G.wide?"you":true; CEIL.show(+rg.value,true); }); }
-  var sw=story.querySelector('[data-try="discreet"] [role=switch]'); if(sw) sw.addEventListener("click",function(){ played.discreet=G.wide?"you":true; LOCK.set(!LOCK.on); });
+  if(run) [].forEach.call(run.querySelectorAll("button"),function(bt){ bt.addEventListener("click",function(){ played.run=G.wide||MP.on?"you":true; RUN.press(+bt.getAttribute("data-step")); }); });
+  var rg=D.getElementById("ceilrange"); if(rg){ rg.max=CEIL.n-1; rg.addEventListener("input",function(){ played.ceiling=G.wide||MP.on?"you":true; CEIL.show(+rg.value,true); }); }
+  var sw=story.querySelector('[data-try="discreet"] [role=switch]'); if(sw) sw.addEventListener("click",function(){ played.discreet=G.wide||MP.on?"you":true; LOCK.set(!LOCK.on); });
 })();
 var played={run:reduce,ceiling:reduce,discreet:reduce};
 function liveFor(b,u){
@@ -2818,7 +2950,7 @@ var MK=(function(){
   var tp=D.getElementById("mock-art"), pin=story.querySelector(".cam-pin");
   if(SCREENS!=="MOCK"||B.length!==12||!tp||!tp.content||!pin) return {on:false};
   var st=D.importNode(tp.content,true).querySelector(".mk-stage"); pin.appendChild(st);
-  D.documentElement.classList.add("mk");
+  D.documentElement.classList.add(DESK_STAGE?"mks":"mk");
   /* the drawing is the one thing on this layer a screen reader is told about; the app's screens stay hidden */
   cam.removeAttribute("aria-hidden"); clip.setAttribute("aria-hidden","true"); frameEl.setAttribute("aria-hidden","true");
   var LB={run:"A drawing of the app's run screen: the time left, the live pressure chart with its dashed target line, and the four values you can change.",
@@ -2848,7 +2980,7 @@ var MK=(function(){
     beats:BEATS,focus:FOCUS,hands:HANDS,zm:0,act:-1,sc:1,ph:1,anchor:[],liveId:null,lv:0,rY:84,rA:84,rB:84,rT0:-1e9,cv:null,lastP:0};
   /* the controls: a press redraws at once */
   var run=story.querySelector('[data-try="run"]');
-  if(run) [].forEach.call(run.querySelectorAll("button"),function(bt2){ bt2.addEventListener("click",function(){ if(!G.wide) return;
+  if(run) [].forEach.call(run.querySelectorAll("button"),function(bt2){ bt2.addEventListener("click",function(){ if(!G.wide&&!(MP&&MP.on)) return;
     if(!M.tried){ M.tried=true; M.lv=M.lastP>=.5?1:0; }
     var dir=+bt2.getAttribute("data-step"); M.lv=clamp(M.lv+dir*.5,-1,1.5); M.rA=M.rY; M.rB=84-9*M.lv; M.rT0=now(); again(); }); });
   var rg=D.getElementById("ceilrange"); if(rg) rg.addEventListener("input",function(){ again(); });
@@ -2937,7 +3069,240 @@ function frameMock(){
   setActive("run",false); setActive("radar",false);
   if(more) again();
 }
-function frame(){ if(G.wide) (MK.on?frameMock:frameDoc)(); else frameCue(); }
+/* ================= THE MOCK'S STAGE (SCREENS = "MOCK"): its phone preview below 768px, its desktop from 768px =================
+   The approved mock "A" (the owner's pick of 7 Oct: "4 · Hands-on", with the three hands-on moments, close-ups
+   fitted to their content, tighter timing and screens that dissolve inside the phone), its Stage ported line
+   for line: storyPhone + phoneFit below 768px, storyDesk (CFG_A, every other beat mirrored) + deskFit from
+   768px (DESK_STAGE), handsOn, T_TIGHT, its enter animations, poses, clips and rounds.
+   Every position is the mock's, in its own stage, scaled to the window (sc): the phone stage is 188 wide
+   (header 27, acts strip 26) scaled to the window's width; the desktop stage is 588 x 363 (header 24, strip
+   11) scaled to fit the room under the header and centred in it. The stage is as tall as that room.
+   HOW A BEAT PLAYS (the mock's Stage.render at u, 0 to 1 of the beat):
+     the old words lift away and fade (by 0.08), the phone moves on a small arc to its new framing (0.08 to
+     0.30), the screen dissolving inside it as it goes and its window frame fading over with it, and the new
+     words arrive while it is still moving (0.28 to 0.44): a caption types on left to right, rises or slides
+     in, a label slides in beside the phone with its dashed leader, the big pale number rises in under the
+     note; the ring, in the note's colour, comes up once the phone has arrived; a hands-on moment then plays
+     (0.52 to 0.86): the pull steps up and the pump's line follows, the switch turns discreet on, the
+     ceiling moves.
+   WHAT DRIVES u. On a phone a beat arrives on one cue (goBeat: its section reaching the middle of the
+   screen; the one function a swipe can call too) and plays out in time, 3.2 s, as the mock's preview plays
+   a beat. From 768px the scroll scrubs it, as the mock's range slider does: each section is one beat's
+   stretch of scroll (one room's height), t = the beat + how far into its section the page is.
+   The words are the site's own, longer than the mock's: each note is laid out by the mock's own rules from
+   its measured height, and only where it would still run past the room are its words made smaller (never
+   under 15 px on a phone, 16 px on a desktop). With reduced motion every beat is its final state. */
+var MP=(function(){
+  var pin=story.querySelector(".cam-pin"), svgNS="http://www.w3.org/2000/svg";
+  if(!MK.on||!pin) return {on:false};
+  var layer=D.createElement("div"); layer.className="mkp-layer"; layer.setAttribute("aria-hidden","true");
+  var lead=D.createElementNS(svgNS,"svg"); lead.setAttribute("class","mkp-lead"); layer.appendChild(lead);
+  var rib=D.createElement("div"); rib.className="mkp-rib"; rib.setAttribute("aria-hidden","true");
+  pin.appendChild(layer); pin.appendChild(rib);
+  /* the mock's story A: each beat's frame, how its words sit, and whether it has a big number */
+  var A=[["title","caption",0],["whole","caption",0],["whole","label",1],["zoom","caption",0],["zoom","caption",0],["loupe","beside",0],
+    ["edge","beside",1],["whole","beside",0],["zoom","caption",1],["loupe","caption",1],["whole","label",0],["whole","caption",0]];
+  var ACT=["WHY","WHY","SESSION","SESSION","SESSION","SESSION","SETS","WEEKS","MONTHS","ALWAYS","PRIVATE","START"];
+  var side=1, nt=0, S=B.map(function(b,k){ var f=A[k][0], x=A[k][1], m=MK.beats[k], fit=!!MK.focus[m.id]&&(f==="zoom"||f==="loupe"||f==="edge");
+    var sided=!(f==="whole"&&x==="caption")&&f!=="zoom"&&f!=="title"; if(sided) side=-side;
+    var kind=f==="title"?"title":fit?"fit":x==="label"?"label":x==="beside"?"beside":"caption";
+    var c=b.el.getAttribute("data-col")||"act", L={k:k,kind:kind,big:!!A[k][2],sd:fit?1:side,art:m.art,spot:m.spot,col:m.col,id:m.id,c:c,
+      flip:f!=="title"&&(nt++%2===1),live:MK.hands[m.id]?m.id:null,num:b.sbt.querySelector(".dnum"),win:null,lab:null,ln:null,flt:null};
+    L.parts=[].filter.call(b.sbt.children,function(e){ return e!==L.num; });
+    if(fit){ L.win=D.createElement("div"); L.win.className="mkp-win"; layer.appendChild(L.win); }
+    if(x==="label"&&f==="whole"){ var mk=b.sbt.querySelector("mark"); L.lab=D.createElement("div"); L.lab.className="mkp-lab"; L.lab.setAttribute("data-col",c);
+      L.lab.innerHTML="<mark></mark>"; L.lab.firstChild.textContent=mk?mk.textContent:""; layer.appendChild(L.lab);
+      L.ln=D.createElementNS(svgNS,"line"); L.ln.setAttribute("stroke","var(--mk-l"+c+")"); lead.appendChild(L.ln); }
+    if(kind==="beside"){ L.flt=D.createElement("div"); L.flt.className="mkp-flt"; L.flt.setAttribute("aria-hidden","true"); }
+    return L; });
+  /* the acts along the bottom */
+  var acts=[]; S.forEach(function(L,k){ var last=acts[acts.length-1]; if(!last||last.a!==ACT[k]){ var el=D.createElement("span"); el.textContent=ACT[k]; rib.appendChild(el); acts.push({a:ACT[k],el:el,from:k,to:k}); } else last.to=k; });
+  /* a control reached with the keyboard brings its beat up, at rest */
+  story.addEventListener("focusin",function(ev){ if(!MP.on||!MP.V) return; var sb=ev.target.closest&&ev.target.closest(".sb"); if(!sb||!sb.querySelector(".sbt").contains(ev.target)) return;
+    var k=B.map(function(b){ return b.el; }).indexOf(sb); if(k<0||k===MP.cur) return;
+    var y=MP.desk?B[k].top-HDR+.6*Math.max(1,B[0].h):B[k].top-G.sw+40; W.scrollTo({top:Math.max(0,Math.round(y)),behavior:"instant"}); });
+  return {on:true,S:S,acts:acts,rib:rib,layer:layer,lead:lead,T:{out:.08,m0:.08,m1:.3,i0:.28,i1:.44},BEAT:3200,cur:-1,prev:-1,from:null,t0:0,sc:1,ox:0,V:null,desk:false,shown:null,last:0,shownBeat:-1};
+})();
+function mpClass(on){ var h=D.documentElement.classList; if(h.contains("mkp")!==on) h.toggle("mkp",on); }
+/* a note's height in mock px, as laid out at width w with font factor f (its big number left out: it
+   is placed under the note, as the mock's ghost is) */
+function mpCapH(L,f,w){ var s=B[L.k].sbt, st=s.style; st.setProperty("--mf",f); st.width=(w*MP.sc).toFixed(2)+"px";
+  if(L.num) L.num.style.display="none"; var h=s.offsetHeight/MP.sc; if(L.num) L.num.style.display=""; return h; }
+/* the mock's crop for a close-up (fitRect) */
+function mpFitRect(F,maxW,maxH){ var m=6, r=F.rect, k=Math.min(2.8,maxW/(r[2]+2*m),maxH/(r[3]+2*m));
+  if(F.tight&&F.fs*k<9.5){ r=F.tight; k=Math.min(2.8,maxW/(r[2]+2*m),maxH/(r[3]+2*m)); }
+  return {r:r,k:k,w:(r[2]+2*m)*k,h:(r[3]+2*m)*k,cx:r[0]+r[2]/2,cy:r[1]+r[3]/2}; }
+/* ---------- the phone's layouts (the mock's phoneState / phoneFit / flowLines) ---------- */
+function mpLay(L,f,o){
+  var V=MP.V, TOP=V.TOP, BOT=V.BOT, VW=V.W, VH=V.H, CX=V.CX, s=L.spot, scy=s[1]+s[3]/2, Y={clip:[TOP,0,0,0],round:0,cap:{x:14,w:160},g:null,spot:s,mode:"type",dx:0,gw:160,gal:"left"};
+  if(L.kind==="title"){ var cht=mpCapH(L,1,160), tt=TOP+18, peek=clamp(BOT-(tt+cht)-26,34,96);
+    /* (the site's title is longer than the mock's: the phone never sits on its words, and scrolls up with them) */
+    Y.pose={tx:CX-48,ty:Math.max(BOT-peek,tt+cht+10),k:.8,r:-2}; Y.clip=[TOP,0,VH-BOT,0]; Y.cap.y=tt; Y.mode="title"; Y.top=tt; Y.bottom=0; return Y; }
+  if(L.kind==="fit"){ var ch=mpCapH(L,f,160), g0=L.big?70:0, fr=mpFitRect(MK.focus[L.id],VW-12,o.maxH||150), winH=Math.round(fr.h), gap=12,
+      total=winH+gap+ch+g0, y0=TOP+Math.max(6,(BOT-TOP-total)/2), x0=CX-fr.w/2;
+    Y.pose={tx:CX-fr.cx*fr.k,ty:y0+winH/2-fr.cy*fr.k,k:fr.k,r:0}; Y.clip=[y0,VW-(x0+fr.w),VH-(y0+winH),x0]; Y.round=10; Y.mode="rise";
+    Y.win={x:x0,y:y0,w:fr.w,h:winH}; Y.cap.y=y0+winH+gap; Y.g=Y.cap.y+ch+6; Y.spot=fr.r; Y.top=y0; Y.bottom=Y.cap.y+ch; return Y; }
+  if(L.kind==="caption"){ var ch2=mpCapH(L,f,160), room=BOT-TOP-ch2-28-(L.big?80:0), k=clamp(room/250,o.kMin||.46,.95), gh=250*k+12+ch2,
+      y1=L.big?TOP+6:TOP+Math.max(4,(BOT-10-TOP-gh)/2);
+    Y.pose={tx:CX-60*k,ty:y1,k:k,r:0}; Y.cap.y=y1+250*k+12; Y.g=y1+gh+8; Y.top=y1; Y.bottom=Y.cap.y+ch2; return Y; }
+  if(L.kind==="label"){ var k3=o.k3||.72, pw3=120*k3, ph3=250*k3, sd=L.sd, px3=sd<0?6:VW-6-pw3, ch3=mpCapH(L,f,160), gh3=ph3+12+ch3,
+      y3=L.big?TOP+6:TOP+Math.max(4,(BOT-TOP-gh3)/2);
+    Y.pose={tx:px3,ty:y3,k:k3,r:0}; Y.cap.y=y3+ph3+12;
+    var lw=VW-pw3-6-12-10, lx=sd<0?px3+pw3+14:10, sy=y3+scy*k3, lb=L.lab, lst=lb.style; lst.setProperty("--mf",f); lst.width=(lw*MP.sc)+"px";
+    var lh=lb.offsetHeight/MP.sc, ly=clamp(sy-lh/2,TOP+4,y3+ph3-lh), edgeX=sd<0?px3+(s[0]+s[2])*k3:px3+s[0]*k3;
+    Y.lab={x:lx,y:ly,w:lw,align:sd<0?"left":"right",dx:sd<0?26:-26}; Y.line=[sd<0?lx-3:lx+lw+3,clamp(sy,ly+4,ly+lh-2),edgeX,sy];
+    Y.g=y3+gh3+8; Y.top=y3; Y.bottom=Y.cap.y+ch3; return Y; }
+  /* beside: the phone at the side, tilted, the words in the column it leaves and running on under it */
+  var ks=[.92,.86,.8,.74,.68], k2, pw, ph, px, hh, fl=L.flt, sbt=B[L.k].sbt;
+  if(fl.parentNode!==sbt) sbt.insertBefore(fl,sbt.firstChild);
+  for(var ki=0;ki<ks.length;ki++){ k2=ks[ki]; pw=120*k2; ph=250*k2; px=VW-6-pw; var colW=VW-pw-6-9-12; if(colW<52) continue;
+    fl.style.width=((pw+3)*MP.sc).toFixed(1)+"px"; fl.style.height=((ph+1)*MP.sc).toFixed(1)+"px";
+    hh=mpCapH(L,f,VW-24);
+    if(Math.max(ph,hh)<=BOT-TOP-(L.big?70:8)&&hh<=ph+2) break; }
+  var gh2=Math.max(ph,hh), y2=L.big?TOP+8:TOP+Math.max(4,(BOT-TOP-gh2)/2);
+  Y.pose={tx:px,ty:y2,k:k2,r:2.5}; Y.cap={x:12,y:y2,w:VW-24}; Y.g=y2+gh2+10; Y.top=y2; Y.bottom=y2+gh2; Y.mode="side"; Y.dx=-10; return Y;
+}
+/* ---------- the desktop's layouts (the mock's storyDesk / deskState / deskFit, CFG_A, mirrorState) ---------- */
+function mdLay(L,f,o){
+  var V=MP.V, TOP=V.TOP, BOT=V.BOT, VW=V.W, VH=V.H, L0=46, Lw=214, R0=300, R1=556, Rc=(R0+R1)/2, mid=(TOP+BOT)/2, s=L.spot, scy=s[1]+s[3]/2,
+    Y={clip:[TOP,0,VH-BOT+8,0],round:0,cap:{x:L0,w:Lw},g:null,spot:s,mode:"type",dx:-16,gw:Lw,gal:"left"};
+  if(L.kind==="title"){ var cht=mpCapH(L,f,Lw+20); Y.cap={x:L0,y:mid-cht/2,w:Lw+20}; Y.pose={tx:Rc-63,ty:mid-131,k:1.05,r:-2}; Y.mode="title"; Y.top=Y.cap.y; Y.bottom=Y.cap.y+cht; return Y; }
+  if(L.kind==="fit"){ var ch=mpCapH(L,f,Lw), ty=mid-(ch+(L.big?70:0))/2, fr=mpFitRect(MK.focus[L.id],R1-R0-10,BOT-TOP-40), x0=Rc-fr.w/2, y0=mid-fr.h/2;
+    Y.cap.y=ty; Y.mode="side"; Y.pose={tx:Rc-fr.cx*fr.k,ty:mid-fr.cy*fr.k,k:fr.k,r:0}; Y.clip=[y0,VW-(x0+fr.w),VH-(y0+fr.h),x0]; Y.round=10;
+    Y.win={x:x0,y:y0,w:fr.w,h:fr.h}; Y.g=ty+ch+10; Y.spot=fr.r; Y.top=ty; Y.bottom=ty+ch; }
+  else { var label=L.kind==="label", ch2=mpCapH(L,f,Lw), gh=L.big?70:0, ty2=mid-(ch2+gh)/2, k=1.02;
+    Y.cap.y=ty2; Y.mode="type"; Y.g=ty2+ch2+10; Y.top=ty2; Y.bottom=ty2+ch2;
+    if(label){ var tx=R1-120*k-4, lw=Math.max(80,tx-R0-12), sy=mid-127.5*k+scy*k, lst=L.lab.style; lst.setProperty("--mf",f); lst.width=(lw*MP.sc)+"px";
+      var lh=L.lab.offsetHeight/MP.sc;
+      Y.pose={tx:tx,ty:mid-127.5*k,k:k,r:0}; Y.lab={x:R0,y:clamp(sy-lh/2,TOP+6,BOT-lh),w:lw,align:"right",dx:-20}; Y.line=[R0+lw+3,sy,tx+s[0]*k,sy]; }
+    else Y.pose={tx:Rc-60*k,ty:mid-127.5*k,k:k,r:L.flip?-1.5:1.5}; }
+  if(L.flip){ /* mirrorState: the words on the right, the phone on the left */
+    Y.cap.x=VW-Y.cap.x-Y.cap.w; Y.dx=-Y.dx; Y.gal="right"; if(Y.win) Y.win.x=VW-Y.win.x-Y.win.w;
+    if(Y.lab){ Y.lab.x=VW-Y.lab.x-Y.lab.w; Y.lab.dx=-Y.lab.dx; Y.lab.align=Y.lab.align==="left"?"right":"left"; }
+    var p=Y.pose; Y.pose={tx:VW-p.tx-120*p.k,ty:p.ty,k:p.k,r:-p.r}; var c=Y.clip; Y.clip=[c[0],c[3],c[2],c[1]];
+    if(Y.line){ var a=Y.line; Y.line=[VW-a[0],a[1],VW-a[2],a[3]]; } }
+  return Y;
+}
+/* lay every beat out for this window: on load and on resize only */
+function measureStage(desk){
+  var M=MP, vw=G.vw, sc, V, ox=0, H;
+  if(desk){ sc=Math.min(vw/588,G.pinH/339); ox=Math.max(0,(vw-588*sc)/2); H=24+G.pinH/sc; V={W:588,H:H,TOP:24,BOT:H-11,CX:294}; }
+  else { sc=vw/188; H=27+G.pinH/sc; V={W:188,H:H,TOP:27,BOT:H-26,CX:94}; }
+  M.desk=desk; M.sc=sc; M.ox=ox; M.V=V; M.shown=null; M.tf=M.cs=M.spk=null;
+  var de=D.documentElement.style; de.setProperty("--ms",sc.toFixed(4)+"px"); de.setProperty("--mox",ox.toFixed(1)+"px");
+  var fmin=desk?Math.min(1,16/(7.8*sc)):Math.min(1,15/(8.6*sc)), lay=desk?mdLay:mpLay;
+  M.S.forEach(function(L){ var sbt=B[L.k].sbt, bes=!desk&&L.kind==="beside";
+    sbt.classList.toggle("mkp-nomark",!!L.lab); sbt.classList.toggle("mkp-bes",bes); sbt.classList.toggle("mkp-g",!!L.num&&!bes);
+    if(!bes&&L.flt&&L.flt.parentNode) L.flt.parentNode.removeChild(L.flt);
+    /* the mock's layout, its words only made smaller where they would run past the room; failing that, on a phone, a smaller phone */
+    var need=L.big?(desk?54:50):0, f=1, o={}, Y=lay(L,f,o), inPage=!desk&&L.kind==="title";
+    function over(Y){ return inPage?0:Math.max(Y.bottom+need-V.BOT,desk?V.TOP+4-Y.top:0); }
+    while(over(Y)>.5&&f>fmin){ f=Math.max(fmin,f-.03); Y=lay(L,f,o); }
+    for(var g=0;g<12&&!desk&&over(Y)>.5;g++){
+      if(L.kind==="fit") o.maxH=Math.max(60,(o.maxH||150)-10); else if(L.kind==="label") o.k3=Math.max(.5,(o.k3||.72)-.03); else if(L.kind==="caption") o.kMin=Math.max(.3,(o.kMin||.46)-.02); else break;
+      Y=lay(L,f,o); }
+    L.f=f; L.Y=Y; L.over=Math.round(over(Y)*10)/10;
+    sbt.style.setProperty("--mf",f); sbt.style.width=""; if(L.lab) L.lab.style.width=(Y.lab?Y.lab.w*sc:0)+"px";
+    /* where the note is held */
+    var b=B[L.k]; b.dl=ox+Y.cap.x*sc; b.dw=Y.cap.w*sc; b.dock=b.dockNow=Math.round(HDR+(Y.cap.y-V.TOP)*sc);
+    /* the big number: the mock's ghost, as large as the room under the note allows */
+    if(L.num){ var g3=desk?Math.min(80,V.BOT-Y.g):V.BOT-Y.g, len=(L.num.querySelector("b")||L.num).textContent.length,
+        fs=Math.min(60,Math.round((g3-16)*.95),Math.round(Y.gw/Math.max(1,len*.62)));
+      L.num.style.setProperty("--gfs",(Math.max(fs,18)*sc).toFixed(1)+"px"); L.num.style.marginTop=((desk?10:L.kind==="label"?8:6)*sc).toFixed(1)+"px"; L.num.style.textAlign=Y.gal; }
+    if(L.win){ var w=Y.win||{x:0,y:0,w:0,h:0}; L.win.style.cssText="left:"+(ox+w.x*sc).toFixed(1)+"px;top:"+((w.y-V.TOP)*sc).toFixed(1)+"px;width:"+(w.w*sc).toFixed(1)+"px;height:"+(w.h*sc).toFixed(1)+"px;opacity:0"; L.win._mp=""; }
+    if(L.lab){ var lb=Y.lab; L.lab.style.left=(ox+lb.x*sc).toFixed(1)+"px"; L.lab.style.top=((lb.y-V.TOP)*sc).toFixed(1)+"px"; L.lab.style.textAlign=lb.align; L.lab.style.opacity="0"; L.lab._mp="";
+      var a=Y.line; L.ln.setAttribute("x1",(ox+a[0]*sc).toFixed(1)); L.ln.setAttribute("y1",((a[1]-V.TOP)*sc).toFixed(1)); L.ln.setAttribute("x2",(ox+a[2]*sc).toFixed(1)); L.ln.setAttribute("y2",((a[3]-V.TOP)*sc).toFixed(1));
+      L.ln.setAttribute("stroke-width",(1.3*sc).toFixed(2)); L.ln.setAttribute("stroke-dasharray",(3*sc).toFixed(1)+" "+(2.5*sc).toFixed(1)); L.ln.style.opacity="0"; L.ln._o="0"; }
+    L.parts.forEach(function(e){ e._mp=""; }); if(L.num) L.num._mp=""; });
+  M.cur=-1; M.prev=-1; M.from=null; M.shownBeat=-1;
+}
+/* how one piece of words arrives and leaves (the mock's Stage.prototype.enter), in mock px scaled */
+function mpEnter(el,mode,e,dx,q){
+  var sc=MP.sc, o, tf="", cp="";
+  if(mode==="frame") o=e;
+  else { var ee=e; if(q!=null&&e>0) ee=clamp(e*1.4-q*.06,0,1); if(mode==="ghost") ee=e>0?clamp((e-.35)/.65,0,1):e;
+    if(ee<=0){ o=ee<0?-ee:0; if(ee<0) tf="translateY("+((1+ee)*-8*sc).toFixed(1)+"px)"; }
+    else { var z=ease(ee); o=z;
+      if(mode==="type"){ o=1; if(z<1) cp="inset(0 "+((1-z)*100).toFixed(1)+"% 0 0)"; }
+      else if(mode==="rise"||mode==="ghost") tf="translateY("+((1-z)*(mode==="ghost"?8:12)*sc).toFixed(1)+"px)";
+      else if(mode==="side") tf="translateX("+((1-z)*dx*sc).toFixed(1)+"px)";
+      else if(mode==="title") o=1;
+      if(z>=1) tf=""; } }
+  var key=o.toFixed(3)+tf+cp; if(el._mp===key) return; el._mp=key;
+  var st=el.style; st.opacity=o.toFixed(3); st.transform=tf; st.clipPath=cp;
+}
+/* THE ONE BEAT-ADVANCE ON A PHONE: beat i arrives now. From the cue below, or a swipe. Whatever is on
+   screen (even part-way through a move) is where the move starts. */
+function goBeat(i){
+  var M=MP; if(!M.on||M.desk||i===M.cur) return;
+  var first=M.cur<0, sh=M.shown;
+  M.prev=first?-1:M.cur; M.from=first||reduce||!sh?null:{pose:{tx:sh.tx,ty:sh.ty,k:sh.k,r:sh.r},clip:sh.cl.slice(),round:sh.rr,art:sh.art};
+  M.cur=i; M.t0=now(); again();
+}
+function framePhoneMock(){
+  var M=MP, sy=W.pageYOffset, anchor=sy+G.sw, N=B.length, i=0, k, t=now();
+  for(k=0;k<N;k++) if(B[k].top<=anchor) i=k;
+  if(i!==M.cur) goBeat(i);
+  var u=reduce||!M.from?1:clamp((t-M.t0)/M.BEAT,0,1), dt=M.last&&t-M.last<100?(t-M.last)/1000:1/60; M.last=t;
+  var more=mpRender(u,sy,t,dt);
+  if(u<1||more) again();
+}
+/* from 768px: the scroll scrubs the stage, as the mock's range slider does (t = beat + u) */
+function frameDeskStage(){
+  var M=MP, sy=W.pageYOffset, line=sy+HDR+1, N=B.length, i=0, k, t=now(), bp=Math.max(1,B[0].h);
+  for(k=0;k<N;k++) if(B[k].top<=line) i=k;
+  var u=reduce?.9999:clamp((line-1-B[i].top)/bp,0,.9999), dt=M.last&&t-M.last<100?(t-M.last)/1000:1/60; M.last=t;
+  M.cur=i; M.prev=i-1;
+  /* the mock: before the first move the title stands still; after it, every beat moves from the one before */
+  var P=i>0&&!reduce?M.S[i-1]:null; M.from=P?{pose:P.Y.pose,clip:P.Y.clip,round:P.Y.round,art:P.art}:null;
+  if(mpRender(u,sy,t,dt)) again();
+}
+/* the mock's Stage.prototype.render, at u of the current beat */
+function mpRender(u,sy,t,dt){
+  var M=MP, V=M.V, sc=M.sc, ox=M.ox, T=M.T, i=M.cur, B0=M.S[i], Y=B0.Y, A0=M.from, N=M.S.length, j, more=false;
+  var mv=!A0?1:(u<T.m0?0:(u<T.m1?ease((u-T.m0)/(T.m1-T.m0)):1)), arc=Math.sin(mv*Math.PI);
+  var Q=Y.pose; if(B0.kind==="title"&&!M.desk) Q={tx:Q.tx,ty:Q.ty-Math.max(0,sy-(G.top-HDR))/sc,k:Q.k,r:Q.r};
+  var P=A0?A0.pose:Q, Pc=A0?A0.clip:Y.clip, Pr=A0?A0.round:Y.round;
+  var tx=lerp(P.tx,Q.tx,mv), ty=lerp(P.ty,Q.ty,mv)-6*arc, kk=lerp(P.k,Q.k,mv)*(1-.05*arc), r=lerp(P.r,Q.r,mv)+2.5*arc*((M.desk?(B0.flip?-1:1):B0.sd)||1);
+  var tf="translate("+(ox+tx*sc).toFixed(1)+"px,"+((ty-V.TOP)*sc).toFixed(1)+"px) rotate("+r.toFixed(2)+"deg) scale("+(kk*sc).toFixed(4)+")";
+  if(M.tf!==tf){ M.tf=tf; MK.pw.style.transform=tf; }
+  var cl=[0,1,2,3].map(function(q){ return lerp(Pc[q],Y.clip[q],mv); }), rr=lerp(Pr,Y.round,mv);
+  var cs="inset("+((cl[0]-V.TOP)*sc).toFixed(1)+"px "+(ox+cl[1]*sc).toFixed(1)+"px "+(cl[2]*sc).toFixed(1)+"px "+(ox+cl[3]*sc).toFixed(1)+"px"+(rr>.5?" round "+(rr*sc).toFixed(1)+"px":"")+")";
+  if(M.cs!==cs){ M.cs=cs; MK.st.style.clipPath=cs; }
+  /* the screen inside the phone dissolves as it moves */
+  var fromArt=A0?A0.art:B0.art;
+  if(fromArt!==B0.art&&mv<1){ mkHref(MK.a1,fromArt); mkHref(MK.a2,B0.art); MK.a2.style.opacity=mv.toFixed(3); }
+  else { mkHref(MK.a1,B0.art); if(MK.a2.style.opacity!=="0") MK.a2.style.opacity="0"; }
+  M.shown={tx:tx,ty:ty,k:kk,r:r,cl:cl,rr:rr,art:mv>=.5?B0.art:fromArt};
+  /* the ring, once the phone has arrived */
+  var sp=Y.spot, so=(u<T.m1+.04||!sp[2])?0:Math.min(1,(u-T.m1-.04)/.1); if(B0.kind==="title") so=0; if(!A0&&sp[2]&&B0.kind!=="title") so=1;
+  var spk=sp.join(",")+B0.col+so.toFixed(2); if(M.spk!==spk){ M.spk=spk; var rc=MK.sp; rc.setAttribute("x",sp[0]); rc.setAttribute("y",sp[1]); rc.setAttribute("width",sp[2]); rc.setAttribute("height",sp[3]); rc.setAttribute("stroke",B0.col); rc.style.opacity=so.toFixed(2); }
+  /* the words: the current note's arrive, the last note's leave; the rest are out of sight */
+  var atEnd=sy>G.end-G.pinB;
+  for(j=0;j<N;j++){
+    var L=M.S[j], e=0, w=0, bj=B[j], LY=L.Y;
+    if(j===i){ e=!A0?1:(u>=T.i0?Math.min(1,(u-T.i0)/(T.i1-T.i0)):0); w=mv; }
+    else if(j===M.prev&&A0){ e=u<T.out?-(1-u/T.out):0; w=1-mv; }
+    if(j===0&&i===0) e=Math.max(e,1);
+    L.parts.forEach(function(el,q){ if(el===L.flt) return; mpEnter(el,LY.mode,e,LY.dx,LY.mode==="side"&&!M.desk?q:null); });
+    if(L.num) mpEnter(L.num,"ghost",e,0,null);
+    if(L.win) mpEnter(L.win,"frame",w,0,null);
+    if(L.lab){ mpEnter(L.lab,"side",e,LY.lab.dx,null);
+      var lo=(j===i?clamp((e-.4)/.4,0,1):(e<0?-e:0)).toFixed(3); if(L.ln._o!==lo){ L.ln._o=lo; L.ln.style.opacity=lo; } }
+    var on=j===i||e<0, pe=j===i?"auto":"none"; if(bj.sbt.style.pointerEvents!==pe) bj.sbt.style.pointerEvents=pe;
+    if(L.kind!=="title"||M.desk) dockNote(bj,on?(j===N-1&&atEnd?"end":"dock"):false);
+  }
+  /* the hands-on moment plays once the words are in */
+  if(B0.live){ if(MK.liveId!==B0.id){ mkDraw(MK.ov,B0.id); MK.liveId=B0.id; MK.cv=null; }
+    if(mkLive(B0.id,u,ease(clamp((u-.52)/.34,0,1)),t,dt)) more=true; }
+  else if(MK.liveId){ MK.ov.textContent=""; MK.liveId=null; }
+  setActive("run",false); setActive("radar",false);
+  /* the acts strip */
+  if(M.shownBeat!==i){ M.shownBeat=i; MK.st.setAttribute("aria-label",MK.beats[i].label);
+    M.acts.forEach(function(a){ var on=i>=a.from&&i<=a.to; a.el.className=on?"on":(i>a.to?"done":""); if(on) M.rib.scrollLeft=Math.max(0,a.el.offsetLeft-M.rib.offsetLeft-30*sc); }); }
+  return more;
+}
+function frame(){ if(G.wide){ if(MK.on) (MP.on&&DESK_STAGE?frameDeskStage:frameMock)(); else frameDoc(); } else if(MP.on) framePhoneMock(); else frameCue(); }
 var queued=false;
 function onScroll(){ if(queued) return; queued=true; W.requestAnimationFrame(function(){ queued=false; frame(); }); }
 /* on a phone the address bar coming and going changes the window's height: lay out again, from the
