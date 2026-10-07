@@ -351,9 +351,9 @@ a:hover{background:var(--mark)}
    font factor, below 1 only where the site's longer words would not otherwise fit, never under 15 px).
    The words of the current note are held where the mock puts its caption; the phone, its window frame,
    a label with its dashed leader and the acts strip along the bottom are the mock's, drawn in the pin. */
-:root{--mk-ghost:#D6DCE0;--mk-lcmd:#C07A16;--mk-lact:#5E8A00;--mk-lplan:#3F74D6;--mk-rb:#B4BCC3;--mk-rbl:#D3D9DD;--mk-rd:#6B747D;--mk-rdl:#9AA3AB}
-@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--mk-ghost:#2C3339;--mk-lcmd:#E8A443;--mk-lact:#9ACD32;--mk-lplan:#7FB2FF;--mk-rb:#4D565F;--mk-rbl:#2E353D;--mk-rd:#8D96A0;--mk-rdl:#5C656F} }
-:root[data-theme="dark"]{--mk-ghost:#2C3339;--mk-lcmd:#E8A443;--mk-lact:#9ACD32;--mk-lplan:#7FB2FF;--mk-rb:#4D565F;--mk-rbl:#2E353D;--mk-rd:#8D96A0;--mk-rdl:#5C656F}
+:root{--mk-ghost:#7F8891;--mk-lcmd:#C07A16;--mk-lact:#5E8A00;--mk-lplan:#3F74D6;--mk-rb:#B4BCC3;--mk-rbl:#D3D9DD;--mk-rd:#6B747D;--mk-rdl:#9AA3AB}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--mk-ghost:#626B75;--mk-lcmd:#E8A443;--mk-lact:#9ACD32;--mk-lplan:#7FB2FF;--mk-rb:#4D565F;--mk-rbl:#2E353D;--mk-rd:#8D96A0;--mk-rdl:#5C656F} }
+:root[data-theme="dark"]{--mk-ghost:#626B75;--mk-lcmd:#E8A443;--mk-lact:#9ACD32;--mk-lplan:#7FB2FF;--mk-rb:#4D565F;--mk-rbl:#2E353D;--mk-rd:#8D96A0;--mk-rdl:#5C656F}
 .mkp-layer,.mkp-rib{display:none}
 /* a close-up's window: drawn in the phone's own drawing, on the edge of its crop, so it moves with the phone and
    always has the phone's screen inside it; it is only shown while the phone is at rest in that crop */
@@ -3239,13 +3239,14 @@ function mpEnter(el,mode,e,dx,q){
    on its progress c (0 to 1): the page glides from one beat's stop to the next and the Stage plays the change on
    the same c. A wheel or key runs c over STEP_MS on a sine ease; a finger drags c with it (c chases the finger,
    never faster than a timed change runs) and on release the change completes, or goes back, from where it is at
-   the speed it had, easing to rest. While a change and its hands-on moment play, input is ignored, not queued; a
+   the speed it had, easing to rest. While a change plays, input is ignored, not queued (a beat's hands-on moment plays on after it, and a step away
+   is taken at once: the owner's call, 7 Oct); a
    new step needs a new gesture (wheel: a quiet gap of WHEEL_GAP ms, a turn, or deltas rising again after decaying).
    When nothing plays the page is on a beat's stop and the Stage shows that beat's finished frame: a jump the page
    makes on its own (Home / End, the scroll bar, find, a deep link, focus) shows the beat it lands in at once,
    finished, and the page is then set on its stop. Outside the story the page scrolls as any page; entering it from
    below lands on its last beat. With reduced motion a step is a cut. */
-var STEP_MS=1000, WHEEL_GAP=200, RISE=2.5, RISE_PX=8, STEP_MIN=8, FLICK=.2, PUSH=.3, CHASE=11, VMAX=1.7, HANDS_MS=1344, RM_HOLD=450;   /* (reduced motion: a cut, then a short hold, so two quick flicks are still one step) */
+var STEP_MS=1000, WHEEL_GAP=200, RISE=2.5, RISE_PX=8, STEP_MIN=8, FLICK=.2, PUSH=.3, CHASE=11, VMAX=1.7, RM_HOLD=450;   /* (reduced motion: a cut, then a short hold, so two quick flicks are still one step) */
 var CHG={out:.18,i0:.66,ring:.84,fout:.06,fin:.9}, NOC=[-30,-30,-30,-30];
 var CT={on:false,S:[],N:0,last:0,END:0,ZONE:0,k:-1,s:0,v:0,sf:0,fy:0,readY:0,mode:"rest",a:null,done:-1e9,busyTo:0,expectY:-1,snapT:0,ptr:false,touching:false,est:0,estT:-1e9};
 function seg(x,a,b){ return clamp((x-a)/(b-a),0,1); }
@@ -3273,7 +3274,7 @@ function ctMeasure(){
   if(sy<=CT.last+1&&!zoomed()) jumpY(clamp(sy,CT.S[CT.k].lo,CT.S[CT.k].hi)); else CT.expectY=sy;
   arm();
 }
-function ctArrive(n,dir,t){ CT.k=n; CT.s=0; CT.v=0; CT.mode="rest"; CT.a=null; CT.done=reduce?-1e9:t; CT.busyTo=t+(reduce?RM_HOLD:MP.S[n].live?HANDS_MS:0);
+function ctArrive(n,dir,t){ CT.k=n; CT.s=0; CT.v=0; CT.mode="rest"; CT.a=null; CT.done=reduce?-1e9:t; CT.busyTo=t+(reduce?RM_HOLD:0);
   jumpY(dir>0?CT.S[n].lo:CT.S[n].hi); again(); }
 function ctCut(k,toEnd){ CT.k=k; CT.s=0; CT.v=0; CT.mode="rest"; CT.a=null; CT.done=-1e9; CT.busyTo=0; jumpY(toEnd?CT.S[k].hi:CT.S[k].lo); again(); }
 function ctChange(dir,t){ var n=CT.k+dir; if(n<0||n>=CT.N) return false;
