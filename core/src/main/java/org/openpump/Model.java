@@ -1051,6 +1051,13 @@ public final class Model {
         public boolean awaitAck;
         public boolean rest;
         /**
+         * THIS STEP IS DONE BY HAND - stamped from a manual rest STAGE by {@link Model#plan}
+         * (the tunica release, the changeover), never from a set. The run names it ("BY HAND",
+         * never "REST") and the release waits for Done once its guide time is up
+         * ({@link ByHand#waitsAfterClock}). TRANSIENT, like every other field here.
+         */
+        public boolean manual;
+        /**
          * HOW MUCH THE WHOLE-ROUTINE OFFSET HAS MOVED THIS PRESET'S PULL, in kPa - what it
          * actually changed, after the ceiling and the floor. RoutineOffset#apply holds the
          * trainer's cap against it step by step, so a step can never be taken further above
@@ -3361,6 +3368,15 @@ public final class Model {
          * MIGRATION: false. No stage written before this was a climb anybody left uncounted.
          */
         public boolean climb;
+
+        /**
+         * THIS STAGE ENDS WHEN THE PERSON TAPS DONE (the owner's decision, 2026-10-07): the
+         * changeover from its start ({@link #awaitAck}), and every other by-hand rest - the
+         * tunica release - once its time, now a guide, has run out (ByHand#waitsAfterClock).
+         * Derived, not stored, so a routine saved before it waits the same way and no saved
+         * field changes.
+         */
+        public boolean awaitsDone() { return rest && (awaitAck || manual); }
 
         /** Whether this stage's frames are excluded from NET TUP. Gross still counts them:
          *  the cuff was sealed and the time was real. One predicate, so a third kind of
@@ -10721,6 +10737,7 @@ public final class Model {
                     Preset p = rl.get(k);
                     p.stageIdx = i;
                     p.awaitAck = st.awaitAck;
+                    p.manual = st.manual;
                     p.setId = "stage-rest:" + i;
                     p.ordinal = k;
                     p.pos = 0;

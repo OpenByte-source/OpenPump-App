@@ -207,8 +207,13 @@ public final class RunLook {
         /** A preset is armed and playing. */
         public boolean armed;
         public boolean holding;
-        /** A cylinder changeover is waiting for the user's "I've swapped". */
+        /** A cylinder changeover is waiting for the user's "I've swapped" - or, with
+         *  {@link #byHand}, the release's guide time is up and it waits for Done. */
         public boolean awaitingAck;
+        /** THE RELEASE IS PLAYING (ByHand#waitsAfterClock): a step done by hand, the pump
+         *  vented, its time a guide. The line says BY HAND, never REST, and warns of no pull -
+         *  nothing pulls until Done (the owner's decision, 2026-10-07). */
+        public boolean byHand;
         /** A rest is playing: the plan's own, or one inserted with Rest. */
         public boolean resting;
         /** Time left in the rest. */
@@ -235,7 +240,7 @@ public final class RunLook {
 
     /** True in the last {@link #PULL_WARN_MS} of a rest that a pull follows. */
     public static boolean pullWarning(Now n) {
-        return n != null && n.resting && !n.holding && !n.awaitingAck && n.pullNext
+        return n != null && n.resting && !n.holding && !n.awaitingAck && !n.byHand && n.pullNext
             && n.restLeftMs > 0 && n.restLeftMs <= PULL_WARN_MS;
     }
 
@@ -260,6 +265,7 @@ public final class RunLook {
      *   ramp        "RAMP · STEP 3 OF 5"
      *   warm-up     "WARM-UP"
      *   rest        "REST · PULL IN 1:46" (unchanged)
+     *   by hand     "BY HAND · 4:32 LEFT", then "BY HAND · DONE WHEN YOU ARE" (ByHand)
      *   paused      "PAUSED · PRESSURE KEPT · TAP RESUME"
      * A PAUSE always says so, in words, whatever the colour setting: a run held at pressure
      * must never read as one that is running.
@@ -267,6 +273,8 @@ public final class RunLook {
     public static String statusLeft(Now n) {
         if (n == null) return "";
         if (n.holding) return n.narrow ? PAUSED_SHORT : PAUSED;
+        // A step done by hand says so, where a rest would say REST (ByHand).
+        if (n.byHand && (n.armed || n.awaitingAck)) return ByHand.status(n.restLeftMs, n.awaitingAck);
         if (n.awaitingAck) return "CHANGE CYLINDER · TAP I’VE SWAPPED";
         if (!n.armed) return "STARTING";
         if (n.resting) {

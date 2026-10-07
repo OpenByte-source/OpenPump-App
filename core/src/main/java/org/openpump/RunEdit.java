@@ -56,6 +56,7 @@ public final class RunEdit {
         p.pos = z.pos;
         p.awaitAck = z.awaitAck;
         p.rest = z.rest;
+        p.manual = z.manual;
         p.offsetKpa = z.offsetKpa;
         p.src = z.src;
         return p;

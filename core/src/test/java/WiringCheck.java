@@ -2596,6 +2596,9 @@ public final class WiringCheck {
         /* Invariant 250 (polish P0): the shared Ui helpers the polish lanes build on keep
          * their contract. */
         checkSharedHelpersFiles(SRC_DIR, violations);
+        /* Invariant 251 (the owner's decision, 2026-10-07): a step done by hand is named while
+         * it plays, and the release waits for Done. */
+        checkByHandFiles(SRC_DIR, violations);
         System.out.println("WiringCheck: " + pure.size() + " source(s) scanned for the pure "
             + "invariants (28, 29, 30)");
 
@@ -28194,6 +28197,8 @@ public final class WiringCheck {
         /* ---- invariants 249-250 (polish P0: banned words, shared helpers) ---------- */
         userWordsSelfTests(counts);
         sharedHelpersSelfTests(counts);
+        /* ---- invariant 251 (a step done by hand is named; the release waits for Done) ---- */
+        byHandSelfTests(counts);
 
         /* ---- blankStringLiterals ------------------------------------------------ */
 
@@ -31228,6 +31233,155 @@ public final class WiringCheck {
         v = new ArrayList<String>();
         checkSharedHelpers(ok.toString(), "class Look { static int inkOn(int f) { return TEXT; } }", v);
         selfCheck(counts, v.size() == 1, "invariant 250 rejects an inkOn with no red branch");
+    }
+
+    /**
+     * INVARIANT 251 (the owner's decision, 2026-10-07): A STEP DONE BY HAND IS NAMED WHILE IT
+     * PLAYS, AND THE TUNICA RELEASE WAITS FOR DONE.
+     *
+     * Every planned rest used to read "REST" on the run screen, the by-hand tunica release
+     * included, so the one step that asks the person to do something was the one step nothing
+     * named; and at 5:00 the release went on to the warm-up by itself.
+     *   (a) the NOW card's title answers a by-hand step (ByHand.is) with ByHand.title( before it
+     *       can say "REST"; Coming steps names one with ByHand.coming( before it can say "Rest";
+     *       the routine line keeps its name (restHere leaves out cur.manual); the status line is
+     *       handed n.byHand and RunLook.statusLeft answers it before a rest; the Skip button
+     *       reads ByHand.DONE;
+     *   (b) the Activity's Advance raises the gate (awaitingAck = true) for
+     *       ByHand.waitsAfterClock BEFORE it can playPreset - so nothing is armed and the pump
+     *       stays vented at 0:00 - playPreset arms it for the release's own step only, and Done
+     *       (skipPresetOrWhy) clears it.
+     */
+    static void checkByHand(String screen, String act, String look, List<String> violations) {
+        String f = flat224(screen);
+        int t = f.indexOf("a.nowName.setText(");
+        String title = t < 0 ? "" : f.substring(t, Math.max(t, f.indexOf(';', t)));
+        int byHandAt = title.indexOf("ByHand.is(");
+        int restAt = title.indexOf("\"REST\"");
+        if (title.indexOf("ByHand.title(") < 0 || byHandAt < 0 || (restAt >= 0 && restAt < byHandAt))
+            violations.add("RunScreen.java: invariant 251 - the NOW card's title no longer names "
+                + "a step done by hand (ByHand.title, before \"REST\")");
+        String coming = body228(screen, "String\\s+comingName\\s*\\(", "RunScreen.java",
+            "comingName", violations);
+        if (coming != null) {
+            int c = coming.indexOf("ByHand.coming(");
+            int rest = coming.indexOf("\"Rest\"");
+            if (c < 0 || (rest >= 0 && rest < c))
+                violations.add("RunScreen.java: invariant 251 - Coming steps no longer names a "
+                    + "step done by hand (ByHand.coming, before \"Rest\")");
+        }
+        if (f.indexOf("booleanrestHere=a.resting&&!a.restingNow&&cur.rest&&!cur.manual;") < 0)
+            violations.add("RunScreen.java: invariant 251 - the routine line drops a by-hand "
+                + "step's name again (restHere must leave out cur.manual)");
+        String top = body228(screen, "void\\s+paintRunTop\\s*\\(", "RunScreen.java",
+            "paintRunTop", violations);
+        if (top != null && top.indexOf("n.byHand=") < 0)
+            violations.add("RunScreen.java: invariant 251 - the status line is not told a step "
+                + "done by hand is playing (n.byHand)");
+        String ctl = body228(screen, "void\\s+refreshTimerControls\\s*\\(", "RunScreen.java",
+            "refreshTimerControls", violations);
+        if (ctl != null && ctl.indexOf("ByHand.DONE") < 0)
+            violations.add("RunScreen.java: invariant 251 - the release's button no longer reads "
+                + "Done (ByHand.DONE)");
+        String sl = body228(look, "String\\s+statusLeft\\s*\\(", "RunLook.java", "statusLeft",
+            violations);
+        if (sl != null) {
+            int bh = sl.indexOf("if(n.byHand");
+            int rest = sl.indexOf("if(n.resting)");
+            if (bh < 0 || (rest >= 0 && rest < bh))
+                violations.add("RunLook.java: invariant 251 - statusLeft no longer says BY HAND "
+                    + "before it can say REST");
+        }
+        String adv = body228(act, "class\\s+Advance\\b", "SessionActivity.java", "Advance",
+            violations);
+        if (adv != null) {
+            int gate = adv.indexOf("ByHand.waitsAfterClock(");
+            int raise = gate < 0 ? -1 : adv.indexOf("awaitingAck=true;", gate);
+            int play = adv.indexOf("playPreset(idx);");
+            if (gate < 0 || raise < 0 || play < 0 || raise > play
+                    || adv.substring(raise, play).indexOf("return;") < 0)
+                violations.add("SessionActivity.java: invariant 251 - Advance no longer holds the "
+                    + "release at 0:00 (ByHand.waitsAfterClock -> awaitingAck = true, return, "
+                    + "before playPreset) - the warm-up would pull without Done");
+        }
+        String pp = body228(act, "void\\s+playPreset\\s*\\(", "SessionActivity.java",
+            "playPreset", violations);
+        if (pp != null && pp.indexOf("byHandGateIdx=ByHand.waitsAfterClock(p)?idx:-1;") < 0)
+            violations.add("SessionActivity.java: invariant 251 - playPreset no longer arms the "
+                + "release's gate for its own step only");
+        String sk = body228(act, "String\\s+skipPresetOrWhy\\s*\\(", "SessionActivity.java",
+            "skipPresetOrWhy", violations);
+        if (sk != null && sk.indexOf("byHandGateIdx=-1;") < 0)
+            violations.add("SessionActivity.java: invariant 251 - Done no longer clears the "
+                + "release's gate - the next step's upload could raise it again");
+    }
+
+    static void checkByHandFiles(String dir, List<String> violations) throws IOException {
+        String screen = runScreenRaw(dir, "RunScreen.java", violations);
+        String act = runScreenRaw(dir, "SessionActivity.java", violations);
+        String look = runScreenRaw(dir, "RunLook.java", violations);
+        if (screen != null && act != null && look != null)
+            checkByHand(screen, act, look, violations);
+    }
+
+    /** Invariant 251's self-test: the app's shapes pass, and each road taken off is caught. */
+    static void byHandSelfTests(int[] counts) {
+        String screen =
+              "void refreshRunScreen(long e) {\n"
+            + "  boolean restHere = a.resting && !a.restingNow && cur.rest && !cur.manual;\n"
+            + "  a.nowName.setText(ByHand.is(cur) && !a.restingNow ? ByHand.title(stageNameOf(cur))\n"
+            + "      : a.resting || a.restingNow ? \"REST\" : \"NOW · \" + who);\n"
+            + "}\n"
+            + "private void paintRunTop(Model.Preset cur) { n.byHand = ByHand.waitsAfterClock(cur);"
+            + " a.runStatusL.setText(RunLook.statusLeft(n)); }\n"
+            + "private void refreshTimerControls() { setText(a.skipBtn, done ? ByHand.DONE : x); }\n"
+            + "private String comingName(int s, Model.Stage st) {\n"
+            + "  if (st.rest && st.manual) return ByHand.coming(st.name);\n"
+            + "  if (st.rest) return \"Rest\";\n  return st.name; }\n";
+        String look = "public static String statusLeft(Now n) { if (n.holding) return PAUSED;"
+            + " if (n.byHand && n.armed) return ByHand.status(n.restLeftMs, n.awaitingAck);"
+            + " if (n.resting) return \"REST\"; return \"WORK\"; }\n";
+        String act = "private final class Advance implements Runnable { public void run() {"
+            + " if (awaitingAck) return;"
+            + " if (running && ByHand.waitsAfterClock(plan.get(planIdx))) { awaitingAck = true;"
+            + " return; }"
+            + " playPreset(idx); } }\n"
+            + "private void playPreset(int idx) { awaitingAck = false;"
+            + " byHandGateIdx = ByHand.waitsAfterClock(p) ? idx : -1; }\n"
+            + "String skipPresetOrWhy() { awaitingAck = false; byHandGateIdx = -1; return null; }\n";
+        List<String> v = new ArrayList<String>();
+        checkByHand(screen, act, look, v);
+        selfCheck(counts, v.isEmpty(), "INV251: the app's shapes pass (got " + v + ")");
+        String[][] bad = {
+            { "S", "the title says REST first",
+              "a.nowName.setText(ByHand.is(cur) && !a.restingNow ? ByHand.title(stageNameOf(cur))\n"
+              + "      : a.resting || a.restingNow ? \"REST\"",
+              "a.nowName.setText(a.resting || a.restingNow ? \"REST\"" },
+            { "S", "Coming steps says Rest", "  if (st.rest && st.manual) return ByHand.coming(st.name);\n", "" },
+            { "S", "the routine line drops the name", " && !cur.manual;", ";" },
+            { "S", "the status line is not told", "n.byHand = ByHand.waitsAfterClock(cur);", "" },
+            { "S", "the button says End rest", "ByHand.DONE", "\"End rest\"" },
+            { "L", "the line says REST first",
+              " if (n.byHand && n.armed) return ByHand.status(n.restLeftMs, n.awaitingAck);", "" },
+            { "A", "the release runs on at 0:00",
+              " if (running && ByHand.waitsAfterClock(plan.get(planIdx))) { awaitingAck = true;"
+              + " return; }", "" },
+            { "A", "the gate raised and the warm-up played anyway",
+              "awaitingAck = true; return; }", "awaitingAck = true; }" },
+            { "A", "the gate armed for every step", "ByHand.waitsAfterClock(p) ? idx : -1", "idx" },
+            { "A", "Done leaves the gate armed", " byHandGateIdx = -1; return null;", " return null;" },
+        };
+        for (int i = 0; i < bad.length; i++) {
+            String s2 = screen, l2 = look, a2 = act;
+            if (bad[i][0].equals("S")) s2 = screen.replace(bad[i][2], bad[i][3]);
+            if (bad[i][0].equals("L")) l2 = look.replace(bad[i][2], bad[i][3]);
+            if (bad[i][0].equals("A")) a2 = act.replace(bad[i][2], bad[i][3]);
+            boolean changed = !s2.equals(screen) || !l2.equals(look) || !a2.equals(act);
+            v = new ArrayList<String>();
+            checkByHand(s2, a2, l2, v);
+            selfCheck(counts, changed && v.size() == 1,
+                "INV251 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
+        }
     }
 
     private static void selfCheck(int[] counts, boolean ok, String what) {

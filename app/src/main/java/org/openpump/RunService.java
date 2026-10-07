@@ -146,6 +146,9 @@ public final class RunService extends Service {
         String liveHoldVentsIn();
         /** Cuff pressure in the display unit, already formatted; "" when unknown. */
         String livePressure();
+        /** A step done by hand, named for the notification's lead ("By hand · Tunica release",
+         *  ByHand#notification); "" for every other step (the owner's decision, 2026-10-07). */
+        String livePhase();
         /** True while the run is held right now (the user's pause) — read fresh each
          *  tick, like every other Live value, so the notification's HOLD/RESUME action
          *  label never claims the opposite of what tapping it would actually do. */
@@ -1071,6 +1074,8 @@ public final class RunService extends Service {
      *  {@link Live#liveHolding()}. */
     private boolean snapHolding;
     private String snapHoldVentsIn = "";
+    /** Live#livePhase, pulled in the same breath for the same reason; not for the widget. */
+    private String snapPhase = "";
 
     /** Pull {@link Live}'s five values exactly once into this service's own fields. Called
      *  at the top of every tick and before the very first notification is built
@@ -1086,6 +1091,7 @@ public final class RunService extends Service {
         snapDiscreet = l != null && l.discreetMode();
         snapHolding = l != null && l.liveHolding();
         snapHoldVentsIn = l == null ? "" : l.liveHoldVentsIn();
+        snapPhase = l == null ? "" : l.livePhase();
     }
 
     @Override public IBinder onBind(Intent i) { return null; }
@@ -1391,8 +1397,9 @@ public final class RunService extends Service {
 
         Notification.Builder b = builder(this, CHANNEL_ID, Notification.PRIORITY_LOW);
         b.setContentTitle(Session.runNotificationTitle(discreet, name))
-         .setContentText(Session.runNotificationText(discreet, name, idx, total, left, press,
-                                                     snapHoldVentsIn))
+         .setContentText(Session.runNotificationPhase(discreet, snapPhase,
+             Session.runNotificationText(discreet, name, idx, total, left, press,
+                                         snapHoldVentsIn)))
          .setSmallIcon(R.drawable.ic_notification)
          .setContentIntent(tap)
          .setOngoing(true)

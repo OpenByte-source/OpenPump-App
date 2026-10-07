@@ -369,8 +369,9 @@ public final class RunShape {
 
     /**
      * The hand tunica release, as the length builder writes it: a REST stage done by hand,
-     * that waits for nothing - vented, uncommanded (RxBuild#tractionRoutineFromRx, block 1).
-     * The tube-swap stage is manual too, but waits for its acknowledgement; it is not this.
+     * vented, uncommanded (RxBuild#tractionRoutineFromRx, block 1), with no awaitAck - it
+     * waits for Done only once its guide time is up (ByHand#waitsAfterClock). The tube-swap
+     * stage is manual too, but waits for its acknowledgement from its start; it is not this.
      */
     public static boolean isRelease(Model.Stage st) {
         return st != null && st.rest && st.manual && !st.awaitAck;

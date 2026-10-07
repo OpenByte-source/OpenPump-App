@@ -2438,7 +2438,9 @@ public final class RxBuild {
         // 1. THE TUNICA RELEASE. A rest stage, because a rest is precisely "the cuff is
         //    vented, wait here" - which is what this is - plus the manual flag, so nothing
         //    can later mistake it for work and no set can be put in it (clampRest empties
-        //    the list and there is no path from an empty stage to Proto).
+        //    the list and there is no path from an empty stage to Proto). Its 5:00 is a guide:
+        //    the run names it BY HAND and waits for Done once that time is up, derived from
+        //    the manual flag (ByHand#waitsAfterClock; the owner's decision, 2026-10-07).
         Model.Stage rel = Model.Stage.restOf("Tunica release \u2014 by hand", TUNICA_RELEASE_SEC);
         rel.manual = true;
         r.stages.add(rel);
@@ -2529,10 +2531,11 @@ public final class RxBuild {
                 + Model.Fmt.p(codaKpa), CHANGEOVER_SEC);
             over.manual = true;
             /* AND IT WAITS. Spec section 4 item 4: "held, uncommanded ... waits for
-             * acknowledgement". The tunica release above deliberately does NOT get this -
-             * item 1 words that one "manual, timed only" - because the app can be wrong about
-             * how long a release takes and be harmless, while being wrong about whether the
-             * tubes have been swapped means commanding pressure into the wrong one. */
+             * acknowledgement". The tunica release above does NOT get this flag: it waits
+             * for Done only once its guide time is up (the owner's decision, 2026-10-07,
+             * replacing spec item 1's "manual, timed only"), where this waits from its start,
+             * because being wrong about whether the tubes have been swapped means commanding
+             * pressure into the wrong one. */
             over.awaitAck = true;
             r.stages.add(over);
         }

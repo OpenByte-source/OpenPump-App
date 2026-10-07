@@ -1069,7 +1069,7 @@ stretches) is done by hand before the pump, and the app doesn't prescribe it.
 
 | Stage | Role | What it is |
 |---|---|---|
-| Tunica release, by hand | prep | 5 minutes <!-- check RxBuild.TUNICA_RELEASE_SEC/60 = 5 -->, vented and timed |
+| Tunica release, by hand | prep | vented: 5 minutes <!-- check RxBuild.TUNICA_RELEASE_SEC/60 = 5 --> shown as a guide; at 0:00 it says "Done when you are" and waits for **Done** before the warm-up starts |
 | Warm-up | prep | as for girth, in the traction cylinder, ending at 80 % of the pull; the fatigue holds climb on from there |
 | Fatigue holds | work that doesn't count | 10 <!-- check RxBuild.TRACTION_FATIGUE_HOLDS = 10 --> holds of 60 seconds <!-- check Mint.TRACTION_FATIGUE_HOLD_SEC = 60 --> at the governed load, released to zero for 10 seconds <!-- check Mint.TRACTION_FATIGUE_REST_SEC = 10 --> between them |
 | Strain holds | work that doesn't count | one hold of 5 minutes <!-- check Mint.TRACTION_STRAIN_HOLD_SEC/60 = 5 --> per strain set, 30 seconds <!-- check Mint.TRACTION_STRAIN_REST_SEC = 30 --> released between them |
@@ -1588,7 +1588,9 @@ The coloured line under the bar names the phase, and only the phase:
   the bar shows);
 - on a ramp, "RAMP · STEP 3 OF 5";
 - in the warm-up, "WARM-UP";
-- in a rest, "REST · PULL IN 1:46".
+- in a rest, "REST · PULL IN 1:46";
+- in a step done by hand, "BY HAND · 4:32 LEFT", then "BY HAND · DONE WHEN YOU ARE" once the
+  tunica release's time is up.
 
 It never says the pressure: that is the chart's reading, and the targets are on the − / + strip
 below. On the right of the line is the time since the routine started against the routine's
@@ -1630,7 +1632,10 @@ step's colour (grey while paused), and one line of where you are and what comes 
 
 Its title reads "NOW · " and the name of what is playing, or "PAUSED · " and the name while the run
 is paused. In a rest the title is just "REST", once, and the small line under
-it ends "· vented" once the cuff is confirmed vented. There is no glow behind the timer. The time
+it ends "· vented" once the cuff is confirmed vented. A step done by hand is named instead:
+"BY HAND · Tunica release", with "Pump vented · do it by hand now" under the time (the
+changeover: "BY HAND · " and its own sentence). The routine line keeps its name, and Coming
+steps calls it "Tunica release (by hand)". There is no glow behind the timer. The time
 left is said here and in the chart's rest band, nowhere else.
 
 The card keeps one row of its own, **Routine offset … ROUTINE ›**, which moves the pull of every
@@ -1724,6 +1729,7 @@ Pause is the first button in every step. It was called Hold. The rest of the row
 |---|---|
 | Work | **Pause** · **Skip these sets** · **+30 s hold** · **Rest** |
 | Rest | **Pause** (greyed) · **End rest** · **+30 s rest** |
+| By hand (the tunica release) | **Pause** (greyed) · **Done** · **+30 s rest** |
 | Ramp | **Pause** · **Skip step** · **+0:42 step** (one whole cycle of the step; **+30 s step** on a step that is one cycle) |
 | Warm-up | **Pause** · **Skip warm-up** · **+30 s warm-up** |
 
@@ -1731,7 +1737,9 @@ Pause is the first button in every step. It was called Hold. The rest of the row
 reads **Resume** and is solid amber. In a rest it is greyed, because the cuff is vented and there
 is nothing to pause: a tap says "Nothing to pause in a rest: the cuff is vented." **Skip these
 sets** ends the block of sets playing, the sets still to come in it included; **Skip step** ends
-the ramp step playing; **End rest** ends the rest now, and the pump pulls. For a few seconds after
+the ramp step playing; **End rest** ends the rest now, and the pump pulls. **Done** ends the
+tunica release, before its 5 minutes are up or after: nothing is commanded until you tap it,
+and the changeover's **I've swapped** works the same way. For a few seconds after
 a skip the same button reads **Undo skip** and puts back what it took out.
 
 **+30 s** <!-- check QuickAdjust.PLUS_HOLD_SEC = 30 --> says what it adds: 30 s more on the hold of the set playing, on the rest, on the ramp step or on the

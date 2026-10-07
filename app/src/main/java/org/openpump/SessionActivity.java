@@ -14153,6 +14153,7 @@ public class SessionActivity extends Activity
     private void startSession(Model.Routine r) {
         if (refuseArmOutsideRun("startSession")) return;   // D2, invariant 65
         planIdx = -1; batchBase = 0; batchCount = 0;
+        byHandGateIdx = -1;
         pendingChange.cancel();
         freezeRepSchedule(r);
         runRoutine = r;    // the ONE routine this run refers to for its whole duration —
@@ -14377,6 +14378,24 @@ public class SessionActivity extends Activity
                 ui.postDelayed(this, left);
                 return;
             }
+            /* THE RELEASE WAITS FOR DONE (the owner's decision, 2026-10-07). Its time is a
+             * guide: when it runs out the run does not go on to the warm-up by itself. It
+             * raises the changeover's own gate - the clock is held (tickHold), nothing is
+             * armed, the pump stays vented - and only Done (skipPresetOrWhy) moves on. Only the
+             * advance that ends the release's own step raises it: byHandGateIdx is that step,
+             * and idx the one after it. */
+            if (running && byHandGateIdx >= 0 && byHandGateIdx == planIdx
+                    && idx == planIdx + 1 && planIdx < plan.size()
+                    && ByHand.waitsAfterClock(plan.get(planIdx))) {
+                byHandGateIdx = -1;
+                awaitingAck = true;
+                heldLastTickAt = now;
+                log("--- BY HAND: the release's time is up - waiting for Done, nothing armed ---");
+                buzz(CHANGE_MS);
+                redrawRunIfStillRunning();
+                Ui.say(SessionActivity.this, ByHand.WHEN_READY + " \u2014 press Done.", true);
+                return;
+            }
             // D2 - a set that ends at its time limit ends HERE, exactly as every set does;
             // the only difference is one sentence saying so.
             sayIfSetEndsAtItsLimit();
@@ -14483,6 +14502,9 @@ public class SessionActivity extends Activity
          * rest, and this is the PLAN's own gate. Cleared on entry to every preset, so a gate
          * cannot outlive the stage that set it. */
         awaitingAck = false;
+        // ...and the release's own gate is armed for THIS step only: its guide time runs,
+        // and Advance raises the gate when it is up (ByHand).
+        byHandGateIdx = ByHand.waitsAfterClock(p) ? idx : -1;
         /* THE MID-RUN CHECK APPEARS WHEN THE REST DOES. midRunCheckOffered() turns on with
          * `resting`, but the row that reads it is only built by showRun - so the check used
          * to appear on whatever redraw happened to come next rather than when the rest it
@@ -18430,6 +18452,12 @@ public class SessionActivity extends Activity
     Button skipBtn, extendBtn;
     /** True while a stage is waiting to be acknowledged - see Advance and tickHold. */
     boolean awaitingAck;
+    /** The plan index of the release playing now, whose guide time running out raises the
+     *  gate above (ByHand#waitsAfterClock, the owner's decision 2026-10-07); -1 otherwise.
+     *  Armed by playPreset for that step only, cleared by Done, by the gate it raises and by
+     *  the run's start and end - so the settle of the upload for the step after it can never
+     *  raise the gate again. */
+    int byHandGateIdx = -1;
     /** Rolling buffer the deviation chart draws — null entries mark a tick with no
      *  usable reading (link lost or a genuine "no reading" sample), so the chart can
      *  show a gap instead of inventing a value (S2). */
@@ -20927,7 +20955,10 @@ public class SessionActivity extends Activity
         /* A STAGE THAT IS WAITING SAYS SO FIRST. Whatever the track's ordinary rest advice
          * is, it is not what a person needs to read while the run is parked waiting for them
          * to do something - and "stay in the cylinder" would be actively wrong here. */
-        if (awaitingAck) return "swap the cylinder, then press “I’ve swapped”";
+        if (awaitingAck) return releasePlaying() ? "press Done when you are"
+                                                  : "swap the cylinder, then press “I’ve swapped”";
+        // THE RELEASE IS DONE BY HAND, and Done ends it (ByHand).
+        if (releasePlaying()) return "do it by hand, then press Done";
         int track = runRoutine != null ? runRoutine.trainerTrack : -1;
         // L4 OPTION B, on the SAME line rather than a card of its own: it is a different
         // thing to do during the rest that is already being described, and a second card
@@ -20943,6 +20974,25 @@ public class SessionActivity extends Activity
         // Off-plan, length, or a routine that names no track: the honest thing is still what
         // the pump is doing, because there is no prescription here to instruct anybody.
         return "nothing commanded";
+    }
+
+    /** THE RELEASE IS PLAYING NOW (ByHand#waitsAfterClock): the planned step done by hand
+     *  whose time is a guide - never under a rest the person inserted. */
+    boolean releasePlaying() {
+        return running && !restingNow && planIdx >= 0 && planIdx < plan.size()
+            && ByHand.waitsAfterClock(plan.get(planIdx));
+    }
+
+    /** A STEP DONE BY HAND IS PLAYING NOW (ByHand#is) - the release or the changeover. */
+    boolean byHandPlaying() {
+        return running && !restingNow && planIdx >= 0 && planIdx < plan.size()
+            && ByHand.is(plan.get(planIdx));
+    }
+
+    /** What the run is waiting for, while its gate is up: the cylinder change, or Done. */
+    String waitingWhy() {
+        return releasePlaying() ? "The run is waiting for you to press Done."
+                                : "The run is waiting for the cylinder change.";
     }
 
     /* ================================================== THE SET WAVEFORM ========= */
@@ -22407,8 +22457,8 @@ public class SessionActivity extends Activity
             lab.setColor(rc);
             lab.setTextSize(Ui.dp(SessionActivity.this, 12));
             lab.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-            String said = "REST · " + Model.Fmt.t((Math.max(0L, span[1] - now) + 999L) / 1000L)
-                + " left";
+            String said = (byHandPlaying() ? ByHand.WORD : "REST") + " · "
+                + Model.Fmt.t((Math.max(0L, span[1] - now) + 999L) / 1000L) + " left";
             float lx = Math.max(0, x0) + Ui.dp(SessionActivity.this, 6);
             if (lx + lab.measureText(said) > w) lx = Math.max(0, w - lab.measureText(said));
             c.drawText(said, lx, top + lab.getTextSize() + Ui.dp(SessionActivity.this, 2), lab);
@@ -23127,6 +23177,7 @@ public class SessionActivity extends Activity
         if (awaitingAck && restNotResting())
             return "The tube is still under pressure \u2014 wait for it to vent, or press STOP";
         awaitingAck = false;
+        byHandGateIdx = -1;     // Done, before or after the release's time is up
         int idx = planIdx;
         Model.Preset p = plan.get(idx);
         long now = System.currentTimeMillis();
@@ -25878,7 +25929,7 @@ public class SessionActivity extends Activity
         String no = comingRefusal();
         if (no != null) return no;
         if (holdMayBeUp()) return "Paused \u2014 resume first. Nothing was changed.";
-        if (awaitingAck) return "The run is waiting for the cylinder change.";
+        if (awaitingAck) return waitingWhy();
         return null;
     }
 
@@ -26114,7 +26165,7 @@ public class SessionActivity extends Activity
         if (frozen != null) return frozen;
         // The next step re-writes the pump's table, a pause's own entry with it (48b).
         if (holdMayBeUp()) return "Paused — resume first. Nothing was changed.";
-        if (awaitingAck) return "The run is waiting for the cylinder change.";
+        if (awaitingAck) return waitingWhy();
         // Nor under a START that may still be answered, or a change on its way (155).
         String waits = ctl.editWaits(ackClock());
         if (waits != null) return waits;
@@ -26203,7 +26254,7 @@ public class SessionActivity extends Activity
         String frozen = commandFreezeReason();
         if (frozen != null) return frozen;
         if (holdMayBeUp()) return "Paused \u2014 resume first. Nothing was changed.";
-        if (awaitingAck) return "The run is waiting for the cylinder change.";
+        if (awaitingAck) return waitingWhy();
         if (restingNow) return "A rest is up \u2014 nothing was changed.";
         String waits = ctl.editWaits(ackClock());
         if (waits != null) return waits;
@@ -27337,6 +27388,7 @@ public class SessionActivity extends Activity
          * A gate belongs to the stage that raised it, and the stage does not outlive the run.
          * `holding` above is cleared here for exactly the same reason. */
         awaitingAck = false;
+        byHandGateIdx = -1;
         // A run that ended during a rest step must not leave the flag standing: the next
         // run's first preset would open on a screen still saying REST.
         resting = false;
@@ -38761,8 +38813,21 @@ public class SessionActivity extends Activity
         return running && holding ? runHoldVentsIn() : "";
     }
 
+    /** RunService.Live - a step done by hand, named: "By hand · Tunica release", then "By hand
+     *  · Done when you are" once the release's time is up; "" for every other step. */
+    @Override public String livePhase() {
+        if (!byHandPlaying()) return "";
+        Model.Preset p = plan.get(planIdx);
+        String name = p.label;
+        if (runRoutine != null && p.stageIdx >= 0 && p.stageIdx < runRoutine.stages.size())
+            name = runRoutine.stages.get(p.stageIdx).name;
+        return ByHand.notification(name, awaitingAck && ByHand.waitsAfterClock(p));
+    }
+
     @Override public String liveCountdown() {
         if (!running || planIdx < 0 || planIdx >= plan.size()) return "";
+        // The release's time is up and it waits for Done: there is no time left to count.
+        if (awaitingAck && releasePlaying()) return "";
         long leftMs = presetFireAt - System.currentTimeMillis();
         if (leftMs < 0) leftMs = 0;
         return Model.Fmt.t((leftMs + 999) / 1000);
