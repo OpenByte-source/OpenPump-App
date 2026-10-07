@@ -1706,7 +1706,7 @@ final class RunScreen {
             s.lenField = QuickAdjust.REST;
             s.byHand = ByHand.is(cur);
             s.timeUp = a.awaitingAck && ByHand.waitsAfterClock(cur);
-            s.head = s.byHand ? ByHand.HEAD : QuickAdjust.HEAD_REST;
+            s.head = s.byHand ? ByHand.head(ventConfirmed()) : QuickAdjust.HEAD_REST;
             // Once the release's time is up its cell holds still at 0:00 left (H-7): it no
             // longer counts the wait up - the NOW card's "so far" says that.
             s.v[QuickAdjust.REST] = s.timeUp ? 0 : (int) ((cur.durMs + 500L) / 1000L);
@@ -3017,7 +3017,10 @@ final class RunScreen {
             Model.Preset cur = (a.planIdx >= 0 && a.planIdx < a.plan.size())
                 ? a.plan.get(a.planIdx) : null;
             // ...and over a step done by hand it says what ends it (ByHand), never "rest".
-            if (ByHand.is(cur) && !a.restingNow) { a.toast(ByHand.pauseTap(cur.awaitAck)); return; }
+            if (ByHand.is(cur) && !a.restingNow) {
+                a.toast(ByHand.pauseTap(cur.awaitAck, ventConfirmed()));
+                return;
+            }
             if (inRest(cur)) { a.toast("Nothing to pause in a rest: the cuff is vented."); return; }
             /* A CONTROL THAT REFUSES HAS TO SAY SO. enterHold() returns in silence when
              * canCommandNow() is false, which during a REST - the commonest way to meet it -
@@ -3058,6 +3061,20 @@ final class RunScreen {
 
     private String restStateWordVented() {
         return a.ventWatcher.vented() ? "vented" : "venting";
+    }
+
+    /**
+     * THE VENT IS CONFIRMED BY THE PUMP (the device walk's H-6): the watch has its evidence,
+     * nothing says the cuff is still up, AND the reading is at the vented level - or the pump
+     * reports none, as it does with the system open. The rule the "vented" readout over the
+     * chart already uses; a step done by hand says "vented" only once it holds, "Venting…"
+     * before (the walk saw "Pump vented" over a gauge at −4.0 inHg).
+     */
+    private boolean ventConfirmed() {
+        boolean noReading = a.lastNoReading || a.lastSampleAt <= 0
+            || (System.currentTimeMillis() - a.lastSampleAt) > a.LINK_TIMEOUT_MS;
+        return a.ventWatcher.vented() && !a.restNotResting()
+            && (noReading || a.lastKpa < VENTED_READOUT_KPA);
     }
 
     /**
@@ -3263,8 +3280,10 @@ final class RunScreen {
             // that countdown is frozen on the step the rest interrupted.
             // (0.10) The inserted rest's time left is the NOW card's big figure now, so it is
             // not said a second time here.
+            // A step done by hand says "vented" only once the pump's reading confirms it (H-6).
             String state = a.restingNow
                 ? " · resting " + restStateWord() + ", the step waits"
+                : a.resting && ByHand.is(cur) ? ByHand.kickerState(a.restNotResting(), ventConfirmed())
                 : a.resting ? " · " + restStateWord()
                 : a.holding ? " · paused"
                 : (adjusted ? " · adjusted" : "");
@@ -3303,7 +3322,8 @@ final class RunScreen {
             // seen is exactly the case where the cuff may still be under pressure - and amber
             // for the commanded states, a pause and a carried adjustment.
             a.nowKicker.setTextColor(a.resting || a.restingNow
-                ? (a.ventWatcher.vented() && !a.restNotResting() ? Ui.DIM : Ui.CMD)
+                ? ((ByHand.is(cur) && !a.restingNow ? ventConfirmed()
+                    : a.ventWatcher.vented() && !a.restNotResting()) ? Ui.DIM : Ui.CMD)
                 : (a.holding || adjusted ? Ui.CMD : Ui.DIM));
         }
         if (a.runCountdown != null)
@@ -3489,7 +3509,9 @@ final class RunScreen {
             boolean restingHere = cur.rest || a.restingNow;
             RunChip chip = RunChip.of(a.presetArmed(), restingHere,
                     restingHere && a.restNotResting(),
-                    restingHere && a.ventWatcher.vented(),
+                    // A step done by hand: vented only once the reading confirms it (H-6).
+                    restingHere && (ByHand.is(cur) && !a.restingNow ? ventConfirmed()
+                                                                    : a.ventWatcher.vented()),
                     // At pressure only while the step is live: the clock that pauses is
                     // judged against the commanded pull.
                     a.tupClockPaused, dev != null, a.lastKpa,
@@ -4694,7 +4716,7 @@ final class RunScreen {
                 // A STEP DONE BY HAND SAYS WHAT TO DO, not "Rest": "Pump vented · do it by hand
                 // now", "Done when you are" once the release's time is up, and the changeover
                 // its own instruction (ByHand).
-                line = ByHand.nowLine(cur.awaitAck, a.awaitingAck);
+                line = ByHand.nowLine(cur.awaitAck, a.awaitingAck, ventConfirmed());
             } else if (a.restingNow || a.awaitingAck) {
                 line = RunLook.nowLine(RunLook.nowWord(kind == RunLook.DROP ? RunLook.WORK : kind),
                     set[0], set[1], next);
@@ -4880,8 +4902,7 @@ final class RunScreen {
                                  + "seconds after the skip"
                 : lateGuard ? "Skip, available again in a moment"
                 : done
-                ? "Done. The pump is vented and nothing is commanded while you do this by hand; "
-                  + "the next step starts when you press this."
+                ? ByHand.doneSaid(ventConfirmed())
                 : (a.awaitingAck
                    ? "Continue. The cuff is vented and the run is waiting for you to swap "
                      + "cylinders; nothing advances until you press this."
@@ -4928,7 +4949,7 @@ final class RunScreen {
                 : a.holding
                   ? "Resume. The run is paused: the pump is keeping the current pressure and the "
                     + "clock is waiting; the pause " + a.runHoldVentsIn() + ". Selected."
-                  : nothing && byHandNow ? ByHand.PAUSE_SAID
+                  : nothing && byHandNow ? ByHand.pauseSaid(ventConfirmed())
                   : nothing
                     ? "Pause, not available in a rest: the cuff is vented."
                     : "Pause. Keeps the pump at the pressure it is reading now and stops the "

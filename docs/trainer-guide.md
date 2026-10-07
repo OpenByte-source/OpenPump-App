@@ -1636,7 +1636,8 @@ step's colour (grey while paused), and one line of where you are and what comes 
 Its title reads "NOW · " and the name of what is playing, or "PAUSED · " and the name while the run
 is paused. In a rest the title is just "REST", once, and the small line under
 it ends "· vented" once the cuff is confirmed vented. A step done by hand is named instead:
-"BY HAND · Tunica release", with "Pump vented · do it by hand now" under the time (the
+"BY HAND · Tunica release", with "Pump vented · do it by hand now" under the time once the pump's
+reading shows the vent ("Venting…" until then) (the
 changeover: "BY HAND · " and its own sentence). The routine line keeps its name, and Coming
 steps calls it "Tunica release (by hand)". There is no glow behind the timer. The time
 left is said here and in the chart's rest band, nowhere else.

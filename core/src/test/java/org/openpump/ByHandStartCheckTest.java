@@ -99,6 +99,54 @@ class ByHandStartCheckTest {
             RunEdit.foldWait(167_000L, 167_000L)));
     }
 
+    @Test void theStartCheckAfterDoneSaysThePumpStartsAndAtAStartItsOwnWords() {
+        String line = "The routine starts once the cuff has held this pressure for 2 seconds.";
+        assertEquals(line, ByHand.startWords(line, false), "a normal start: today's words");
+        assertEquals("The pump starts once the cuff has held this pressure for 2 seconds.",
+            ByHand.startWords(line, true));
+        assertEquals("Before the pump starts", ByHand.startWords("Before the routine starts", true));
+        String[] all = {
+            "Pump by hand to that number and hold it. The routine starts once it has stayed there "
+                + "for 2 seconds.",
+            "Pulling to that pressure now. The routine starts on its own once the cuff has held "
+                + "it for two seconds, not when the pull is sent, so a seal that will not take "
+                + "never turns into a routine that runs anyway.",
+            "— reseat it and it will start on its own, or start the routine anyway and pull",
+            "Skipping starts the routine with no seal verdict — the hold now on the cuff is "
+                + "not vented first, exactly as \"Continue to session\" would leave it.",
+            "Continue to session" };
+        for (int i = 0; i < all.length; i++) {
+            String mid = ByHand.startWords(all[i], true);
+            assertFalse(mid.contains("routine") || mid.contains("session"), mid);
+            assertEquals(all[i], ByHand.startWords(all[i], false));
+        }
+    }
+
+    @Test void aByHandStepNeverSaysVentedBeforeThePumpShowsIt() {
+        // H-6: "Venting…" until the reading confirms the vent, for both by-hand steps.
+        assertEquals("Venting…", ByHand.nowLine(false, false, false));
+        assertEquals("Venting…", ByHand.nowLine(true, false, false));
+        assertEquals("Venting…", ByHand.nowLine(false, true, false));
+        assertEquals(ByHand.VENTED_LINE, ByHand.nowLine(false, false, true));
+        assertEquals(ByHand.SWAP_LINE, ByHand.nowLine(true, false, true));
+        assertEquals("BY HAND · VENTING", ByHand.head(false));
+        assertEquals(ByHand.HEAD, ByHand.head(true));
+        assertEquals(" · venting", ByHand.kickerState(false, false));
+        assertEquals(" · vented", ByHand.kickerState(false, true));
+        assertEquals(" · still under pressure", ByHand.kickerState(true, true));
+        String[] before = { ByHand.nowLine(false, false, false), ByHand.nowLine(true, false, false),
+            ByHand.head(false), ByHand.kickerState(false, false), ByHand.pauseTap(false, false),
+            ByHand.pauseTap(true, false), ByHand.pauseSaid(false), ByHand.doneSaid(false) };
+        for (int i = 0; i < before.length; i++)
+            assertFalse(before[i].toLowerCase(java.util.Locale.US).matches(".*\\bvented\\b.*"),
+                "\"" + before[i] + "\" says vented before it is");
+        assertTrue(ByHand.pauseTap(false, true).contains("is vented"));
+        assertTrue(ByHand.doneSaid(true).contains("is vented"));
+        // The chip, told the same: not vented, not "the pump is vented".
+        assertFalse(RunChip.of(true, true, false, false, false, true, 4, 0, RunChip.PULL, true)
+            .text.contains("vented"));
+    }
+
     @Test void theChangeoverWaitSaysWaitingNotATime() {
         // H-5: the notification and widget lead while the changeover waits.
         String said = ByHand.notification("Swap to your girth cylinder — next is x", false, true);

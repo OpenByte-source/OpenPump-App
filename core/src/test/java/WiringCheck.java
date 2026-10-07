@@ -31267,7 +31267,11 @@ public final class WiringCheck {
      *       guard cannot stop the check's pull) and has the table rewritten after it
      *       (restRearmPending); the check's pass hands back to the paused run in startSession
      *       and beginAssessOrSession (startCheckMidRun -> resumeAfterStartCheck), which plays
-     *       the held step.
+     *       the held step;
+     *   (f) round 4: a by-hand step says "vented" only once the pump's reading confirms it -
+     *       the NOW line is ByHand.nowLine(..., ventConfirmed()), and ventConfirmed asks the
+     *       watch, the still-up test AND the reading (VENTED_READOUT_KPA), the readout's own
+     *       rule; the start check's words mid-run are ByHand.startWords(.., startCheckMidRun).
      */
     static void checkByHand(String screen, String act, String look, List<String> violations) {
         checkByHand(screen, act, look, null, violations);
@@ -31416,6 +31420,22 @@ public final class WiringCheck {
         if (ra != null && ra.indexOf("playPreset(idx);") < 0)
             violations.add("SessionActivity.java: invariant 251 - a start check passed mid-run "
                 + "no longer plays the step it held");
+        // (f) "vented" only once confirmed; the check's words mid-run.
+        if (top != null && top.indexOf("ByHand.nowLine(cur.awaitAck,a.awaitingAck,ventConfirmed())") < 0)
+            violations.add("RunScreen.java: invariant 251 - a by-hand step's line can say "
+                + "\"Pump vented\" before the pump has shown it (ByHand.nowLine with ventConfirmed())");
+        String vc = body228(screen, "boolean\\s+ventConfirmed\\s*\\(", "RunScreen.java",
+            "ventConfirmed", violations);
+        if (vc != null && (vc.indexOf("a.ventWatcher.vented()") < 0
+                || vc.indexOf("!a.restNotResting()") < 0 || vc.indexOf("VENTED_READOUT_KPA") < 0))
+            violations.add("RunScreen.java: invariant 251 - ventConfirmed no longer asks the "
+                + "watch, the still-up test and the reading - a by-hand step could say vented "
+                + "over a cuff still at pressure");
+        String gs = body228(act, "void\\s+showGuidedStart\\s*\\(", "SessionActivity.java",
+            "showGuidedStart", violations);
+        if (gs != null && gs.indexOf("ByHand.startWords(") < 0)
+            violations.add("SessionActivity.java: invariant 251 - the start check after Done "
+                + "says \"The routine starts\" again (ByHand.startWords)");
     }
 
     static void checkByHandFiles(String dir, List<String> violations) throws IOException {
@@ -31436,7 +31456,10 @@ public final class WiringCheck {
             + "      : a.resting || a.restingNow ? \"REST\" : \"NOW · \" + who);\n"
             + "}\n"
             + "private void paintRunTop(Model.Preset cur) { n.byHand = ByHand.waitsAfterClock(cur);"
-            + " a.runStatusL.setText(RunLook.statusLeft(n)); }\n"
+            + " a.runStatusL.setText(RunLook.statusLeft(n));"
+            + " line = ByHand.nowLine(cur.awaitAck, a.awaitingAck, ventConfirmed()); }\n"
+            + "private boolean ventConfirmed() { return a.ventWatcher.vented() && !a.restNotResting()"
+            + " && (n || a.lastKpa < VENTED_READOUT_KPA); }\n"
             + "private void refreshTimerControls() { setText(a.skipBtn, done ? ByHand.DONE : x);"
             + " setText(a.extendBtn, byHandNow ? ByHand.PLUS : y); }\n"
             + "private void paintCell(StripCell c, StripNow s) {"
@@ -31473,6 +31496,8 @@ public final class WiringCheck {
             + " restRearmPending = true; if (g) beginGuidedStart(runRoutine);"
             + " else beginSealCheck(runRoutine); }\n"
             + "private void resumeAfterStartCheck() { int idx = 1; playPreset(idx); }\n"
+            + "private void showGuidedStart(Model.Routine r) {"
+            + " Ui.noteInfo(this, g, ByHand.startWords(x, startCheckMidRun)); }\n"
             + "private void startSession(Model.Routine r) { if (refuseArmOutsideRun(x)) return;"
             + " if (startCheckMidRun) { resumeAfterStartCheck(); return; } planIdx = -1; }\n"
             + "private void beginAssessOrSession(Model.Routine r) { sealResultShowing = false;"
@@ -31526,8 +31551,14 @@ public final class WiringCheck {
             { "A", "a check passed mid-run starts a new run",
               " if (startCheckMidRun) { resumeAfterStartCheck(); return; } planIdx = -1;",
               " planIdx = -1;" },
-            { "A", "a check passed mid-run never plays the held step", "playPreset(idx); }\nprivate void startSession",
-              "}\nprivate void startSession" },
+            { "A", "a check passed mid-run never plays the held step", "playPreset(idx); }\nprivate void showGuidedStart",
+              "}\nprivate void showGuidedStart" },
+            { "S", "Pump vented said before the pump shows it",
+              "ByHand.nowLine(cur.awaitAck, a.awaitingAck, ventConfirmed())",
+              "ByHand.nowLine(cur.awaitAck, a.awaitingAck)" },
+            { "S", "vented on the watch's word alone",
+              " && (n || a.lastKpa < VENTED_READOUT_KPA)", "" },
+            { "A", "the routine starts, said after Done", "ByHand.startWords(x, startCheckMidRun)", "x" },
         };
         for (int i = 0; i < bad.length; i++) {
             String s2 = screen, l2 = look, a2 = act, v2 = service;

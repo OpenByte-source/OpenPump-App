@@ -15725,17 +15725,22 @@ public class SessionActivity extends Activity
             + Model.Fmt.p(PreRunHold.guidedTargetKpa(model.ceilKpa)), null, Ui.CMD);
         /* polish RN-1: one short line on the face, the reason it waits behind its ⓘ (amber:
          * it is about when the pump moves on). "held" in sentence case. */
-        Ui.noteInfo(this, g, model.guidedStartAssist
+        // After Done, mid-run (H-2), the routine has started: it is the pump that starts once
+        // the cuff holds (ByHand#startWords). At a normal start the words are today's.
+        boolean mid = startCheckMidRun;
+        String face = model.guidedStartAssist
             ? "The routine starts once the cuff has held this pressure for 2 seconds."
             : "Pump by hand to that number and hold it. The routine starts once it has "
-              + "stayed there for 2 seconds.",
-            "Before the routine starts", model.guidedStartAssist
+              + "stayed there for 2 seconds.";
+        Ui.noteInfo(this, g, ByHand.startWords(face, mid),
+            ByHand.startWords("Before the routine starts", mid),
+            ByHand.startWords(model.guidedStartAssist
             ? ("Pulling to that pressure now. The routine starts on its own once the cuff "
                + "has held it for two seconds, not when the pull is sent, so a seal that "
                + "will not take never turns into a routine that runs anyway.")
             : ("Pump by hand until the pressure reaches that number, then hold it there. "
                + "The routine starts on its own once it has stayed there for two seconds. "
-               + "Nothing is commanded until it does."), true);
+               + "Nothing is commanded until it does."), mid), true);
 
         guidedReading = new TextView(this);
         guidedReading.setTextColor(Ui.TEXT);
@@ -15836,12 +15841,13 @@ public class SessionActivity extends Activity
         guidedAskedAt = System.currentTimeMillis();
         guidedAskDialog = Ui.dialog(this)
             .setTitle("Still waiting")
-            .setMessage("The pressure has not held at "
+            .setMessage(ByHand.startWords("The pressure has not held at "
                 + Model.Fmt.p(PreRunHold.guidedTargetKpa(model.ceilKpa))
                 + " for a full two seconds yet. That usually means the cuff is not sealing "
                 + "\u2014 reseat it and it will start on its own, or start the routine anyway "
                 + "and pull as it runs. With no answer in a minute, "
-                + (guidedCommanded ? "the pump is released." : "this start ends."))
+                + (guidedCommanded ? "the pump is released." : "this start ends."),
+                startCheckMidRun))
             .setPositiveButton("Keep waiting", new GuidedKeepWaiting())
             .setNeutralButton("Start anyway", new GuidedStartAnyway())
             .setNegativeButton("Stop", new GuidedStopFromDialog())
@@ -16093,8 +16099,9 @@ public class SessionActivity extends Activity
         // explanation, and the seal check can take half a minute on a slow cuff.
         Button skip = Ui.flat(this, body, "Skip the seal check");
         skip.setOnClickListener(new SkipSealTap(r));
-        Ui.noteSafety(this, body, "Skipping starts the routine with no seal verdict — the hold now on "
-            + "the cuff is not vented first, exactly as \"Continue to session\" would leave it.");
+        Ui.noteSafety(this, body, ByHand.startWords("Skipping starts the routine with no seal "
+            + "verdict — the hold now on the cuff is not vented first, exactly as \"Continue to "
+            + "session\" would leave it.", startCheckMidRun));
         Button cancel = Ui.big(this, body, "Cancel and vent", Ui.CRIT);
         cancel.setOnClickListener(new EndRunTap());
     }
@@ -16239,7 +16246,8 @@ public class SessionActivity extends Activity
             beginAssessOrSession(r);
             return;
         }
-        Button cont = Ui.big(this, body, "Continue to session", Ui.GOOD);
+        Button cont = Ui.big(this, body,
+            ByHand.startWords("Continue to session", startCheckMidRun), Ui.GOOD);
         cont.setOnClickListener(new ContinueToSessionTap(r));
         Button recheck = Ui.big(this, body, "Reseat and re-check", Ui.CMD);
         recheck.setOnClickListener(new RecheckSealTap(r));

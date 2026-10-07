@@ -101,6 +101,22 @@ public final class ByHand {
         return deferred && p != null && !p.rest;
     }
 
+    /**
+     * THE START CHECK'S WORDS, MID-RUN (the coordinator, 2026-10-07): run after Done, the
+     * routine has already started - it is the pump that starts once the cuff holds. At a
+     * normal start (`midRun` false) every sentence is returned exactly as it is.
+     */
+    public static String startWords(String text, boolean midRun) {
+        if (!midRun || text == null) return text;
+        return text.replace("Before the routine starts", "Before the pump starts")
+                   .replace("The routine starts", "The pump starts")
+                   .replace("a routine that runs anyway", "a pump that pulls anyway")
+                   .replace("start the routine anyway", "start the pump anyway")
+                   .replace("starts the routine with no seal verdict",
+                            "starts the pump with no seal verdict")
+                   .replace("Continue to session", "Continue");
+    }
+
     /** Has nothing before step `idx` of `plan` been able to command pressure (every step
      *  before it a vented rest)? A run rejoined there has not had its first pressure - nor,
      *  when it opened by hand, its start check. */
@@ -149,8 +165,50 @@ public final class ByHand {
     /** The NOW card's line under the time: the release's own, or "Done when you are" once its
      *  guide time is up; the changeover's instruction for the changeover. */
     public static String nowLine(boolean swap, boolean timeUp) {
+        return nowLine(swap, timeUp, true);
+    }
+
+    /* ---- "VENTED" ONLY ONCE THE PUMP HAS SHOWN IT (the device walk's H-6) ---- */
+
+    /** What a by-hand step says until the reading confirms the vent: never "vented" first. */
+    public static final String VENTING_LINE = "Venting…";
+
+    /** ...the line, told whether the vent is CONFIRMED by the pump's reading: "Venting…"
+     *  until it is, whatever the step. */
+    public static String nowLine(boolean swap, boolean timeUp, boolean ventConfirmed) {
+        if (!ventConfirmed) return VENTING_LINE;
         if (swap) return SWAP_LINE;
         return timeUp ? WHEN_READY : VENTED_LINE;
+    }
+
+    /** The strip's heading over a by-hand step: "BY HAND · VENTING" until the vent is
+     *  confirmed, then HEAD. */
+    public static String head(boolean ventConfirmed) {
+        return ventConfirmed ? HEAD : WORD + " · VENTING";
+    }
+
+    /** The routine line's state: " · vented" only once confirmed. */
+    public static String kickerState(boolean stillUp, boolean ventConfirmed) {
+        return stillUp ? " · still under pressure"
+                       : ventConfirmed ? " · vented" : " · venting";
+    }
+
+    /** Pause's tap, told whether the vent is confirmed: "The pump is venting — …" until it is. */
+    public static String pauseTap(boolean swap, boolean ventConfirmed) {
+        String s = pauseTap(swap);
+        return ventConfirmed ? s : s.replace("The pump is vented", "The pump is venting");
+    }
+
+    /** Pause, greyed, as a screen reader says it - "venting" until the vent is confirmed. */
+    public static String pauseSaid(boolean ventConfirmed) {
+        return ventConfirmed ? PAUSE_SAID : PAUSE_SAID.replace("is vented", "is venting");
+    }
+
+    /** Done's screen-reader text - "venting" until the vent is confirmed. */
+    public static String doneSaid(boolean ventConfirmed) {
+        return "Done. The pump is " + (ventConfirmed ? "vented" : "venting")
+            + " and nothing is commanded while you do this by hand; the next step starts "
+            + "when you press this.";
     }
 
     /** The status line: "BY HAND · 4:32 LEFT", then "BY HAND · DONE WHEN YOU ARE". */
