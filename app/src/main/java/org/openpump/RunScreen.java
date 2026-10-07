@@ -1133,6 +1133,8 @@ final class RunScreen {
         int stepCycle, rampSteps;
         int lenField = -1;
         String head = "";
+        /** A step done by hand is playing: its length cell is "Time", never "Rest length". */
+        boolean byHand;
         /** A set figure on its way to the pump, and the pump not answering. */
         final boolean[] sending = new boolean[QuickAdjust.FIELDS];
         boolean notConfirmed;
@@ -1632,7 +1634,9 @@ final class RunScreen {
 
     /** The same at the strip's own pull limit. */
     private String stripRefusal(StripNow s, int field, int dir) {
-        return stripRefusal(s, field, dir, a.stripPullCapKpa());
+        String why = stripRefusal(s, field, dir, a.stripPullCapKpa());
+        // Over a step done by hand, End rest is Done (ByHand).
+        return s.byHand ? ByHand.reword(why) : why;
     }
 
     /** The step itself, through the one road for its kind; the refusal, or null. */
@@ -1698,7 +1702,8 @@ final class RunScreen {
         if (mode == QuickAdjust.MODE_REST) {
             s.mode = QuickAdjust.MODE_REST;
             s.lenField = QuickAdjust.REST;
-            s.head = ByHand.is(cur) ? ByHand.HEAD : QuickAdjust.HEAD_REST;
+            s.byHand = ByHand.is(cur);
+            s.head = s.byHand ? ByHand.HEAD : QuickAdjust.HEAD_REST;
             s.v[QuickAdjust.REST] = (int) ((cur.durMs + 500L) / 1000L);
             s.elapsed = (int) (Math.max(0L, cur.durMs - Math.max(0L, a.presetFireAt - now)) / 1000L);
             if (cur.awaitAck) s.blocked = "The cylinder change has no length — it waits for you.";
@@ -1857,7 +1862,8 @@ final class RunScreen {
         int f = c.field;
         boolean locked = s.grid && s.dropLocked
             && (f == QuickAdjust.DROP || f == QuickAdjust.DROP_TIME);
-        setText(c.label, RunEdit.stripLabel(f));
+        boolean handTime = s.byHand && f == QuickAdjust.REST;
+        setText(c.label, handTime ? ByHand.STRIP_LABEL : RunEdit.stripLabel(f));
         setText(c.value, locked ? "—" : QuickAdjust.value(f, s.v[f]));
         c.value.setTextColor(s.sending[f] || s.notConfirmed ? Ui.CMD : locked ? Ui.DIM : Ui.TEXT);
         String lessWhy = stripRefusal(s, f, -1), moreWhy = stripRefusal(s, f, 1);
@@ -1865,7 +1871,7 @@ final class RunScreen {
         c.plus.setTextColor(moreWhy != null ? Look.STEP_KEY_AT_LIMIT : Ui.TEXT);
         String shown = (locked ? "none" : QuickAdjust.value(f, s.v[f]))
             + (s.sending[f] ? ", sending" : s.notConfirmed ? ", not confirmed" : "");
-        String name = QuickAdjust.SPOKEN[f];
+        String name = handTime ? ByHand.STRIP_SPOKEN : QuickAdjust.SPOKEN[f];
         String less = "Less " + name + ", " + shown + " now" + (lessWhy != null ? ". " + lessWhy : "");
         String more = "More " + name + ", " + shown + " now" + (moreWhy != null ? ". " + moreWhy : "");
         if (!less.contentEquals(orEmpty(c.minus.getContentDescription())))
@@ -2996,6 +3002,8 @@ final class RunScreen {
             // place, greyed, and a tap says so.
             Model.Preset cur = (a.planIdx >= 0 && a.planIdx < a.plan.size())
                 ? a.plan.get(a.planIdx) : null;
+            // ...and over a step done by hand it says what ends it (ByHand), never "rest".
+            if (ByHand.is(cur) && !a.restingNow) { a.toast(ByHand.pauseTap(cur.awaitAck)); return; }
             if (inRest(cur)) { a.toast("Nothing to pause in a rest: the cuff is vented."); return; }
             /* A CONTROL THAT REFUSES HAS TO SAY SO. enterHold() returns in silence when
              * canCommandNow() is false, which during a REST - the commonest way to meet it -
@@ -3952,7 +3960,9 @@ final class RunScreen {
         if (sh.kind == ComingSteps.SHAPE_RAMP)
             return sh.steps + " × " + Model.Fmt.t(sh.stepSec) + " · "
                 + rampRange(ComingSteps.rampOf(a.plan, s), sh.steps);
-        if (sh.kind == ComingSteps.SHAPE_REST) return "rest " + Model.Fmt.t(sh.restSec);
+        if (sh.kind == ComingSteps.SHAPE_REST)
+            return (st != null && st.rest && st.manual ? "by hand " : "rest ")
+                + Model.Fmt.t(sh.restSec);
         long ms = sh.ms;
         if (RunShape.isWarmUp(st)) return "warm-up " + Model.Fmt.t((ms + 500) / 1000);
         return (st.name == null ? "step" : st.name.trim()) + " " + Model.Fmt.t((ms + 500) / 1000);
@@ -4825,6 +4835,7 @@ final class RunScreen {
         // THE RELEASE ENDS ON DONE, before its time is up or after (ByHand): the same skip, named
         // and filled as the changeover's acknowledgement is.
         boolean done = !a.restingNow && ByHand.waitsAfterClock(curP);
+        boolean byHandNow = !a.restingNow && ByHand.is(curP);
         boolean ack = a.awaitingAck || done;
         if (a.skipBtn != null) {
             /* THE ACKNOWLEDGEMENT IS THIS CONTROL WEARING ITS OTHER NAME.
@@ -4865,11 +4876,13 @@ final class RunScreen {
             if (!can) Ui.stateFill(a, a.extendBtn, false, false);
             else timerFill(a.extendBtn, Ui.SURFHI, Ui.TEXT);
             // polish RN-5: the warm-up's says what it adds to, as the other three do.
-            setText(a.extendBtn, restNow ? "+30 s rest"
+            // A step done by hand is not a rest: "+30 s" (ByHand).
+            setText(a.extendBtn, byHandNow ? ByHand.PLUS : restNow ? "+30 s rest"
                 : cycleStep ? RunEdit.rampExtendLabel(sn.stepCycle) : ramp ? "+30 s step"
                 : warm ? "+30 s warm-up" : "+30 s hold");
             a.extendBtn.setContentDescription(!can
                 ? "Add thirty seconds, not available until a preset is playing"
+                : byHandNow ? ByHand.PLUS_SAID
                 : restNow ? "Thirty seconds more rest"
                 : cycleStep ? RunEdit.rampExtendSaid(sn.stepCycle)
                 : ramp ? "Thirty seconds more on this step of the ramp"
@@ -4896,6 +4909,7 @@ final class RunScreen {
                 : a.holding
                   ? "Resume. The run is paused: the pump is keeping the current pressure and the "
                     + "clock is waiting; the pause " + a.runHoldVentsIn() + ". Selected."
+                  : nothing && byHandNow ? ByHand.PAUSE_SAID
                   : nothing
                     ? "Pause, not available in a rest: the cuff is vented."
                     : "Pause. Keeps the pump at the pressure it is reading now and stops the "

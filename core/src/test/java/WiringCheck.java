@@ -31250,9 +31250,22 @@ public final class WiringCheck {
      *   (b) the Activity's Advance raises the gate (awaitingAck = true) for
      *       ByHand.waitsAfterClock BEFORE it can playPreset - so nothing is armed and the pump
      *       stays vented at 0:00 - playPreset arms it for the release's own step only, and Done
-     *       (skipPresetOrWhy) clears it.
+     *       (skipPresetOrWhy) clears it;
+     *   (c) round 2: no control says "rest" over it - +30 s (ByHand.PLUS), the strip's "Time"
+     *       (ByHand.STRIP_LABEL), Pause's tap (ByHand.pauseTap) - and the widget names it
+     *       (ByHand.widgetName in RunService);
+     *   (d) a long wait by hand cannot put off the two-hour stop: checkGrossCap counts the
+     *       whole clock (PreRunHold.wholeForStopSec), asks nothing about a wait (no
+     *       awaitingAck, no by-hand test), and ends the run with its reason
+     *       (WHY_TWO_HOURS, then finishSession(true)); tickRun asks it before anything that
+     *       reads the gate.
      */
     static void checkByHand(String screen, String act, String look, List<String> violations) {
+        checkByHand(screen, act, look, null, violations);
+    }
+
+    static void checkByHand(String screen, String act, String look, String service,
+                            List<String> violations) {
         String f = flat224(screen);
         int t = f.indexOf("a.nowName.setText(");
         String title = t < 0 ? "" : f.substring(t, Math.max(t, f.indexOf(';', t)));
@@ -31314,14 +31327,53 @@ public final class WiringCheck {
         if (sk != null && sk.indexOf("byHandGateIdx=-1;") < 0)
             violations.add("SessionActivity.java: invariant 251 - Done no longer clears the "
                 + "release's gate - the next step's upload could raise it again");
+        // (c) no control says "rest" over a step done by hand.
+        if (ctl != null && ctl.indexOf("ByHand.PLUS") < 0)
+            violations.add("RunScreen.java: invariant 251 - +30 s says \"rest\" over a step done "
+                + "by hand again (ByHand.PLUS)");
+        String cell = body228(screen, "void\\s+paintCell\\s*\\(", "RunScreen.java", "paintCell",
+            violations);
+        if (cell != null && cell.indexOf("ByHand.STRIP_LABEL") < 0)
+            violations.add("RunScreen.java: invariant 251 - the strip's length cell says \"Rest "
+                + "length\" over a step done by hand again (ByHand.STRIP_LABEL)");
+        String hold = body228(screen, "class\\s+HoldTap\\b", "RunScreen.java", "HoldTap",
+            violations);
+        if (hold != null && hold.indexOf("ByHand.pauseTap(") < 0)
+            violations.add("RunScreen.java: invariant 251 - Pause's tap says \"rest\" over a step "
+                + "done by hand again (ByHand.pauseTap)");
+        if (service != null && flat224(service).indexOf("ByHand.widgetName(") < 0)
+            violations.add("RunService.java: invariant 251 - the widget no longer names a step "
+                + "done by hand (ByHand.widgetName)");
+        // (d) the two-hour stop is not put off by a wait.
+        String cap = body228(act, "boolean\\s+checkGrossCap\\s*\\(", "SessionActivity.java",
+            "checkGrossCap", violations);
+        if (cap != null) {
+            int why = cap.indexOf("runStopWhy=RunStopReason.WHY_TWO_HOURS;");
+            int fin = cap.indexOf("finishSession(true);");
+            if (cap.indexOf("PreRunHold.wholeForStopSec(") < 0 || why < 0 || fin < 0 || why > fin
+                    || cap.indexOf("awaitingAck") >= 0 || cap.indexOf("ByHand.") >= 0
+                    || cap.indexOf("releasePlaying") >= 0 || cap.indexOf("byHandPlaying") >= 0)
+                violations.add("SessionActivity.java: invariant 251 - the two-hour stop no longer "
+                    + "counts the whole clock through a wait by hand, or no longer ends the run "
+                    + "with its reason (WHY_TWO_HOURS, then finishSession(true))");
+        }
+        String tick = body228(act, "void\\s+tickRun\\s*\\(", "SessionActivity.java", "tickRun",
+            violations);
+        if (tick != null) {
+            int c = tick.indexOf("checkGrossCap(now)");
+            if (c < 0 || tick.substring(0, c).indexOf("awaitingAck") >= 0)
+                violations.add("SessionActivity.java: invariant 251 - tickRun no longer asks the "
+                    + "two-hour stop before anything that reads the gate");
+        }
     }
 
     static void checkByHandFiles(String dir, List<String> violations) throws IOException {
         String screen = runScreenRaw(dir, "RunScreen.java", violations);
         String act = runScreenRaw(dir, "SessionActivity.java", violations);
         String look = runScreenRaw(dir, "RunLook.java", violations);
-        if (screen != null && act != null && look != null)
-            checkByHand(screen, act, look, violations);
+        String service = runScreenRaw(dir, "RunService.java", violations);
+        if (screen != null && act != null && look != null && service != null)
+            checkByHand(screen, act, look, service, violations);
     }
 
     /** Invariant 251's self-test: the app's shapes pass, and each road taken off is caught. */
@@ -31334,7 +31386,12 @@ public final class WiringCheck {
             + "}\n"
             + "private void paintRunTop(Model.Preset cur) { n.byHand = ByHand.waitsAfterClock(cur);"
             + " a.runStatusL.setText(RunLook.statusLeft(n)); }\n"
-            + "private void refreshTimerControls() { setText(a.skipBtn, done ? ByHand.DONE : x); }\n"
+            + "private void refreshTimerControls() { setText(a.skipBtn, done ? ByHand.DONE : x);"
+            + " setText(a.extendBtn, byHandNow ? ByHand.PLUS : y); }\n"
+            + "private void paintCell(StripCell c, StripNow s) {"
+            + " setText(c.label, handTime ? ByHand.STRIP_LABEL : RunEdit.stripLabel(f)); }\n"
+            + "private final class HoldTap implements View.OnClickListener { public void onClick(View v) {"
+            + " if (ByHand.is(cur)) { a.toast(ByHand.pauseTap(cur.awaitAck)); return; } } }\n"
             + "private String comingName(int s, Model.Stage st) {\n"
             + "  if (st.rest && st.manual) return ByHand.coming(st.name);\n"
             + "  if (st.rest) return \"Rest\";\n  return st.name; }\n";
@@ -31348,9 +31405,17 @@ public final class WiringCheck {
             + " playPreset(idx); } }\n"
             + "private void playPreset(int idx) { awaitingAck = false;"
             + " byHandGateIdx = ByHand.waitsAfterClock(p) ? idx : -1; }\n"
-            + "String skipPresetOrWhy() { awaitingAck = false; byHandGateIdx = -1; return null; }\n";
+            + "String skipPresetOrWhy() { awaitingAck = false; byHandGateIdx = -1; return null; }\n"
+            + "private boolean checkGrossCap(long now) { if (!running) return false;"
+            + " double sealed = PreRunHold.wholeForStopSec(a, b, c, d);"
+            + " if (!Plan.grossCapReached(sealed)) return false;"
+            + " runStopWhy = RunStopReason.WHY_TWO_HOURS; finishSession(true); return true; }\n"
+            + "private void tickRun() { long now = 0; if (checkGrossCap(now)) return;"
+            + " if (awaitingAck) x(); }\n";
+        String service = "private void pushWidget() { RemoteViews v = PumpWidgetProvider.prepareLive("
+            + "this, ByHand.widgetName(snapName, snapPhase, snapDiscreet), 1, 2, l, p); }\n";
         List<String> v = new ArrayList<String>();
-        checkByHand(screen, act, look, v);
+        checkByHand(screen, act, look, service, v);
         selfCheck(counts, v.isEmpty(), "INV251: the app's shapes pass (got " + v + ")");
         String[][] bad = {
             { "S", "the title says REST first",
@@ -31370,15 +31435,33 @@ public final class WiringCheck {
               "awaitingAck = true; return; }", "awaitingAck = true; }" },
             { "A", "the gate armed for every step", "ByHand.waitsAfterClock(p) ? idx : -1", "idx" },
             { "A", "Done leaves the gate armed", " byHandGateIdx = -1; return null;", " return null;" },
+            { "S", "+30 s rest over a step by hand", "byHandNow ? ByHand.PLUS : y", "y" },
+            { "S", "Rest length over a step by hand", "handTime ? ByHand.STRIP_LABEL : ", "" },
+            { "S", "Pause says rest over a step by hand", "ByHand.pauseTap(cur.awaitAck)",
+              "\"Nothing to pause in a rest\"" },
+            { "V", "the widget forgets the step", "ByHand.widgetName(snapName, snapPhase, snapDiscreet)",
+              "snapName" },
+            { "A", "the two-hour stop waits for Done",
+              "private boolean checkGrossCap(long now) { if (!running) return false;",
+              "private boolean checkGrossCap(long now) { if (!running || awaitingAck) return false;" },
+            { "A", "the two-hour stop on the sealed count",
+              "PreRunHold.wholeForStopSec(a, b, c, d)", "PreRunHold.sealedForStopSec(a, b, d)" },
+            { "A", "the two-hour stop without its reason",
+              " runStopWhy = RunStopReason.WHY_TWO_HOURS;", "" },
+            { "A", "the stop asked only outside a wait",
+              "private void tickRun() { long now = 0; if (checkGrossCap(now)) return;",
+              "private void tickRun() { long now = 0; if (awaitingAck) return; if (checkGrossCap(now)) return;" },
         };
         for (int i = 0; i < bad.length; i++) {
-            String s2 = screen, l2 = look, a2 = act;
+            String s2 = screen, l2 = look, a2 = act, v2 = service;
             if (bad[i][0].equals("S")) s2 = screen.replace(bad[i][2], bad[i][3]);
             if (bad[i][0].equals("L")) l2 = look.replace(bad[i][2], bad[i][3]);
             if (bad[i][0].equals("A")) a2 = act.replace(bad[i][2], bad[i][3]);
-            boolean changed = !s2.equals(screen) || !l2.equals(look) || !a2.equals(act);
+            if (bad[i][0].equals("V")) v2 = service.replace(bad[i][2], bad[i][3]);
+            boolean changed = !s2.equals(screen) || !l2.equals(look) || !a2.equals(act)
+                || !v2.equals(service);
             v = new ArrayList<String>();
-            checkByHand(s2, a2, l2, v);
+            checkByHand(s2, a2, l2, v2, v);
             selfCheck(counts, changed && v.size() == 1,
                 "INV251 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
         }

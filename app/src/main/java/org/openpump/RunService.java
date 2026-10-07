@@ -1340,8 +1340,10 @@ public final class RunService extends Service {
             AppWidgetManager mgr = AppWidgetManager.getInstance(this);
             int[] ids = mgr.getAppWidgetIds(new ComponentName(this, PumpWidgetProvider.class));
             if (ids == null || ids.length == 0) return;
+            // A step done by hand is named on the widget too (ByHand), never while discreet.
             RemoteViews views = PumpWidgetProvider.prepareLive(
-                this, snapName, snapIdx, snapTotal, snapLeft, snapPress);
+                this, ByHand.widgetName(snapName, snapPhase, snapDiscreet), snapIdx, snapTotal,
+                snapLeft, snapPress);
             for (int id : ids) mgr.updateAppWidget(id, views);
         } catch (Exception ignored) {
             // A widget push failing must never take the run itself, or even the

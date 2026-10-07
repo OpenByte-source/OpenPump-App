@@ -1667,6 +1667,7 @@ routine is not changed. What it shows follows the step:
 |---|---|---|
 | A set of work | THIS SET · CHANGES APPLY NOW, with **More ›** | Pull to · target (1 kPa), Hold time (5 s), Drop to · target (1 kPa; 0 reads "vent"), Drop time (1 s) |
 | A rest | THIS REST · CUFF VENTED | Rest length (15 s) |
+| A step done by hand | BY HAND · CUFF VENTED | Time (15 s) |
 | A ramp | THIS RAMP · −3.0 → −5.9 inHg | Time per step (5 s) |
 | The warm-up | WARM-UP | Warm-up length (15 s) |
 
@@ -1729,7 +1730,7 @@ Pause is the first button in every step. It was called Hold. The rest of the row
 |---|---|
 | Work | **Pause** · **Skip these sets** · **+30 s hold** · **Rest** |
 | Rest | **Pause** (greyed) · **End rest** · **+30 s rest** |
-| By hand (the tunica release) | **Pause** (greyed) · **Done** · **+30 s rest** |
+| By hand (the tunica release) | **Pause** (greyed; a tap says "The pump is vented — tap Done when you’re finished.") · **Done** · **+30 s** |
 | Ramp | **Pause** · **Skip step** · **+0:42 step** (one whole cycle of the step; **+30 s step** on a step that is one cycle) |
 | Warm-up | **Pause** · **Skip warm-up** · **+30 s warm-up** |
 

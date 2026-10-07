@@ -39,6 +39,39 @@ public final class ByHand {
     /** The − / + strip's heading over a by-hand step. */
     public static final String HEAD = "BY HAND · CUFF VENTED";
 
+    /* ---- NO CONTROL OR MESSAGE SAYS "REST" DURING IT (the coordinator's round 2) ---- */
+
+    /** The +30 s button over a by-hand step: the time it adds to, unnamed. */
+    public static final String PLUS = "+30 s";
+    /** ...and what a screen reader says for it. */
+    public static final String PLUS_SAID = "Thirty seconds more on this step done by hand";
+    /** The − / + strip's length cell over a by-hand step ("Rest length" elsewhere). */
+    public static final String STRIP_LABEL = "Time";
+    /** ...and its name with "Less" / "More". */
+    public static final String STRIP_SPOKEN = "time";
+    /** Pause, greyed over a by-hand step, as a screen reader says it. */
+    public static final String PAUSE_SAID = "Pause, not available by hand: the pump is vented.";
+
+    /** What a tap on Pause says over a by-hand step: there is nothing to pause, and what ends
+     *  it - Done for the release, I've swapped for the changeover. */
+    public static String pauseTap(boolean swap) {
+        return swap ? "The pump is vented \u2014 tap \u201cI\u2019ve swapped\u201d once the cylinder is changed."
+                    : "The pump is vented \u2014 tap Done when you\u2019re finished.";
+    }
+
+    /** A rest's refusal, said for a by-hand step: its End rest is Done. Anything else as is. */
+    public static String reword(String why) {
+        if (why == null) return null;
+        return why.replace("Use End rest to finish", "Use Done to finish");
+    }
+
+    /** The home-screen widget's name for the run: the by-hand step while one plays ("By hand ·
+     *  Tunica release"), the routine's otherwise. Discreet: never the step. */
+    public static String widgetName(String name, String phase, boolean discreet) {
+        String p = phase == null ? "" : phase.trim();
+        return discreet || p.length() == 0 ? name : p;
+    }
+
     /** Is `p` a step done by hand - vented, commanding nothing? */
     public static boolean is(Model.Preset p) {
         return p != null && p.rest && p.manual;

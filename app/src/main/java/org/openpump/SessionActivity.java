@@ -25969,7 +25969,9 @@ public class SessionActivity extends Activity
         if (why != null) return why;
         String cap = ComingSteps.addRefusal(ComingSteps.totalMs(plan), Math.max(0L, d));
         if (cap != null) return cap;
-        if (!comingRetimeRunning(d)) return "Use End rest to finish it now.";
+        if (!comingRetimeRunning(d))
+            return ByHand.is(p) ? ByHand.reword("Use End rest to finish it now.")
+                                : "Use End rest to finish it now.";
         log("--- REST: " + (deltaSec > 0 ? "+" : "") + deltaSec + " s from the strip, now "
             + Model.Fmt.t(plan.get(planIdx).durMs / 1000) + ", this run only ---");
         refreshRunScreen(session.elapsedMs(now, LINK_TIMEOUT_MS));
