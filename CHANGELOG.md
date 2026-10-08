@@ -4,7 +4,7 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [0.10.0] — unreleased
+## [0.10.0] — 2026-10-07
 
 The first published release, and the first with a signed APK to download. 0.9.0 was prepared
 but never released: its notes are kept below, and everything in them is in this release too.
