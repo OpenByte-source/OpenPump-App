@@ -879,6 +879,20 @@ public class Migrate {
         System.out.println("sess stop reason   : " + (stopWhyTripOk ? "ok" : "BROKEN")
                            + " (old reads " + oldSess.stopWhy + ")");
         if (!stopWhyTripOk) System.out.println("FAIL: the stop's reason does not survive a save");
+        // E2-4 (by hand): A RUN STOPPED AT THE START CHECK AFTER ITS BY-HAND STEP. Absent
+        // ("bhChk") on every session filed before it: 0, and the summary says nothing of it;
+        // the minutes by hand survive a save, and a 0 is not written at all.
+        boolean byHandOldOk = oldSess.byHandStopSec == 0L;
+        if (!byHandOldOk) System.out.println("FAIL: an old session reads a by-hand stop");
+        Model.Sess handSess = Model.Sess.fromJson(oldSess.toJson());
+        boolean byHandQuiet = false;
+        try { byHandQuiet = !handSess.toJson().has("bhChk"); } catch (Exception e) { }
+        handSess.byHandStopSec = 320L;
+        boolean byHandTripOk = byHandOldOk && byHandQuiet
+            && Model.Sess.fromJson(handSess.toJson()).byHandStopSec == 320L;
+        System.out.println("sess by-hand stop  : " + (byHandTripOk ? "ok" : "BROKEN")
+                           + " (old reads " + oldSess.byHandStopSec + ")");
+        if (!byHandTripOk) System.out.println("FAIL: the by-hand stop does not survive a save");
 
         // AND THE NEW FIELDS SURVIVE A ROUND TRIP — the other half of "persisted", proven
         // once more here on the REAL on-disk migrated model/routine (SelfTest's own
@@ -2300,7 +2314,7 @@ public class Migrate {
                   && heldOldOk && heldTripOk
                   && clkOldOk && clkTripOk
                   && limitOldOk && limitTripOk
-                  && stopWhyOldOk && stopWhyTripOk
+                  && stopWhyOldOk && stopWhyTripOk && byHandTripOk
                   && assessOldOk && assessNewOk && assessTripOk
                   && photoTakenOldOk && photoTakenTripOk && photoStdOldOk && photoStdTripOk
                   && photoOffOldOk && photoOnTripOk && fixtureOk

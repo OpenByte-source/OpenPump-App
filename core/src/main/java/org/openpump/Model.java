@@ -1051,6 +1051,13 @@ public final class Model {
         public boolean awaitAck;
         public boolean rest;
         /**
+         * THIS STEP IS DONE BY HAND - stamped from a manual rest STAGE by {@link Model#plan}
+         * (the tunica release, the changeover), never from a set. The run names it ("BY HAND",
+         * never "REST") and the release waits for Done once its guide time is up
+         * ({@link ByHand#waitsAfterClock}). TRANSIENT, like every other field here.
+         */
+        public boolean manual;
+        /**
          * HOW MUCH THE WHOLE-ROUTINE OFFSET HAS MOVED THIS PRESET'S PULL, in kPa - what it
          * actually changed, after the ceiling and the floor. RoutineOffset#apply holds the
          * trainer's cap against it step by step, so a step can never be taken further above
@@ -3362,6 +3369,15 @@ public final class Model {
          */
         public boolean climb;
 
+        /**
+         * THIS STAGE ENDS WHEN THE PERSON TAPS DONE (the owner's decision, 2026-10-07): the
+         * changeover from its start ({@link #awaitAck}), and every other by-hand rest - the
+         * tunica release - once its time, now a guide, has run out (ByHand#waitsAfterClock).
+         * Derived, not stored, so a routine saved before it waits the same way and no saved
+         * field changes.
+         */
+        public boolean awaitsDone() { return rest && (awaitAck || manual); }
+
         /** Whether this stage's frames are excluded from NET TUP. Gross still counts them:
          *  the cuff was sealed and the time was real. One predicate, so a third kind of
          *  excluded stage cannot be added to one caller and forgotten at another. */
@@ -5156,6 +5172,16 @@ public final class Model {
          */
         public int stopWhy = RunStopReason.WHY_NONE;
         public int stopLimSec;
+        /**
+         * E2-4 (by hand, 2026-10-07): THE RUN STOPPED AT THE START CHECK AFTER ITS BY-HAND
+         * STEP, and this is how long it ran - the minutes by hand - in seconds; 0 for every
+         * other session. The summary says that (ByHand#stoppedAtCheck) instead of "ran exactly
+         * to plan" or a peak set against nothing asked. Written only when not 0, so every
+         * other record is as it was byte for byte.
+         *
+         * MIGRATION: absent on every session filed before it - 0, the truth about them.
+         */
+        public long byHandStopSec;
         public Double cmdPeakKpa;
         public int afterPullKpa, carriedInKpa;
         public boolean carriedFromPull;
@@ -5430,6 +5456,7 @@ public final class Model {
                 o.put("stWhy", stopWhy);
                 o.put("stLim", stopLimSec);
             }
+            if (byHandStopSec > 0) o.put("bhChk", byHandStopSec);
             o.put("cmdPk", cmdPeakKpa == null ? "" : String.valueOf(cmdPeakKpa.doubleValue()));
             o.put("aPull", afterPullKpa);
             o.put("carIn", carriedInKpa);
@@ -5583,6 +5610,9 @@ public final class Model {
             // every session no limit stopped - no reason, and none is guessed.
             s.stopWhy = o.optInt("stWhy", RunStopReason.WHY_NONE);
             s.stopLimSec = o.optInt("stLim", 0);
+            // MIGRATION (E2-4): absent before it, and on every run not stopped at the start
+            // check after a step by hand - 0.
+            s.byHandStopSec = Math.max(0L, o.optLong("bhChk", 0L));
             s.cmdPeakKpa = parseNullableDouble(o.optString("cmdPk", ""));
             s.afterPullKpa = o.optInt("aPull", 0);
             s.carriedInKpa = o.optInt("carIn", 0);
@@ -10721,6 +10751,7 @@ public final class Model {
                     Preset p = rl.get(k);
                     p.stageIdx = i;
                     p.awaitAck = st.awaitAck;
+                    p.manual = st.manual;
                     p.setId = "stage-rest:" + i;
                     p.ordinal = k;
                     p.pos = 0;

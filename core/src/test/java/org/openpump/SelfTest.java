@@ -8990,9 +8990,14 @@ public final class SelfTest {
             if (rel == null) rel = st; else over = st;
         }
         check(rel != null && over != null, "the session has both manual stages");
+        // UPDATED 2026-10-07 (the owner's decision): this pinned the release as "timed only",
+        // going on to the warm-up by itself at 5:00. It now waits for Done once its time - a
+        // guide - is up (ByHand#waitsAfterClock; the gate is SessionActivity's, invariant 251).
+        // It still carries no awaitAck: that flag is the changeover's wait FROM ITS START.
         check(!rel.awaitAck,
-              "the tunica release is TIMED ONLY, exactly as the spec words item 1 - being "
-            + "wrong about how long a release takes is harmless");
+              "the tunica release does not wait from its start - its 5:00 is shown as a guide");
+        check(rel.awaitsDone(),
+              "...and it waits for Done once that time is up (owner, 2026-10-07)");
         check(over.awaitAck,
               "the changeover WAITS - being wrong about whether the tubes have been swapped "
             + "means commanding pressure into the wrong one");
@@ -9009,7 +9014,13 @@ public final class SelfTest {
             check(p.rest, "a waiting preset is a REST - it commands nothing while it waits");
             eq(p.up, 0, "...and holds no pressure at all");
         }
-        eq(waiting, 1, "exactly one preset in the session waits - the changeover, and only it");
+        // UPDATED 2026-10-07: "waits" here is the changeover's wait from its start (awaitAck);
+        // the release's wait after its guide time is ByHand#waitsAfterClock, counted apart.
+        eq(waiting, 1, "exactly one preset in the session waits from its start - the "
+            + "changeover, and only it");
+        int afterClock = 0;
+        for (int i = 0; i < plan.size(); i++) if (ByHand.waitsAfterClock(plan.get(i))) afterClock++;
+        eq(afterClock, 1, "and exactly one waits for Done once its time is up - the release");
 
         // A REST SET CANNOT GATE A RUN. Only a rest STAGE carries the flag, because a set
         // from the library has no stage of its own to name and must not be able to park

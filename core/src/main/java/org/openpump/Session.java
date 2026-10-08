@@ -1824,6 +1824,19 @@ public final class Session {
         return sb.toString();
     }
 
+    /**
+     * THE NOTIFICATION LEADS WITH A STEP DONE BY HAND (the owner's decision, 2026-10-07):
+     * "By hand · Tunica release · preset 1 of 14 · 4:32 left" (ByHand#notification). `phase`
+     * empty or null - every other step - leaves the line exactly as it was; DISCREET leaves it
+     * too, because a discreet notification says the time left and nothing about the session.
+     */
+    public static String runNotificationPhase(boolean discreet, String phase, String text) {
+        String p = phase == null ? "" : phase.trim();
+        if (discreet || p.length() == 0) return text;
+        if (text == null || text.length() == 0 || "in progress".equals(text)) return p;
+        return p + NOTIFICATION_SEP + text;
+    }
+
     private static void append(StringBuilder sb, String seg) {
         if (sb.length() > 0) sb.append(NOTIFICATION_SEP);
         sb.append(seg);

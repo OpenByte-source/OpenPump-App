@@ -1133,6 +1133,10 @@ final class RunScreen {
         int stepCycle, rampSteps;
         int lenField = -1;
         String head = "";
+        /** A step done by hand is playing: its length cell is "Time", never "Rest length". */
+        boolean byHand;
+        /** ...and it is the release with its time up: the cell is "Time left", 0:00 (H-7). */
+        boolean timeUp;
         /** A set figure on its way to the pump, and the pump not answering. */
         final boolean[] sending = new boolean[QuickAdjust.FIELDS];
         boolean notConfirmed;
@@ -1632,7 +1636,9 @@ final class RunScreen {
 
     /** The same at the strip's own pull limit. */
     private String stripRefusal(StripNow s, int field, int dir) {
-        return stripRefusal(s, field, dir, a.stripPullCapKpa());
+        String why = stripRefusal(s, field, dir, a.stripPullCapKpa());
+        // Over a step done by hand, End rest is Done (ByHand).
+        return s.byHand ? ByHand.reword(why) : why;
     }
 
     /** The step itself, through the one road for its kind; the refusal, or null. */
@@ -1698,10 +1704,21 @@ final class RunScreen {
         if (mode == QuickAdjust.MODE_REST) {
             s.mode = QuickAdjust.MODE_REST;
             s.lenField = QuickAdjust.REST;
-            s.head = QuickAdjust.HEAD_REST;
-            s.v[QuickAdjust.REST] = (int) ((cur.durMs + 500L) / 1000L);
+            s.byHand = ByHand.is(cur);
+            // A by-hand step that waits - the release past 0:00, the changeover from its start -
+            // shows what is left of its planned time, then 0:00, and holds still (H-7, E2-2):
+            // it never counts the wait up - the NOW card's "so far" says that.
+            s.timeUp = a.awaitingAck && ByHand.is(cur);
+            s.head = s.byHand ? ByHand.head(ventConfirmed()) : QuickAdjust.HEAD_REST;
+            // ...0:00 once the planned time has passed, never a rounded-up 0:01 (E3-1).
+            s.v[QuickAdjust.REST] = s.timeUp
+                ? ByHand.timeLeftSec(a.presetFireAt - now,
+                    a.byHandLate || ByHand.waitsAfterClock(cur))
+                : (int) ((cur.durMs + 500L) / 1000L);
             s.elapsed = (int) (Math.max(0L, cur.durMs - Math.max(0L, a.presetFireAt - now)) / 1000L);
             if (cur.awaitAck) s.blocked = "The cylinder change has no length — it waits for you.";
+            else if (a.awaitingAck && ByHand.waitsAfterClock(cur))
+                s.blocked = "Its time is up \u2014 press Done when you are.";
             return s;
         }
         long left = Math.max(0L, a.presetFireAt - now);
@@ -1855,7 +1872,9 @@ final class RunScreen {
         int f = c.field;
         boolean locked = s.grid && s.dropLocked
             && (f == QuickAdjust.DROP || f == QuickAdjust.DROP_TIME);
-        setText(c.label, RunEdit.stripLabel(f));
+        boolean handTime = s.byHand && f == QuickAdjust.REST;
+        setText(c.label, handTime ? (s.timeUp ? ByHand.STRIP_TIME_UP : ByHand.STRIP_LABEL)
+                                  : RunEdit.stripLabel(f));
         setText(c.value, locked ? "—" : QuickAdjust.value(f, s.v[f]));
         c.value.setTextColor(s.sending[f] || s.notConfirmed ? Ui.CMD : locked ? Ui.DIM : Ui.TEXT);
         String lessWhy = stripRefusal(s, f, -1), moreWhy = stripRefusal(s, f, 1);
@@ -1863,7 +1882,8 @@ final class RunScreen {
         c.plus.setTextColor(moreWhy != null ? Look.STEP_KEY_AT_LIMIT : Ui.TEXT);
         String shown = (locked ? "none" : QuickAdjust.value(f, s.v[f]))
             + (s.sending[f] ? ", sending" : s.notConfirmed ? ", not confirmed" : "");
-        String name = QuickAdjust.SPOKEN[f];
+        String name = handTime ? (s.timeUp ? "time left" : ByHand.STRIP_SPOKEN)
+                               : QuickAdjust.SPOKEN[f];
         String less = "Less " + name + ", " + shown + " now" + (lessWhy != null ? ". " + lessWhy : "");
         String more = "More " + name + ", " + shown + " now" + (moreWhy != null ? ". " + moreWhy : "");
         if (!less.contentEquals(orEmpty(c.minus.getContentDescription())))
@@ -2827,6 +2847,13 @@ final class RunScreen {
                 return;
             }
             StripNow s = stripNow(System.currentTimeMillis());
+            // A STEP THAT WAITS HAS NO TIME TO ADD (the device walk's H-3): refused as the
+            // strip's own + is - the release once its time is up, and the changeover.
+            if (s.mode == QuickAdjust.MODE_REST && s.blocked != null) {
+                a.toast(s.blocked);
+                stripHaptic(v, true);
+                return;
+            }
             if (s.mode == QuickAdjust.MODE_WORK) {
                 if (a.holdMayBeUp()) {
                     a.toast("Paused — resume first. Nothing was changed.");
@@ -2994,6 +3021,11 @@ final class RunScreen {
             // place, greyed, and a tap says so.
             Model.Preset cur = (a.planIdx >= 0 && a.planIdx < a.plan.size())
                 ? a.plan.get(a.planIdx) : null;
+            // ...and over a step done by hand it says what ends it (ByHand), never "rest".
+            if (ByHand.is(cur) && !a.restingNow) {
+                a.toast(ByHand.pauseTap(cur.awaitAck, ventConfirmed()));
+                return;
+            }
             if (inRest(cur)) { a.toast("Nothing to pause in a rest: the cuff is vented."); return; }
             /* A CONTROL THAT REFUSES HAS TO SAY SO. enterHold() returns in silence when
              * canCommandNow() is false, which during a REST - the commonest way to meet it -
@@ -3034,6 +3066,20 @@ final class RunScreen {
 
     private String restStateWordVented() {
         return a.ventWatcher.vented() ? "vented" : "venting";
+    }
+
+    /**
+     * THE VENT IS CONFIRMED BY THE PUMP (the device walk's H-6): the watch has its evidence,
+     * nothing says the cuff is still up, AND the reading is at the vented level - or the pump
+     * reports none, as it does with the system open. The rule the "vented" readout over the
+     * chart already uses; a step done by hand says "vented" only once it holds, "Venting…"
+     * before (the walk saw "Pump vented" over a gauge at −4.0 inHg).
+     */
+    private boolean ventConfirmed() {
+        boolean noReading = a.lastNoReading || a.lastSampleAt <= 0
+            || (System.currentTimeMillis() - a.lastSampleAt) > a.LINK_TIMEOUT_MS;
+        return a.ventWatcher.vented() && !a.restNotResting()
+            && (noReading || a.lastKpa < VENTED_READOUT_KPA);
     }
 
     /**
@@ -3191,7 +3237,11 @@ final class RunScreen {
              *
              * The word, not a number, and the app's own word for it: the TUP clock already
              * prints "paused" rather than a frozen figure for exactly this reason. */
-            if (a.awaitingAck) {
+            if (a.awaitingAck && ByHand.waitsAfterClock(cur)) {
+                // THE RELEASE'S GUIDE HAS RUN OUT (ByHand): it reads 0:00, and the line under it
+                // says "Done when you are" - it waits, it has not stopped.
+                a.runCountdown.setText(Model.Fmt.t(0));
+            } else if (a.awaitingAck) {
                 a.runCountdown.setText("waiting");
             } else if (a.restingNow) {
                 // THE NOW CARD IS THE TIMER (0.10): in a rest the user inserted it counts
@@ -3201,7 +3251,9 @@ final class RunScreen {
                 long leftMs = Math.max(0L, a.restNowEndAt - now);
                 a.runCountdown.setText(Model.Fmt.t((leftMs + 999) / 1000));
             } else {
-                long leftMs = a.presetFireAt - now;
+                // E2-6: before its step is armed (the first upload's settle) the countdown is the
+                // step's full time, never the settle's "0:01".
+                long leftMs = dispIdx != a.planIdx ? cur.durMs : a.presetFireAt - now;
                 if (leftMs < 0) leftMs = 0;
                 a.runCountdown.setText(Model.Fmt.t((leftMs + 999) / 1000));
             }
@@ -3235,8 +3287,10 @@ final class RunScreen {
             // that countdown is frozen on the step the rest interrupted.
             // (0.10) The inserted rest's time left is the NOW card's big figure now, so it is
             // not said a second time here.
+            // A step done by hand says "vented" only once the pump's reading confirms it (H-6).
             String state = a.restingNow
                 ? " · resting " + restStateWord() + ", the step waits"
+                : a.resting && ByHand.is(cur) ? ByHand.kickerState(a.restNotResting(), ventConfirmed())
                 : a.resting ? " · " + restStateWord()
                 : a.holding ? " · paused"
                 : (adjusted ? " · adjusted" : "");
@@ -3252,7 +3306,9 @@ final class RunScreen {
                     ? r.stages.get(cur.stageIdx) : null;
             // A PLANNED REST SAYS "REST" ONCE (0.10 final): the card's title already names it,
             // so the kicker is the routine and the rest's state - "RS Routine · vented".
-            boolean restHere = a.resting && !a.restingNow && cur.rest;
+            // ...but a step done by hand keeps its name on this line (ByHand): it is the one
+            // rest that asks the person to do something.
+            boolean restHere = a.resting && !a.restingNow && cur.rest && !cur.manual;
             /* polish RN-3 (option A): the routine's name is behind this line's info mark, not
              * printed - the NOW card above already names the step. The line keeps the state
              * (paused, adjusted, resting) the colour below is about. */
@@ -3273,7 +3329,8 @@ final class RunScreen {
             // seen is exactly the case where the cuff may still be under pressure - and amber
             // for the commanded states, a pause and a carried adjustment.
             a.nowKicker.setTextColor(a.resting || a.restingNow
-                ? (a.ventWatcher.vented() && !a.restNotResting() ? Ui.DIM : Ui.CMD)
+                ? ((ByHand.is(cur) && !a.restingNow ? ventConfirmed()
+                    : a.ventWatcher.vented() && !a.restNotResting()) ? Ui.DIM : Ui.CMD)
                 : (a.holding || adjusted ? Ui.CMD : Ui.DIM));
         }
         if (a.runCountdown != null)
@@ -3292,7 +3349,10 @@ final class RunScreen {
                        : stage != null ? stage.name : "—";
             // "REST" once in a rest (0.10 final) - never "REST · Rest"; "PAUSED · <block>"
             // while the run is paused; "NOW · <block>" otherwise.
-            a.nowName.setText(a.resting || a.restingNow ? "REST"
+            // A STEP DONE BY HAND IS NAMED, never "REST" (the owner's decision, 2026-10-07):
+            // "BY HAND · Tunica release"; the changeover keeps its own sentence.
+            a.nowName.setText(ByHand.is(cur) && !a.restingNow ? ByHand.title(stageNameOf(cur))
+                              : a.resting || a.restingNow ? "REST"
                               : (a.holding ? "PAUSED · " : "NOW · ") + who);
         }
         if (a.nowSub != null) {
@@ -3407,8 +3467,13 @@ final class RunScreen {
              * still holding short of a target the seal could not reach. The clock version
              * stays only as the fallback for when no reading is coming in. */
             String line;
-            if (cur.rest)
-                line = "REST · " + Model.Fmt.t(Math.max(0, elapsedInPreset) / 1000)
+            if (cur.rest && ByHand.is(cur) && a.awaitingAck)
+                // A wait has an elapsed and no length (the gate grows cur.durMs as it waits).
+                line = ByHand.WORD + " · " + Model.Fmt.t(Math.max(0, elapsedInPreset) / 1000)
+                    + " so far";
+            else if (cur.rest)
+                line = (ByHand.is(cur) ? ByHand.WORD : "REST") + " · "
+                    + Model.Fmt.t(Math.max(0, elapsedInPreset) / 1000)
                     + " of " + Model.Fmt.t(cur.durMs / 1000);
             else if (a.holding)
                 // (the owner's decision) and when it vents - the same limit every hold has.
@@ -3451,12 +3516,16 @@ final class RunScreen {
             boolean restingHere = cur.rest || a.restingNow;
             RunChip chip = RunChip.of(a.presetArmed(), restingHere,
                     restingHere && a.restNotResting(),
-                    restingHere && a.ventWatcher.vented(),
+                    // A step done by hand: vented only once the reading confirms it (H-6).
+                    restingHere && (ByHand.is(cur) && !a.restingNow ? ventConfirmed()
+                                                                    : a.ventWatcher.vented()),
                     // At pressure only while the step is live: the clock that pauses is
                     // judged against the commanded pull.
                     a.tupClockPaused, dev != null, a.lastKpa,
                     a.tupClockPaused ? commandedKpa : chipTarget,
-                    a.tupClockPaused ? RunChip.PULL : chipPhase);
+                    a.tupClockPaused ? RunChip.PULL : chipPhase,
+                    // A step done by hand says so, never "Resting" (ByHand, H-1).
+                    ByHand.is(cur) && !a.restingNow);
             a.runChip.setText(chip.text);
             if (a.runChipDot != null) a.runChipDot.setBackground(dot(chip.tone));
         }
@@ -3723,6 +3792,8 @@ final class RunScreen {
             }
             if ((st.rest && st.awaitAck) || (firstP != null && firstP.awaitAck)) {
                 comingWhy(card, "Waits for you to change the cylinder.");
+            } else if (st.rest && st.manual) {
+                comingWhy(card, "Done by hand, with the pump vented; waits for you to press Done.");
             } else if (sh.kind == ComingSteps.SHAPE_BLOCK) {
                 int bi = ComingSteps.blockOf(a.plan, s);
                 Model.Preset p = a.plan.get(bi);
@@ -3853,6 +3924,14 @@ final class RunScreen {
         comingHost.addView(foot, fl);
     }
 
+    /** The name of the stage `p` was expanded from, or its own label without one. */
+    private String stageNameOf(Model.Preset p) {
+        Model.Routine r = a.runRoutine;
+        if (p != null && r != null && p.stageIdx >= 0 && p.stageIdx < r.stages.size())
+            return r.stages.get(p.stageIdx).name;
+        return p == null ? "" : p.label;
+    }
+
     /** "Sets 6–10", "Ramp · 5 steps", "Rest", "Warm-up" - or the stage's own name. */
     private String comingName(int s, Model.Stage st, ComingSteps.Shape sh, int kind,
                               boolean skipped, List<Model.Preset> src) {
@@ -3867,6 +3946,8 @@ final class RunScreen {
                 return sh.sets > 1 ? "Sets " + first + "–" + (first + sh.sets - 1) : "Set " + first;
         }
         if (sh.kind == ComingSteps.SHAPE_RAMP) return "Ramp · " + sh.steps + " steps";
+        // A step done by hand is named, never "Rest": "Tunica release (by hand)" (ByHand).
+        if (st.rest && st.manual) return ByHand.coming(st.name);
         if (st.rest) return st.awaitAck ? (st.name == null ? "Change cylinder" : st.name) : "Rest";
         if (kind == RunLook.REST) return "Rest";
         // A stage of several sets names each by its set; a stage of one set by the stage.
@@ -3924,7 +4005,9 @@ final class RunScreen {
         if (sh.kind == ComingSteps.SHAPE_RAMP)
             return sh.steps + " × " + Model.Fmt.t(sh.stepSec) + " · "
                 + rampRange(ComingSteps.rampOf(a.plan, s), sh.steps);
-        if (sh.kind == ComingSteps.SHAPE_REST) return "rest " + Model.Fmt.t(sh.restSec);
+        if (sh.kind == ComingSteps.SHAPE_REST)
+            return (st != null && st.rest && st.manual ? "by hand " : "rest ")
+                + Model.Fmt.t(sh.restSec);
         long ms = sh.ms;
         if (RunShape.isWarmUp(st)) return "warm-up " + Model.Fmt.t((ms + 500) / 1000);
         return (st.name == null ? "step" : st.name.trim()) + " " + Model.Fmt.t((ms + 500) / 1000);
@@ -4529,8 +4612,12 @@ final class RunScreen {
         n.armed = a.presetArmed() || a.restingNow;
         n.holding = a.holding;
         n.awaitingAck = a.awaitingAck;
+        // The release says BY HAND on this line, never REST (ByHand).
+        n.byHand = !a.restingNow && ByHand.waitsAfterClock(cur);
         n.resting = resting;
-        n.restLeftMs = a.restingNow ? a.restNowEndAt - now : a.presetFireAt - now;
+        // E2-6: before its step is armed, the step's full time - never the settle's "0:01".
+        n.restLeftMs = a.restingNow ? a.restNowEndAt - now
+            : dispIdx != a.planIdx ? cur.durMs : a.presetFireAt - now;
         // After an inserted rest the step it interrupted comes back under pressure; after a
         // planned one, the next step - or the after-test's pull - does.
         n.pullNext = a.restingNow || (nxt != null ? !nxt.rest : assessAfter);
@@ -4550,7 +4637,10 @@ final class RunScreen {
         int kind = RunLook.liveKind(a.holding, resting, stageKind, n.dropPhase);
         int col = runColour(kind);
 
-        n.narrow = a.holding && !fitsOneLine(a.runStatusL, RunLook.PAUSED);
+        // Too narrow for the line in full - a pause, the changeover's or the by-hand wait's:
+        // said short (the device walk's H-4). A line with no short form is unchanged.
+        n.narrow = false;
+        n.narrow = !fitsOneLine(a.runStatusL, RunLook.statusLeft(n));
         /* ---- the status line: words always, colour when the setting says so ---- */
         a.runStatusL.setText(RunLook.statusLeft(n));
         // The right half is paintRoutineStrip's own figure (invariant 170), read back.
@@ -4614,7 +4704,8 @@ final class RunScreen {
                         ? setOf(cur, dispIdx, inPresetMs)[0] : 0,
                     Model.Fmt.p(Math.min(cur.up, a.model.ceilKpa)));
             } else if (a.awaitingAck) {
-                next = "the next step when you press “I’ve swapped”";
+                next = ByHand.waitsAfterClock(cur) ? "the next step when you press Done"
+                                                   : "the next step when you press “I’ve swapped”";
             } else if (nxt != null) {
                 next = rampNowAt(nxt, dispIdx + 1) && stepsNotSets(nxt)
                     ? RunLook.nextRamp(Model.Fmt.p(nextUp))
@@ -4630,7 +4721,12 @@ final class RunScreen {
             String line;
             boolean rampHere = !resting && !a.awaitingAck && !warmUpNow(cur)
                 && rampNowAt(cur, dispIdx) && stepsNotSets(cur);
-            if (a.restingNow || a.awaitingAck) {
+            if (ByHand.is(cur) && !a.restingNow) {
+                // A STEP DONE BY HAND SAYS WHAT TO DO, not "Rest": "Pump vented · do it by hand
+                // now", "Done when you are" once the release's time is up, and the changeover
+                // its own instruction (ByHand).
+                line = ByHand.nowLine(cur.awaitAck, a.awaitingAck, ventConfirmed());
+            } else if (a.restingNow || a.awaitingAck) {
                 line = RunLook.nowLine(RunLook.nowWord(kind == RunLook.DROP ? RunLook.WORK : kind),
                     set[0], set[1], next);
             } else if (resting) {
@@ -4786,6 +4882,11 @@ final class RunScreen {
             undoGoneAt = nowMs;
         }
         boolean lateGuard = !skipSaysUndo && RunEdit.skipLateTapGuarded(undoGoneAt, nowMs);
+        // THE RELEASE ENDS ON DONE, before its time is up or after (ByHand): the same skip, named
+        // and filled as the changeover's acknowledgement is.
+        boolean done = !a.restingNow && ByHand.waitsAfterClock(curP);
+        boolean byHandNow = !a.restingNow && ByHand.is(curP);
+        boolean ack = a.awaitingAck || done;
         if (a.skipBtn != null) {
             /* THE ACKNOWLEDGEMENT IS THIS CONTROL WEARING ITS OTHER NAME.
              *
@@ -4794,20 +4895,23 @@ final class RunScreen {
              * cannot move STOP under a thumb mid-run, which a new full-width button in the
              * footer would. Two states, named in words and in setSelected as well as in the
              * fill, because this app never lets a colour carry a state alone. */
-            setText(a.skipBtn, a.awaitingAck ? "I\u2019ve swapped \u203a"
+            setText(a.skipBtn, done ? ByHand.DONE
+                : a.awaitingAck ? "I\u2019ve swapped \u203a"
                 : skipSaysUndo ? UNDO_SKIP
                 : restNow ? "End rest" : ramp ? "Skip step" : warm ? "Skip warm-up"
                 : SKIP_SETS);
-            a.skipBtn.setSelected(a.awaitingAck);
+            a.skipBtn.setSelected(ack);
             a.skipBtn.setBackground(Ui.roundRect(a,
-                a.awaitingAck ? Ui.ACCENT : Ui.SURFHI, Look.R_CTRL));
-            a.skipBtn.setTextColor(a.awaitingAck ? Ui.labelOn(Ui.ACCENT) : Ui.TEXT);
+                ack ? Ui.ACCENT : Ui.SURFHI, Look.R_CTRL));
+            a.skipBtn.setTextColor(ack ? Ui.labelOn(Ui.ACCENT) : Ui.TEXT);
             timerAvailable(a.skipBtn, can && !lateGuard);
             a.skipBtn.setContentDescription(!can
                 ? "Skip, not available until a preset is playing"
                 : skipSaysUndo ? "Undo skip. Puts back what Skip just took out, for a few "
                                  + "seconds after the skip"
                 : lateGuard ? "Skip, available again in a moment"
+                : done
+                ? ByHand.doneSaid(ventConfirmed())
                 : (a.awaitingAck
                    ? "Continue. The cuff is vented and the run is waiting for you to swap "
                      + "cylinders; nothing advances until you press this."
@@ -4821,11 +4925,13 @@ final class RunScreen {
             if (!can) Ui.stateFill(a, a.extendBtn, false, false);
             else timerFill(a.extendBtn, Ui.SURFHI, Ui.TEXT);
             // polish RN-5: the warm-up's says what it adds to, as the other three do.
-            setText(a.extendBtn, restNow ? "+30 s rest"
+            // A step done by hand is not a rest: "+30 s" (ByHand).
+            setText(a.extendBtn, byHandNow ? ByHand.PLUS : restNow ? "+30 s rest"
                 : cycleStep ? RunEdit.rampExtendLabel(sn.stepCycle) : ramp ? "+30 s step"
                 : warm ? "+30 s warm-up" : "+30 s hold");
             a.extendBtn.setContentDescription(!can
                 ? "Add thirty seconds, not available until a preset is playing"
+                : byHandNow ? ByHand.PLUS_SAID
                 : restNow ? "Thirty seconds more rest"
                 : cycleStep ? RunEdit.rampExtendSaid(sn.stepCycle)
                 : ramp ? "Thirty seconds more on this step of the ramp"
@@ -4852,6 +4958,7 @@ final class RunScreen {
                 : a.holding
                   ? "Resume. The run is paused: the pump is keeping the current pressure and the "
                     + "clock is waiting; the pause " + a.runHoldVentsIn() + ". Selected."
+                  : nothing && byHandNow ? ByHand.pauseSaid(ventConfirmed())
                   : nothing
                     ? "Pause, not available in a rest: the cuff is vented."
                     : "Pause. Keeps the pump at the pressure it is reading now and stops the "

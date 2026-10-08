@@ -14108,6 +14108,21 @@ public class SessionActivity extends Activity
         // Both answer "is the cuff sealed", and running both would put two gates with two
         // verdicts in front of every run. The guided start commands NOTHING - it watches
         // the person pull by hand - so it takes precedence without adding an arming path.
+        /* A ROUTINE THAT OPENS BY HAND STARTS ON THAT STEP, UNCOMMANDED (the owner's answer on
+         * H-2, 2026-10-07). A pull to seal the cuff, then the vent the release opens with,
+         * served no purpose: the start check runs instead when Done is tapped, right before the
+         * first pressure (playPreset), with the same pass and fail it has here. Routines that
+         * do not open by hand, and one with a before-assessment due, start as they always did. */
+        startCheckDeferred = ByHand.deferStartCheck(r, model.guidedStart,
+            model.sealBeforeRoutine, Tau.runsBefore(r));
+        startCheckMidRun = false;
+        startCheckResumeIdx = -1;
+        if (startCheckDeferred) {
+            log("--- the routine opens by hand: no start check now - it runs before the first "
+                + "pressure ---");
+            beginAssessOrSession(r);
+            return true;
+        }
         if (model.guidedStart) { beginGuidedStart(r); return true; }
         // X1 - A MANUAL RUN NEVER RUNS THE SEAL CHECK ANY MORE. Its own per-run toggle is
         // gone from the Manual screen, so the only thing that can still reach the check is
@@ -14152,7 +14167,12 @@ public class SessionActivity extends Activity
 
     private void startSession(Model.Routine r) {
         if (refuseArmOutsideRun("startSession")) return;   // D2, invariant 65
+        // A START CHECK RUN MID-RUN (H-2) hands back to the run it paused, never a new one:
+        // "Start anyway" and a skipped seal check arrive here - not a pass (E2-7).
+        if (startCheckMidRun) { resumeAfterStartCheck(false); return; }
         planIdx = -1; batchBase = 0; batchCount = 0;
+        byHandGateIdx = -1;
+        byHandWaitMs = 0L;
         pendingChange.cancel();
         freezeRepSchedule(r);
         runRoutine = r;    // the ONE routine this run refers to for its whole duration —
@@ -14377,6 +14397,24 @@ public class SessionActivity extends Activity
                 ui.postDelayed(this, left);
                 return;
             }
+            /* THE RELEASE WAITS FOR DONE (the owner's decision, 2026-10-07). Its time is a
+             * guide: when it runs out the run does not go on to the warm-up by itself. It
+             * raises the changeover's own gate - the clock is held (tickHold), nothing is
+             * armed, the pump stays vented - and only Done (skipPresetOrWhy) moves on. Only the
+             * advance that ends the release's own step raises it: byHandGateIdx is that step,
+             * and idx the one after it. */
+            if (running && byHandGateIdx >= 0 && byHandGateIdx == planIdx
+                    && idx == planIdx + 1 && planIdx < plan.size()
+                    && ByHand.waitsAfterClock(plan.get(planIdx))) {
+                byHandGateIdx = -1;
+                awaitingAck = true;
+                heldLastTickAt = now;
+                log("--- BY HAND: the release's time is up - waiting for Done, nothing armed ---");
+                buzz(CHANGE_MS);
+                redrawRunIfStillRunning();
+                Ui.say(SessionActivity.this, ByHand.WHEN_READY + " \u2014 press Done.", true);
+                return;
+            }
             // D2 - a set that ends at its time limit ends HERE, exactly as every set does;
             // the only difference is one sentence saying so.
             sayIfSetEndsAtItsLimit();
@@ -14411,6 +14449,12 @@ public class SessionActivity extends Activity
         if (holdMayBeUp()) exitHold(false);
         endInsertedRest(false);
         if (idx >= plan.size()) { endOfPlan(); return; }
+        // THE DEFERRED START CHECK RUNS HERE, before the first step that can command pressure
+        // (H-2): the run's first pressure waits for the cuff to be checked, as a start does.
+        if (ByHand.startCheckBefore(startCheckDeferred, plan.get(idx))) {
+            beginDeferredStartCheck(idx);
+            return;
+        }
         // The window is what the last batch WROTE (batchCount): at most eight - the ninth
         // entry belongs to the override - and never past a rest, which ends a batch. A rest
         // just past it is played as a rest (it arms nothing); anything else past it needs a
@@ -14483,6 +14527,10 @@ public class SessionActivity extends Activity
          * rest, and this is the PLAN's own gate. Cleared on entry to every preset, so a gate
          * cannot outlive the stage that set it. */
         awaitingAck = false;
+        // ...and the release's own gate is armed for THIS step only: its guide time runs,
+        // and Advance raises the gate when it is up (ByHand).
+        byHandGateIdx = ByHand.waitsAfterClock(p) ? idx : -1;
+        byHandLate = false;     // a new step: no wait of its own has run late yet (E3-1)
         /* THE MID-RUN CHECK APPEARS WHEN THE REST DOES. midRunCheckOffered() turns on with
          * `resting`, but the row that reads it is only built by showRun - so the check used
          * to appear on whatever redraw happened to come next rather than when the rest it
@@ -14818,6 +14866,8 @@ public class SessionActivity extends Activity
         // either branch: a stale flag would route every later tickRun() into the seal
         // watchdog branch instead of the run's, for the rest of the session.
         sealResultShowing = false;
+        // ...and a check passed mid-run (H-2) goes back to the run it paused.
+        if (startCheckMidRun) { resumeAfterStartCheck(true); return; }
         if (Tau.runsBefore(r)) { beginAssessment(r, false); return; }
         startSession(r);
     }
@@ -15676,17 +15726,22 @@ public class SessionActivity extends Activity
             + Model.Fmt.p(PreRunHold.guidedTargetKpa(model.ceilKpa)), null, Ui.CMD);
         /* polish RN-1: one short line on the face, the reason it waits behind its ⓘ (amber:
          * it is about when the pump moves on). "held" in sentence case. */
-        Ui.noteInfo(this, g, model.guidedStartAssist
+        // After Done, mid-run (H-2), the routine has started: it is the pump that starts once
+        // the cuff holds (ByHand#startWords). At a normal start the words are today's.
+        boolean mid = startCheckMidRun;
+        String face = model.guidedStartAssist
             ? "The routine starts once the cuff has held this pressure for 2 seconds."
             : "Pump by hand to that number and hold it. The routine starts once it has "
-              + "stayed there for 2 seconds.",
-            "Before the routine starts", model.guidedStartAssist
+              + "stayed there for 2 seconds.";
+        Ui.noteInfo(this, g, ByHand.startWords(face, mid),
+            ByHand.startWords("Before the routine starts", mid),
+            ByHand.startWords(model.guidedStartAssist
             ? ("Pulling to that pressure now. The routine starts on its own once the cuff "
                + "has held it for two seconds, not when the pull is sent, so a seal that "
                + "will not take never turns into a routine that runs anyway.")
             : ("Pump by hand until the pressure reaches that number, then hold it there. "
                + "The routine starts on its own once it has stayed there for two seconds. "
-               + "Nothing is commanded until it does."), true);
+               + "Nothing is commanded until it does."), mid), true);
 
         guidedReading = new TextView(this);
         guidedReading.setTextColor(Ui.TEXT);
@@ -15787,12 +15842,13 @@ public class SessionActivity extends Activity
         guidedAskedAt = System.currentTimeMillis();
         guidedAskDialog = Ui.dialog(this)
             .setTitle("Still waiting")
-            .setMessage("The pressure has not held at "
+            .setMessage(ByHand.startWords("The pressure has not held at "
                 + Model.Fmt.p(PreRunHold.guidedTargetKpa(model.ceilKpa))
                 + " for a full two seconds yet. That usually means the cuff is not sealing "
                 + "\u2014 reseat it and it will start on its own, or start the routine anyway "
                 + "and pull as it runs. With no answer in a minute, "
-                + (guidedCommanded ? "the pump is released." : "this start ends."))
+                + (guidedCommanded ? "the pump is released." : "this start ends."),
+                startCheckMidRun))
             .setPositiveButton("Keep waiting", new GuidedKeepWaiting())
             .setNeutralButton("Start anyway", new GuidedStartAnyway())
             .setNegativeButton("Stop", new GuidedStopFromDialog())
@@ -16030,22 +16086,26 @@ public class SessionActivity extends Activity
 
     private void showSealCheck(Model.Routine r) {
         body.removeAllViews();
-        enterFlow(Nav.SCR_SEAL, Nav.STEP_SEAL);
+        // E2-5: mid-run (after Done) the check is no numbered step of a start.
+        enterFlow(Nav.SCR_SEAL, startCheckMidRun ? -1 : Nav.STEP_SEAL);
         Ui.head(this, body, "Seal check");
         Ui.chip(this, body, "Checking the seal…",
             "holding " + Model.Fmt.p(model.sealCheckKpa) + " and coasting — please hold still",
             Ui.SURF, Ui.CMD);
         Ui.note(this, body, "Measured during a coasting hold, never after StopWork — stopping "
             + "vents, which would measure the valve instead of the seal.");
-        Ui.note(this, body, "next: " + r.name + " · " + Model.Fmt.t(model.routineSec(r))
+        // E2-5: mid-run, what comes next is the held step, not the whole routine.
+        if (startCheckMidRun) Ui.note(this, body, "next: " + midRunNextName());
+        else Ui.note(this, body, "next: " + r.name + " · " + Model.Fmt.t(model.routineSec(r))
             + " · peak " + Model.Fmt.p(model.peak(r)));
         // Skippable, in the same shape showAssessVent offers and for the same reason: a
         // screen whose only way past is ending the session is a disabled control with no
         // explanation, and the seal check can take half a minute on a slow cuff.
         Button skip = Ui.flat(this, body, "Skip the seal check");
         skip.setOnClickListener(new SkipSealTap(r));
-        Ui.noteSafety(this, body, "Skipping starts the routine with no seal verdict — the hold now on "
-            + "the cuff is not vented first, exactly as \"Continue to session\" would leave it.");
+        Ui.noteSafety(this, body, ByHand.startWords("Skipping starts the routine with no seal "
+            + "verdict — the hold now on the cuff is not vented first, exactly as \"Continue to "
+            + "session\" would leave it.", startCheckMidRun));
         Button cancel = Ui.big(this, body, "Cancel and vent", Ui.CRIT);
         cancel.setOnClickListener(new EndRunTap());
     }
@@ -16130,7 +16190,8 @@ public class SessionActivity extends Activity
         body.removeAllViews();
         // Still the seal-check step, and the cuff is still held at the check pressure — the
         // bar stays absent, the step indicator stays on Seal check.
-        enterFlow(Nav.SCR_SEAL, Nav.STEP_SEAL);
+        // E2-5: mid-run (after Done) the check is no numbered step of a start.
+        enterFlow(Nav.SCR_SEAL, startCheckMidRun ? -1 : Nav.STEP_SEAL);
         Ui.head(this, body, "Seal check");
         int commanded = model.sealCheckKpa;
         String evidence = " · from " + validSamples + " reading"
@@ -16190,7 +16251,8 @@ public class SessionActivity extends Activity
             beginAssessOrSession(r);
             return;
         }
-        Button cont = Ui.big(this, body, "Continue to session", Ui.GOOD);
+        Button cont = Ui.big(this, body,
+            ByHand.startWords("Continue to session", startCheckMidRun), Ui.GOOD);
         cont.setOnClickListener(new ContinueToSessionTap(r));
         Button recheck = Ui.big(this, body, "Reseat and re-check", Ui.CMD);
         recheck.setOnClickListener(new RecheckSealTap(r));
@@ -16237,7 +16299,8 @@ public class SessionActivity extends Activity
 
     private void showSealVenting(Model.Routine r) {
         body.removeAllViews();
-        enterFlow(Nav.SCR_SEAL, Nav.STEP_SEAL);
+        // E2-5: mid-run (after Done) the check is no numbered step of a start.
+        enterFlow(Nav.SCR_SEAL, startCheckMidRun ? -1 : Nav.STEP_SEAL);
         Ui.head(this, body, "Seal check");
         Ui.chip(this, body, "Venting before reseat…",
             "confirming the earlier hold actually dropped before starting a new one",
@@ -18430,6 +18493,81 @@ public class SessionActivity extends Activity
     Button skipBtn, extendBtn;
     /** True while a stage is waiting to be acknowledged - see Advance and tickHold. */
     boolean awaitingAck;
+    /** The plan index of the release playing now, whose guide time running out raises the
+     *  gate above (ByHand#waitsAfterClock, the owner's decision 2026-10-07); -1 otherwise.
+     *  Armed by playPreset for that step only, cleared by Done, by the gate it raises and by
+     *  the run's start and end - so the settle of the upload for the step after it can never
+     *  raise the gate again. */
+    int byHandGateIdx = -1;
+    /** H-2 (the owner, 2026-10-07): this run opened by hand and its start check has not run
+     *  yet - it runs before the first step that can command pressure (playPreset). */
+    boolean startCheckDeferred;
+    /** ...and it is running now, mid-run, on its own screen; its pass hands back to the run
+     *  (resumeAfterStartCheck), at startCheckResumeIdx. */
+    boolean startCheckMidRun;
+    int startCheckResumeIdx = -1;
+    /** E2-4: the run being filed ended at the start check after its by-hand step. Set by
+     *  finishSession as it stands the check down, read once by fileSession. */
+    boolean stoppedAtCheck;
+    /** E3-2: the run's clock, in seconds, when Done started the deferred start check - the
+     *  by-hand step's minutes a run stopped at that check files. */
+    long byHandSecAtDone;
+    /** E3-1: the by-hand wait playing now has passed its planned time (tickHold pushed it). */
+    boolean byHandLate;
+
+    /** E2-5: what the start check run mid-run goes on to - the held step's stage name. */
+    private String midRunNextName() {
+        int i = startCheckResumeIdx;
+        if (runRoutine == null || i < 0 || i >= plan.size()) return "the next step";
+        int si = plan.get(i).stageIdx;
+        if (si < 0 || si >= runRoutine.stages.size()) return "the next step";
+        String n = runRoutine.stages.get(si).name;
+        return n == null || n.trim().length() == 0 ? "the next step" : n.trim();
+    }
+
+    /**
+     * THE DEFERRED START CHECK (H-2): Done ended the release, and the next step is the first
+     * that can command pressure. The check runs now - the guided start, or the seal check
+     * where it is on - with its own screen, pass and fail, exactly as it does before a run.
+     * The run is held where it is: nothing is pending, the rest is over (so the rest's own
+     * vent guard does not stop the check's pull), and the table the check writes is rewritten
+     * by the step after it (restRearmPending). A fail ends the run as a failed start does.
+     */
+    private void beginDeferredStartCheck(int idx) {
+        startCheckDeferred = false;
+        startCheckMidRun = true;
+        startCheckResumeIdx = idx;
+        // E3-2: the minutes by hand are the run's clock NOW, at Done - the check's own
+        // seconds that follow are not by hand.
+        byHandSecAtDone = session.elapsedMs(System.currentTimeMillis(), LINK_TIMEOUT_MS) / 1000L;
+        if (pendingAdvance != null) { ui.removeCallbacks(pendingAdvance); pendingAdvance = null; }
+        awaitingAck = false;
+        byHandGateIdx = -1;
+        resting = false;
+        restRearmPending = true;
+        log("--- BY HAND: Done - the start check runs now, before the first pressure (step "
+            + (idx + 1) + ") ---");
+        if (model.guidedStart) beginGuidedStart(runRoutine);
+        else beginSealCheck(runRoutine);
+    }
+
+    /** The deferred start check passed (or was started anyway): the run goes on from the step
+     *  it was held at, its table written again first, on the run screen. */
+    private void resumeAfterStartCheck(boolean passed) {
+        startCheckMidRun = false;
+        int idx = startCheckResumeIdx;
+        startCheckResumeIdx = -1;
+        restRearmPending = true;
+        // E2-7: the log says which - a pass, or a start without one.
+        log("--- start check " + (passed ? "passed" : "not passed (started anyway or without "
+            + "waiting)") + " mid-run: on to step " + (idx + 1) + " ---");
+        if (idx < 0) return;
+        playPreset(idx);
+        if (running && runRoutine != null && !assessBusy()) showRun(runRoutine);
+    }
+    /** What the wait BY HAND playing now has added to routineAddedMs (tickHold) - folded into
+     *  the plan by Done or "I've swapped" (RunEdit#foldWait, H-4). */
+    long byHandWaitMs;
     /** Rolling buffer the deviation chart draws — null entries mark a tick with no
      *  usable reading (link lost or a genuine "no reading" sample), so the chart can
      *  show a gap instead of inventing a value (S2). */
@@ -19539,8 +19677,11 @@ public class SessionActivity extends Activity
      *  where the hold is deliberately left on), and an assessment's pull. A rest, a vent
      *  wait and the run itself are counted elsewhere or not at all. */
     private boolean commandingUnrecorded() {
-        return running && ((guidedStarting && guidedCommanded) || sealChecking
-                           || sealResultShowing || assessing);
+        // A start check run MID-RUN (H-2) is inside the run's own clock already, which the
+        // two-hour stop counts whole: counted here too, it would be counted twice.
+        return running && !startCheckMidRun
+            && ((guidedStarting && guidedCommanded) || sealChecking
+                || sealResultShowing || assessing);
     }
 
     /** How often the cap is actually computed. The check walks the recorded frames, so it
@@ -20927,7 +21068,10 @@ public class SessionActivity extends Activity
         /* A STAGE THAT IS WAITING SAYS SO FIRST. Whatever the track's ordinary rest advice
          * is, it is not what a person needs to read while the run is parked waiting for them
          * to do something - and "stay in the cylinder" would be actively wrong here. */
-        if (awaitingAck) return "swap the cylinder, then press “I’ve swapped”";
+        if (awaitingAck) return releasePlaying() ? "press Done when you are"
+                                                  : "swap the cylinder, then press “I’ve swapped”";
+        // THE RELEASE IS DONE BY HAND, and Done ends it (ByHand).
+        if (releasePlaying()) return "do it by hand, then press Done";
         int track = runRoutine != null ? runRoutine.trainerTrack : -1;
         // L4 OPTION B, on the SAME line rather than a card of its own: it is a different
         // thing to do during the rest that is already being described, and a second card
@@ -20943,6 +21087,25 @@ public class SessionActivity extends Activity
         // Off-plan, length, or a routine that names no track: the honest thing is still what
         // the pump is doing, because there is no prescription here to instruct anybody.
         return "nothing commanded";
+    }
+
+    /** THE RELEASE IS PLAYING NOW (ByHand#waitsAfterClock): the planned step done by hand
+     *  whose time is a guide - never under a rest the person inserted. */
+    boolean releasePlaying() {
+        return running && !restingNow && planIdx >= 0 && planIdx < plan.size()
+            && ByHand.waitsAfterClock(plan.get(planIdx));
+    }
+
+    /** A STEP DONE BY HAND IS PLAYING NOW (ByHand#is) - the release or the changeover. */
+    boolean byHandPlaying() {
+        return running && !restingNow && !startCheckMidRun && planIdx >= 0
+            && planIdx < plan.size() && ByHand.is(plan.get(planIdx));
+    }
+
+    /** What the run is waiting for, while its gate is up: the cylinder change, or Done. */
+    String waitingWhy() {
+        return releasePlaying() ? "The run is waiting for you to press Done."
+                                : "The run is waiting for the cylinder change.";
     }
 
     /* ================================================== THE SET WAVEFORM ========= */
@@ -22407,8 +22570,8 @@ public class SessionActivity extends Activity
             lab.setColor(rc);
             lab.setTextSize(Ui.dp(SessionActivity.this, 12));
             lab.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-            String said = "REST · " + Model.Fmt.t((Math.max(0L, span[1] - now) + 999L) / 1000L)
-                + " left";
+            String said = (byHandPlaying() ? ByHand.WORD : "REST") + " · "
+                + Model.Fmt.t((Math.max(0L, span[1] - now) + 999L) / 1000L) + " left";
             float lx = Math.max(0, x0) + Ui.dp(SessionActivity.this, 6);
             if (lx + lab.measureText(said) > w) lx = Math.max(0, w - lab.measureText(said));
             c.drawText(said, lx, top + lab.getTextSize() + Ui.dp(SessionActivity.this, 2), lab);
@@ -23127,6 +23290,13 @@ public class SessionActivity extends Activity
         if (awaitingAck && restNotResting())
             return "The tube is still under pressure \u2014 wait for it to vent, or press STOP";
         awaitingAck = false;
+        byHandGateIdx = -1;     // Done, before or after the release's time is up
+        /* A WAIT BY HAND IS NOT LATENESS (the device walk's H-4). While it lasts the ROUTINE
+         * card says "+m:ss"; once Done or "I've swapped" ends it, it is folded into the plan
+         * (as +30 s and Skip are), so the run does not read late - and the status line is not
+         * squeezed - for the rest of it. */
+        routineAddedMs = RunEdit.foldWait(routineAddedMs, byHandWaitMs);
+        byHandWaitMs = 0L;
         int idx = planIdx;
         Model.Preset p = plan.get(idx);
         long now = System.currentTimeMillis();
@@ -25878,7 +26048,7 @@ public class SessionActivity extends Activity
         String no = comingRefusal();
         if (no != null) return no;
         if (holdMayBeUp()) return "Paused \u2014 resume first. Nothing was changed.";
-        if (awaitingAck) return "The run is waiting for the cylinder change.";
+        if (awaitingAck) return waitingWhy();
         return null;
     }
 
@@ -25918,7 +26088,9 @@ public class SessionActivity extends Activity
         if (why != null) return why;
         String cap = ComingSteps.addRefusal(ComingSteps.totalMs(plan), Math.max(0L, d));
         if (cap != null) return cap;
-        if (!comingRetimeRunning(d)) return "Use End rest to finish it now.";
+        if (!comingRetimeRunning(d))
+            return ByHand.is(p) ? ByHand.reword("Use End rest to finish it now.")
+                                : "Use End rest to finish it now.";
         log("--- REST: " + (deltaSec > 0 ? "+" : "") + deltaSec + " s from the strip, now "
             + Model.Fmt.t(plan.get(planIdx).durMs / 1000) + ", this run only ---");
         refreshRunScreen(session.elapsedMs(now, LINK_TIMEOUT_MS));
@@ -26114,7 +26286,7 @@ public class SessionActivity extends Activity
         if (frozen != null) return frozen;
         // The next step re-writes the pump's table, a pause's own entry with it (48b).
         if (holdMayBeUp()) return "Paused — resume first. Nothing was changed.";
-        if (awaitingAck) return "The run is waiting for the cylinder change.";
+        if (awaitingAck) return waitingWhy();
         // Nor under a START that may still be answered, or a change on its way (155).
         String waits = ctl.editWaits(ackClock());
         if (waits != null) return waits;
@@ -26203,7 +26375,7 @@ public class SessionActivity extends Activity
         String frozen = commandFreezeReason();
         if (frozen != null) return frozen;
         if (holdMayBeUp()) return "Paused \u2014 resume first. Nothing was changed.";
-        if (awaitingAck) return "The run is waiting for the cylinder change.";
+        if (awaitingAck) return waitingWhy();
         if (restingNow) return "A rest is up \u2014 nothing was changed.";
         String waits = ctl.editWaits(ackClock());
         if (waits != null) return waits;
@@ -26757,6 +26929,13 @@ public class SessionActivity extends Activity
         long step = RunEdit.heldAdvanceMs(heldLastTickAt, now);
         heldLastTickAt = now;
         if (step <= 0) return;
+        /* E2-2: A WAIT BY HAND INSIDE ITS PLANNED TIME IS NOT LATE. The changeover waits from
+         * its start, so every second of its 2:00 was pushed on to the step and the run:
+         * "+0:02" on the line, the Time cell and the predicted end climbing while the step was
+         * on plan. Nothing moves until the planned time has passed (ByHand#waitIsLate); the
+         * gate still holds the step (Advance returns while awaitingAck). */
+        if (!holding && !restingNow && awaitingAck && byHandPlaying()
+                && !ByHand.waitIsLate(now, presetFireAt)) return;
         presetFireAt += step;
         setPresetDuration(planIdx, plan.get(planIdx).durMs + step);
         // S01 - THE ROUTINE CARD'S OWN "+m:ss", run-wide rather than one set's: this is one
@@ -26764,6 +26943,8 @@ public class SessionActivity extends Activity
         // changeover wait — awaitingAck here is the changeover's wait, tickHold's own doc
         // above). See RunEdit#routineElapsedLine for why this is never displayed alone.
         routineAddedMs += step;
+        // ...the share of it a wait BY HAND added, folded into the plan when it ends (H-4).
+        if (awaitingAck && byHandPlaying()) { byHandWaitMs += step; byHandLate = true; }
         /* AND THE TUP BOOKKEEPING KEEPS STEP, because this is the one place all three
          * pauses lengthen a preset. With "at pressure only" timing the NOW card reports
          * against tupBaseDurMs, and an inserted REST or a changeover - both VENTED - was
@@ -27337,6 +27518,12 @@ public class SessionActivity extends Activity
          * A gate belongs to the stage that raised it, and the stage does not outlive the run.
          * `holding` above is cleared here for exactly the same reason. */
         awaitingAck = false;
+        byHandGateIdx = -1;
+        startCheckDeferred = false;
+        // E2-4: a run that ends at the start check after its by-hand step is filed as that.
+        stoppedAtCheck = startCheckMidRun;
+        startCheckMidRun = false;
+        startCheckResumeIdx = -1;
         // A run that ended during a rest step must not leave the flag standing: the next
         // run's first preset would open on a screen still saying REST.
         resting = false;
@@ -27789,6 +27976,10 @@ public class SessionActivity extends Activity
         // one line that stays, and the same line on the summary reopened from History.
         rec.stopWhy = aborted ? runStopWhy : RunStopReason.WHY_NONE;
         rec.stopLimSec = aborted ? runStopLimSec : 0;
+        // E2-4: stopped at the start check after the by-hand step - the minutes by hand.
+        rec.byHandStopSec = ByHand.byHandStopSec(aborted, stoppedAtCheck, byHandSecAtDone);
+        stoppedAtCheck = false;
+        byHandSecAtDone = 0L;
         rec.cmdPeakKpa = Double.valueOf(commandedPeakKpa);
         rec.afterPullKpa = ranAtAll ? assessAfterArmedKpa : 0;
         rec.carriedInKpa = ranAtAll ? carriedInKpa : 0;
@@ -29441,6 +29632,9 @@ public class SessionActivity extends Activity
             Ui.note(this, col, run == null
                 ? "No as-run recording for this session — filed before the recorder existed, "
                   + "or nothing survived to save."
+                // E2-4: a run stopped at the start check after its by-hand step did not run to
+                // plan - it is said as what it was.
+                : sess.byHandStopSec > 0 ? ByHand.stoppedAtCheck(sess.byHandStopSec)
                 : "This session ran exactly to plan — nothing to chart block by block.");
         } else {
             BlockChartView chart = new BlockChartView(this, blocks);
@@ -38761,8 +38955,24 @@ public class SessionActivity extends Activity
         return running && holding ? runHoldVentsIn() : "";
     }
 
+    /** RunService.Live - a step done by hand, named: "By hand · Tunica release", then "By hand
+     *  · Done when you are" once the release's time is up; "" for every other step. */
+    @Override public String livePhase() {
+        if (!byHandPlaying()) return "";
+        Model.Preset p = plan.get(planIdx);
+        String name = p.label;
+        if (runRoutine != null && p.stageIdx >= 0 && p.stageIdx < runRoutine.stages.size())
+            name = runRoutine.stages.get(p.stageIdx).name;
+        return ByHand.notification(name, awaitingAck && ByHand.waitsAfterClock(p), p.awaitAck);
+    }
+
     @Override public String liveCountdown() {
         if (!running || planIdx < 0 || planIdx >= plan.size()) return "";
+        // The start check mid-run (H-2) has no step's time to count, as before a run.
+        if (startCheckMidRun) return "";
+        // A step done by hand that is waiting - the release once its time is up, the
+        // changeover always - has no time left to count (H-5): never a frozen "2:00 left".
+        if (awaitingAck && byHandPlaying()) return "";
         long leftMs = presetFireAt - System.currentTimeMillis();
         if (leftMs < 0) leftMs = 0;
         return Model.Fmt.t((leftMs + 999) / 1000);
@@ -39781,6 +39991,14 @@ public class SessionActivity extends Activity
             boolean edited = plan.size() != runBuiltSize;
             if (edited) comingResized();
             int idx = shaped.idx;
+            /* H-2: A RUN THAT OPENED BY HAND AND HAS NOT REACHED ITS FIRST PRESSURE has not had
+             * its start check either (it was deferred to that pressure) - rejoined there, the
+             * check still runs before it. Past it, the check was had, as on any rejoin. */
+            startCheckMidRun = false;
+            startCheckResumeIdx = -1;
+            startCheckDeferred = ByHand.deferStartCheck(run, model.guidedStart,
+                    model.sealBeforeRoutine, Tau.runsBefore(run))
+                && ByHand.noPressureBefore(plan, idx);
             if (edited) log("--- rejoin: " + (runBuiltSize - plan.size()) + " skipped step(s) kept "
                 + "out, this run only; resuming at preset " + idx + " of " + plan.size() + " ---");
             // startSession begins at preset 0; move to where the run had got to. uploadBatch
@@ -41022,8 +41240,13 @@ public class SessionActivity extends Activity
             model.measLog.due(model.meas, sessionsThisTrainingWeek(r)));
         boolean endHold = model.endHoldForMeasure && model.std.kpa > 0
             && (measDue || model.measLog.latestPre() != null);
+        // E2-1: a routine that opens by hand runs its start check after Done, not first
+        // (ByHand#deferStartCheck) - so the box says what really comes first.
+        boolean byHandFirst = ByHand.deferStartCheck(r, model.guidedStart,
+            model.sealBeforeRoutine, Tau.runsBefore(r));
         SessionPlan.Steps plan = SessionPlan.of(measDue, model.std.on, model.std.sec,
-            model.guidedStart, model.sealBeforeRoutine, Tau.runsBefore(r), Tau.runsAfter(r),
+            model.guidedStart && !byHandFirst, model.sealBeforeRoutine && !byHandFirst,
+            Tau.runsBefore(r), Tau.runsAfter(r),
             r.assess != null ? r.assess.dur : 0, endHold);
 
         LinearLayout outer = new LinearLayout(this);
@@ -41036,6 +41259,11 @@ public class SessionActivity extends Activity
         // polish DG-1: one plain line - "First: pull to pressure (under a minute)" - in place
         // of a capitals label over a lowercase fragment.
         String about = SessionPlan.about(plan.beforeSec);
+        if (byHandFirst)
+            planLine(box, ByHand.startConfirmFirst(r.stages.get(0).name,
+                plan.before.isEmpty() ? "" : SessionPlan.chain(plan.before)
+                    + (about.isEmpty() ? "" : " (" + about + ")")));
+        else
         planLine(box, plan.before.isEmpty() ? "The first set starts straight away."
             : "First: " + SessionPlan.chain(plan.before)
               + (about.isEmpty() ? "" : " (" + about + ")"));

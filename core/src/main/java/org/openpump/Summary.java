@@ -825,6 +825,9 @@ public final class Summary {
             return "None of the routine ran, so there is nothing to tune. If this ended "
                  + "during the seal check, that check did put pressure on the cuff — it just "
                  + "isn't part of what the routine delivered.";
+        // E2-4: a run stopped at the start check after its step by hand asked for nothing of
+        // its own - said as that, never a peak set against "0.0 asked".
+        if (s != null && s.byHandStopSec > 0) return ByHand.stoppedAtCheck(s.byHandStopSec);
         if (s == null || s.peakKpa == null)
             return "The pump sent no readings, so there is nothing to compare with what it "
                  + "was asked for. Check the connection before the next session.";

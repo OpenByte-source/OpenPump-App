@@ -207,8 +207,13 @@ public final class RunLook {
         /** A preset is armed and playing. */
         public boolean armed;
         public boolean holding;
-        /** A cylinder changeover is waiting for the user's "I've swapped". */
+        /** A cylinder changeover is waiting for the user's "I've swapped" - or, with
+         *  {@link #byHand}, the release's guide time is up and it waits for Done. */
         public boolean awaitingAck;
+        /** THE RELEASE IS PLAYING (ByHand#waitsAfterClock): a step done by hand, the pump
+         *  vented, its time a guide. The line says BY HAND, never REST, and warns of no pull -
+         *  nothing pulls until Done (the owner's decision, 2026-10-07). */
+        public boolean byHand;
         /** A rest is playing: the plan's own, or one inserted with Rest. */
         public boolean resting;
         /** Time left in the rest. */
@@ -229,13 +234,14 @@ public final class RunLook {
         public boolean ramp;
         /** Which step of the ramp is playing, and of how many; 0 when not counted. */
         public int stepK, stepN;
-        /** The status line is too narrow for the paused line in full: say it short. */
+        /** The status line is too narrow for the paused line, the changeover's or the by-hand
+         *  wait's in full: say it short. */
         public boolean narrow;
     }
 
     /** True in the last {@link #PULL_WARN_MS} of a rest that a pull follows. */
     public static boolean pullWarning(Now n) {
-        return n != null && n.resting && !n.holding && !n.awaitingAck && n.pullNext
+        return n != null && n.resting && !n.holding && !n.awaitingAck && !n.byHand && n.pullNext
             && n.restLeftMs > 0 && n.restLeftMs <= PULL_WARN_MS;
     }
 
@@ -250,6 +256,10 @@ public final class RunLook {
     /** ...and when that does not fit the line (the device check found it wrapping): the
      *  Resume button beside it says the rest. */
     public static final String PAUSED_SHORT = "PAUSED · PRESSURE KEPT";
+    /** The changeover's line, and its short form where the line is too narrow (the device
+     *  walk's H-4: cut to "CHANGE CYLINDER · TAP I’VE…" at 360 dp); the button says the rest. */
+    public static final String SWAP = "CHANGE CYLINDER · TAP I’VE SWAPPED";
+    public static final String SWAP_SHORT = "CHANGE CYLINDER";
 
     /**
      * THE STATUS LINE'S LEFT HALF: the phase, named once - never "STAGE n OF m" (the stage bar
@@ -260,6 +270,7 @@ public final class RunLook {
      *   ramp        "RAMP · STEP 3 OF 5"
      *   warm-up     "WARM-UP"
      *   rest        "REST · PULL IN 1:46" (unchanged)
+     *   by hand     "BY HAND · 4:32 LEFT", then "BY HAND · DONE WHEN YOU ARE" (ByHand)
      *   paused      "PAUSED · PRESSURE KEPT · TAP RESUME"
      * A PAUSE always says so, in words, whatever the colour setting: a run held at pressure
      * must never read as one that is running.
@@ -267,7 +278,11 @@ public final class RunLook {
     public static String statusLeft(Now n) {
         if (n == null) return "";
         if (n.holding) return n.narrow ? PAUSED_SHORT : PAUSED;
-        if (n.awaitingAck) return "CHANGE CYLINDER · TAP I’VE SWAPPED";
+        // A step done by hand says so, where a rest would say REST (ByHand).
+        if (n.byHand && (n.armed || n.awaitingAck))
+            return ByHand.status(n.restLeftMs, n.awaitingAck, n.narrow);
+        // ...and the changeover's, said short where the line is too narrow for it (H-4).
+        if (n.awaitingAck) return n.narrow ? SWAP_SHORT : SWAP;
         if (!n.armed) return "STARTING";
         if (n.resting) {
             if (pullWarning(n)) return "PULL IN " + left(n.restLeftMs);
