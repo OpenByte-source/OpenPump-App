@@ -1029,6 +1029,12 @@ final class SettingsScreen {
          * out of sight. */
         // Whether this build has the diagnostic console at all: only a debug build does (see
         // the Diagnostics card below).
+        LinearLayout gConnected = Ui.cardGroup(a, a.body, "Connected apps", null, Ui.DIM);
+        Ui.note(a, gConnected, "GrowthTrack is optional. Connected: new sessions sync automatically. "
+            + "Disconnected: nothing sends.");
+        Button growthTrack = Ui.flat(a, gConnected, "GrowthTrack >");
+        growthTrack.setOnClickListener(new GrowthTrackActivity.OpenTap(a, null));
+
         boolean console = SessionActivity.hasConsole();
 
         /* ===== DEVICE & DEVELOPER — deliberately last ================================== */

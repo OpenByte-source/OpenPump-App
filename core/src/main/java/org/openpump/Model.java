@@ -4688,6 +4688,10 @@ public final class Model {
      */
     public static final class AsRunSnapshot {
         public String routineId = "";
+        /** Frozen structured track for connected-app classification. -1 means an old
+         * snapshot did not record it; 0 is a known unmarked routine. Never inferred
+         * from the routine/stage names or a later edited routine. */
+        public int trainerTrack = -1;
         public final List<StageSnap> stages = new ArrayList<StageSnap>();
 
         /** One stage as it stood at run start: its name, the set ids it held, in order, and
@@ -4814,6 +4818,7 @@ public final class Model {
             if (r == null) return null;
             AsRunSnapshot s = new AsRunSnapshot();
             s.routineId = r.id == null ? "" : r.id;
+            s.trainerTrack = r.trainerTrack;
             for (int i = 0; i < r.stages.size(); i++) {
                 Stage src = r.stages.get(i);
                 StageSnap st = new StageSnap();
@@ -4874,6 +4879,7 @@ public final class Model {
         public JSONObject toJson() throws JSONException {
             JSONObject o = new JSONObject();
             o.put("rid", routineId);
+            if (trainerTrack >= 0) o.put("trainerTrack", trainerTrack);
             JSONArray a = new JSONArray();
             for (int i = 0; i < stages.size(); i++) {
                 StageSnap st = stages.get(i);
@@ -4898,6 +4904,8 @@ public final class Model {
             if (o == null) return null;
             AsRunSnapshot s = new AsRunSnapshot();
             s.routineId = o.optString("rid", "");
+            s.trainerTrack = o.optInt("trainerTrack", -1);
+            if (s.trainerTrack < -1 || s.trainerTrack > 4) s.trainerTrack = -1;
             JSONArray a = o.optJSONArray("stages");
             if (a != null) for (int i = 0; i < a.length(); i++) {
                 JSONObject so = a.optJSONObject(i);
@@ -4942,7 +4950,12 @@ public final class Model {
     public static final class Sess {
         public String id;
         public String routineId, routineName;
-        public long ts;                 // epoch millis at filing
+        public long ts;                 // legacy day/key stamp; old releases filed end, current releases start
+        /** Explicit wall-clock boundaries for optional partner export. Zero means unknown;
+         * never infer the meaning of an old ts or reconstruct gaps between rejoined parts. */
+        public long recordedStartMs, recordedEndMs;
+        /** Non-secret browser-grant identity captured at filing; empty records never enter sync. */
+        public String growthTrackConnectionId = "";
         public long durSec;             // the SAME elapsed the summary displayed
         public boolean completed;       // false = stopped early (an attempt)
         /** True when this was a MANUAL run (Task 18) — an ephemeral cycle, not a routine.
@@ -5419,6 +5432,9 @@ public final class Model {
             // keeps the phone and the self-test on the same code path.
             o.put("ts", String.valueOf(ts));
             o.put("dur", String.valueOf(durSec));
+            if (recordedStartMs > 0) o.put("recordedStartMs", String.valueOf(recordedStartMs));
+            if (recordedEndMs > 0) o.put("recordedEndMs", String.valueOf(recordedEndMs));
+            if (!growthTrackConnectionId.isEmpty()) o.put("growthTrackConnectionId", growthTrackConnectionId);
             o.put("done", completed);
             o.put("man", manual);
             o.put("tag", tag == null ? "" : tag);
@@ -5535,6 +5551,9 @@ public final class Model {
             s.countedTrack = o.optInt("countedTrack", TRAINER_TRACK_NONE);
             s.routineName = o.optString("rname", "");
             s.ts = parseLong(o.optString("ts", "0"));
+            s.recordedStartMs = parseLong(o.optString("recordedStartMs", "0"));
+            s.recordedEndMs = parseLong(o.optString("recordedEndMs", "0"));
+            s.growthTrackConnectionId = o.optString("growthTrackConnectionId", "");
             s.durSec = parseLong(o.optString("dur", "0"));
             s.completed = o.optBoolean("done");
             // Absent (false) on every session filed before Task 18 — a routine run, which is
@@ -7986,6 +8005,8 @@ public final class Model {
      * restarting it; see {@link FirstRun}.
      */
     public int firstRun = FirstRun.DONE;
+    /** Old phones have already set up; only seed creates an unshown optional invitation. */
+    public boolean growthTrackOfferSeen = true;
     /** "Whole app" — gates the COLD OPEN only (the very first content this Activity shows
      *  after a fresh launch), never re-checked for the rest of that process's lifetime.
      *  See AppLock#isLocked's own doc for why this scope's re-lock rule differs from the
@@ -11645,6 +11666,7 @@ public final class Model {
     /** What a brand-new install starts with. Nothing here is required to be kept. */
     public static Model seed() {
         Model m = new Model();
+        m.growthTrackOfferSeen = false;
         m.firstRun = FirstRun.NOT_STARTED;   // the one place a setup is ever owed
         // One example per distinct behaviour the pump can run, so a fresh install shows what
         // each mode is rather than an empty library. All well inside the default 40 kPa
@@ -11747,6 +11769,7 @@ public final class Model {
             o.put("blur", privacyBlur);
             o.put("lockOn", appLockOn);
             o.put("firstRun", firstRun);
+            o.put("growthTrackOfferSeen", growthTrackOfferSeen);
             o.put("lockWhole", appLockWholeApp);
             o.put("lockPhotos", appLockPhotos);
             o.put("lockMeas", appLockMeasurements);
@@ -12136,6 +12159,7 @@ public final class Model {
             m.appLockOn = o.optBoolean("lockOn", false);
             // MIGRATION: absent in every file written before the first-run setup existed, and
             // those phones are all set up already - so absent means DONE, never "not started".
+            m.growthTrackOfferSeen = o.optBoolean("growthTrackOfferSeen", true);
             m.firstRun = Math.max(FirstRun.NOT_STARTED,
                 Math.min(FirstRun.DONE, o.optInt("firstRun", FirstRun.DONE)));
             m.appLockWholeApp = o.optBoolean("lockWhole", false);

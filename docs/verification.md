@@ -24,6 +24,8 @@ Result on 2026-09-22, against the tree OpenPump was generated from: **83 of 83 f
 4 files differ**, listed below. Resources differ only by the rename (`res/xml/shortcuts.xml`,
 which carries the package in a target and an extra key). Everything else is byte-identical.
 
+> Historical port verification below describes the September baseline. The GrowthTrack feature branch deliberately adds optional HTTPS data transfer and INTERNET in main, superseding P7. Its new Android checks remain pending; see [GrowthTrack verification](growthtrack-verification.md).
+
 ## 1. Port checks
 
 | # | What changed | Why it could break something | Check | Status |

@@ -71,6 +71,9 @@ public final class AsRun {
         /** Position of the set within its stage (Preset#pos) and position of the preset
          *  within the set's ladder (Preset#ordinal). */
         public int pos, ordinal;
+        /** Frozen stitch boundary: -1 on old recordings, 0 a complete preset, 1 a
+         * continuation chunk. Data only; never changes how a preset is driven. */
+        public int cyclePart = -1;
         public int up, upReq, lo, uhWire, uhReq, lh, sp;
         /** False when the pump never acknowledged the write this row records (§2) — the
          *  card then says "the pump didn't confirm this change". */
@@ -113,6 +116,7 @@ public final class AsRun {
             // shim has no optLong, and one reader for both JVMs is the point of the shim.
             o.put("t0", String.valueOf(t0)); o.put("t1", String.valueOf(t1));
             o.put("st", stageIdx); o.put("pos", pos); o.put("ord", ordinal);
+            if (cyclePart >= 0) o.put("cyclePart", cyclePart);
             o.put("sid", setId == null ? "" : setId);
             o.put("up", up); o.put("upr", upReq); o.put("lo", lo);
             o.put("uhw", uhWire); o.put("uhr", uhReq); o.put("lh", lh); o.put("sp", sp);
@@ -128,6 +132,8 @@ public final class AsRun {
             r.t0 = parseLong(o.optString("t0", "0"), 0L);
             r.t1 = parseLong(o.optString("t1", "-1"), -1L);
             r.stageIdx = o.optInt("st", 0); r.pos = o.optInt("pos", 0); r.ordinal = o.optInt("ord", 0);
+            int part = o.optInt("cyclePart", -1);
+            r.cyclePart = part == 0 || part == 1 ? part : -1;
             r.setId = o.optString("sid", "");
             r.up = o.optInt("up", 0);
             // upReq absent (a row written before it existed) → what went on the wire: no
@@ -248,9 +254,11 @@ public final class AsRun {
      */
     public Row open(int kind, long t0, Model.Preset p,
                     int up, int upReq, int lo, int uhWire, int uhReq, int lh, int sp) {
-        return open(kind, t0, p == null ? 0 : p.stageIdx, p == null ? 0 : p.pos,
+        Row row = open(kind, t0, p == null ? 0 : p.stageIdx, p == null ? 0 : p.pos,
                     p == null ? "" : p.setId, p == null ? 0 : p.ordinal,
                     up, upReq, lo, uhWire, uhReq, lh, sp);
+        if (p != null && row.hasValues()) row.cyclePart = p.cyclePart ? 1 : 0;
+        return row;
     }
 
     /** {@link #open(int, long, Model.Preset, int, int, int, int, int, int, int)} with the

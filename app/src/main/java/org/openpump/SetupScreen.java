@@ -80,6 +80,7 @@ final class SetupScreen {
         final HashSet<String> open = new HashSet<String>();
         /** The battery row as last drawn, so a resume redraws only when it changed. */
         boolean drawnExempt;
+        boolean growthTrackVisible;
 
         Walk() {
             // The one explanation open from the start: the battery's, on Ready.
@@ -932,12 +933,31 @@ final class SetupScreen {
 
     private void ready() {
         Walk w = w();
+        if (GrowthTrackOnboarding.shouldOffer(a.model, RunService.isRunning(), a.dataStoreUnreadable())) {
+            GrowthTrackOnboarding.presented(a.model);
+            Store.save(a, a.model);
+            w.growthTrackVisible = true;
+        }
         TextView h = text(SetupText.READY_TITLE, 22f, Ui.TEXT);
         h.setTypeface(Typeface.DEFAULT_BOLD);
         if (android.os.Build.VERSION.SDK_INT >= 28) h.setAccessibilityHeading(true);
         LinearLayout.LayoutParams hl = full();
         hl.bottomMargin = dp(Look.S4);
         page.addView(h, hl);
+
+        if (w.growthTrackVisible) {
+            LinearLayout gt = card();
+            Ui.head(a, gt, "Connect your own GrowthTrack account?");
+            Ui.note(a, gt, "GrowthTrack records PE training sessions, routines and measurements. Connection is optional; you can skip and connect later in Settings.");
+            Ui.noteInfo(a, gt, "Nothing uploads just by connecting.", "Your choice",
+                "Use your own account and approve in your browser. While connected, every new real finished session syncs automatically. Disconnected sessions and earlier history stay on your phone. Skipping, cancelling or going back leaves OpenPump ready to use.");
+            Button connect = Ui.flat(a, gt, "Connect to GrowthTrack");
+            connect.setOnClickListener(new GrowthTrackChoice(true));
+            Button info = Ui.flat(a, gt, "About GrowthTrack and account setup");
+            info.setOnClickListener(new GrowthTrackActivity.InformationTap(a));
+            Button skip = Ui.flat(a, gt, "Skip for now");
+            skip.setOnClickListener(new GrowthTrackChoice(false));
+        }
 
         // THE BATTERY: the one explanation open from the start, and the one row that goes
         // out to a system screen - so the answer is read again on the way back (onResume).
@@ -980,6 +1000,16 @@ final class SetupScreen {
         LinearLayout.LayoutParams ol = full();
         ol.topMargin = dp(Look.S3);
         page.addView(opts, ol);
+    }
+
+    private final class GrowthTrackChoice implements View.OnClickListener {
+        final boolean connect;
+        GrowthTrackChoice(boolean connect) { this.connect = connect; }
+        @Override public void onClick(View view) {
+            w().growthTrackVisible = false;
+            show();
+            if (connect) GrowthTrackActivity.open(a, null);
+        }
     }
 
     private void summary(LinearLayout parent) {

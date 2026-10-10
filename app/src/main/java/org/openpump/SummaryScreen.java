@@ -314,6 +314,11 @@ final class SummaryScreen {
             a.streakBlock(st.streak, "day streak", sub, st.weekDays, st.scheduledDays);
         }
 
+        if (s != null && !s.sim) {
+            Button growthTrack = Ui.flat(a, a.body, "GrowthTrack sync status");
+            growthTrack.setOnClickListener(new GrowthTrackActivity.OpenTap(a, s));
+        }
+
         boolean man = s != null && s.manual;
         // The after-session measurement now leads the summary rather than closing it - see
         // measureAfterCard(). One action, one place: a second identical button down here

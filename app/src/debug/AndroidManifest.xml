@@ -7,8 +7,9 @@
      builds developers make themselves. SessionActivity reaches it by class name, and only
      when BuildConfig.DEBUG says it is here.
 
-     INTERNET and cleartext traffic are the console's log upload to a developer's own
-     computer. Release builds never hold the INTERNET permission. -->
+     Cleartext traffic is for the console's log upload to a developer's own computer.
+     INTERNET is also declared in main for optional GrowthTrack account connection and automatic session sync.
+     Release builds forbid cleartext and carry no diagnostic console. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
 
