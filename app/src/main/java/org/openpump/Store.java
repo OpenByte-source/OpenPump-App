@@ -538,6 +538,7 @@ public final class Store {
      * the same either way, and a half-completed erase must still leave the app usable.
      */
     public static boolean deleteAll(Context c) {
+        GrowthTrackManager.eraseWithAppData(c); // stop transfers and remove tokens outside backups too
         File dir = c.getFilesDir();
         boolean ok = true;
         ok &= gone(new File(dir, FILE));

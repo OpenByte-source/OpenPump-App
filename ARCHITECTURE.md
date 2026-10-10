@@ -9,8 +9,11 @@ so that most of the logic can be understood, changed and tested without a phone.
 app/     Android shell — screens, the foreground run service, Bluetooth (PumpLink),
          notifications, widget, file providers. Depends on core.
          app/src/debug is in debug builds only: the diagnostic console (MainActivity,
-         its own Bluetooth connection and raw frames) and the INTERNET permission its
-         log upload needs. The release APK carries neither.
+         its own Bluetooth connection and raw frames) and cleartext diagnostic log upload.
+         The release APK carries no diagnostic console. Optional
+         GrowthTrack has INTERNET/ACCESS_NETWORK_STATE in main. Browser approval enables
+         automatic same-account session sync, with a separate Activity/task, encrypted
+         no-backup state and persisted network-constrained retry jobs.
 core/    Plain Java — no Android imports, enforced by ArchitectureTest.
          Training plan, session engine, data model and persistence, share codes,
          progress/analytics, and the ZD21 pump protocol (Proto) with its simulator;
@@ -25,6 +28,7 @@ is being removed — see the roadmap).
 
 | You want to… | Look in |
 |---|---|
+| Change the optional GrowthTrack connection | `core/./GrowthTrack*.java`, `app/./GrowthTrack*.java`; [developer handoff](docs/growthtrack-developer-handoff.md) |
 | Change a screen | `app/src/main/java/org/openpump/*Screen.java`, `SessionActivity.java` |
 | Change the training plan | `core/…/Plan.java`, `RxBuild.java`, `Mint.java`, `Deload.java` |
 | Change how a run is recorded or saved | `core/…/AsRun.java`, `RunEdit.java`, `Session.java` |

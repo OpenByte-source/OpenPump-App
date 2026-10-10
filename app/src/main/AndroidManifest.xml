@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Optional GrowthTrack connection authorizes automatic same-account session sync. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- Legacy (<= API 30) -->
     <uses-permission android:name="android.permission.BLUETOOTH"
         android:maxSdkVersion="30" />
@@ -161,7 +165,8 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
-        android:allowBackup="false">
+        android:allowBackup="false"
+        android:usesCleartextTraffic="false">
         <!-- A rotation DESTROYS an Activity by default, and a destroyed Activity is an
              exit from a live run: the pump session ends, and (fix round 1) has to be
              filed as an abort from onDestroy because nothing else can. Two layers stop
@@ -227,6 +232,9 @@
              the one that is running. A duplicate that gets past this finishes itself before it
              touches anything (SessionActivity#anotherScreenIsLive, WiringCheck invariant 108;
              OneScreenManifestTest pins this attribute). -->
+        <service android:name=".GrowthTrackSyncService"
+            android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true" />
+
         <activity
             android:name=".SessionActivity"
             android:exported="true"
@@ -493,5 +501,19 @@
             android:authorities="org.openpump.export"
             android:exported="false"
             android:grantUriPermissions="true" />
+        <!-- Data transfer has its own task and never creates a second pump owner. -->
+        <activity android:name=".GrowthTrackActivity" android:exported="false"
+            android:launchMode="singleTask" android:taskAffinity="org.openpump.growthtrack"
+            android:excludeFromRecents="true" />
+        <activity android:name=".GrowthTrackCallbackActivity" android:exported="true"
+            android:taskAffinity="org.openpump.growthtrack.callback"
+            android:excludeFromRecents="true" android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gt-openpump" android:host="oauth" android:path="/callback" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

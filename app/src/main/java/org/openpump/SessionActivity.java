@@ -540,6 +540,7 @@ public class SessionActivity extends Activity
         Model.Fmt.unit = model.unit;              // keep the formatter in step with what was saved
         Model.Fmt.sizeUnit = model.sizeUnit;      // ...and the SIZE formatter, the same way
         Model.Fmt.loadUnit = model.loadUnit;      // ...and the LOAD formatter (2026-09-30)
+        GrowthTrackManager.get(this).startSync(null);
         openLog();
         storeUnreadable = Store.storeWasUnreadable();
         // KEEP THE PHOTOS OUT OF THE PHONE'S GALLERY. The directory below is
@@ -868,6 +869,12 @@ public class SessionActivity extends Activity
      * The running screen, for the guard at the top of onCreate. Main thread only; set as a
      * screen is created and released in its onDestroy only if it is still this one. */
     private static SessionActivity liveScreen;
+
+    /** Main-thread, read-only guard for optional connected-app handoffs. */
+    static SessionActivity liveForDataHandoff() {
+        SessionActivity s = liveScreen;
+        return s != null && !s.isFinishing() && !s.isDestroyed() ? s : null;
+    }
     /** This instance was created over a running screen and finished at once: its onDestroy
      *  must touch nothing (no last stop, no clearLive, no service stop). */
     private boolean duplicateScreen;
@@ -2711,13 +2718,15 @@ public class SessionActivity extends Activity
      *  its switch is on. Incognito (0.10): the switch is "Hide from recent apps" in Settings ›
      *  Privacy - the same field, the same flag, and ONLY this switch sets it (WiringCheck
      *  invariant 193). */
-    void applySecureFlag(android.view.Window w) {
+    static void applySecureFlag(android.view.Window w, Model model) {
         if (w == null) return;
         if (model != null && model.secureWindow)
             w.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
         else
             w.clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
     }
+
+    void applySecureFlag(android.view.Window w) { applySecureFlag(w, model); }
 
     /* ================================================================ INCOGNITO (0.10)
      *
@@ -27953,6 +27962,12 @@ public class SessionActivity extends Activity
         // ...and with the earlier parts, the session lasts them all and starts when the first
         // did - before anything below keys on rec.ts (the as-run, the traces, the day).
         RunParts.foldTime(parts, rec);
+        // Data-only wall-clock facts: do not reinterpret old history's end/start key.
+        // A rejoined record lacks independently preserved wall-clock bounds for all parts.
+        if (parts == null || parts.playedMs == 0) {
+            rec.recordedStartMs = session.runStartedAtOrZero();
+            rec.recordedEndMs = now;
+        }
         el = rec.durSec;
         sessionElapsedSec = el;
         rec.completed = !aborted;
@@ -28213,7 +28228,10 @@ public class SessionActivity extends Activity
         // it is where the summary's Done goes, and the summary is drawn after this runs.
         manualSource = null;
         model.adhoc.clear();
+        GrowthTrackManager sync = GrowthTrackManager.get(this);
+        rec.growthTrackConnectionId = sync.connectionId();
         Store.save(this, model);
+        sync.startSync(null);
 
         // The run is over: stop attributing samples to it and stop its clock. What it
         // accumulated stays readable (the summary is redrawn after the after-measurement
@@ -35336,6 +35354,7 @@ public class SessionActivity extends Activity
 
     /** Set at load, so the warning survives the rest of onCreate deciding what to show. */
     private boolean storeUnreadable = false;
+    boolean dataStoreUnreadable() { return storeUnreadable; }
 
     /**
      * THE SCREEN THAT USED TO NOT EXIST (audit A33). A model.json that could not be read

@@ -12,7 +12,7 @@
 <p align="center">
   <a href="LICENSE"><img alt="Licence: AGPL-3.0" src="https://img.shields.io/badge/licence-AGPL--3.0-C8FF3D?style=flat-square&labelColor=0b0e13"></a>
   <img alt="Android 7.0 or newer" src="https://img.shields.io/badge/android-7.0%2B-F0A63C?style=flat-square&labelColor=0b0e13">
-  <img alt="No account, no server, no analytics" src="https://img.shields.io/badge/data-stays%20on%20your%20phone-9ba5b2?style=flat-square&labelColor=0b0e13">
+  <img alt="Optional GrowthTrack connection, automatic session sync" src="https://img.shields.io/badge/GrowthTrack-optional-9ba5b2?style=flat-square&labelColor=0b0e13">
   <a href="https://github.com/OpenByte-source/OpenPump-App/releases/latest"><img alt="Latest release: 0.10.0" src="https://img.shields.io/badge/release-0.10.0-5d6776?style=flat-square&labelColor=0b0e13"></a>
 </p>
 
@@ -36,7 +36,9 @@ The goal is bigger than any one feature: the best app there is to pump, track yo
 
 - **Works with** the Epic Hydro PE Pump over Bluetooth. It's the one pump checked on real hardware so far. Others can be added by the people who own them.
 - **No pump?** Practice mode runs everything against a simulated pump, and marks those runs as simulated.
-- **Your data** stays on your phone. No account, no server, no analytics.
+- **Your data** stays on your phone until you export/share it or connect your own GrowthTrack account. Connection enables automatic sync of new real finished sessions; disconnected and preconnection history does not send. Measurements, photos and notes are excluded from this optional connection.
+
+  This feature branch adds the GrowthTrack connection and read-only routine previews. Android build/device validation is still required before release; see the [developer handoff](docs/growthtrack-developer-handoff.md) and [verification record](docs/growthtrack-verification.md).
 - **You need** Android 7.0 or newer.
 - **It's free** and open source, under AGPL-3.0.
 

@@ -4,6 +4,42 @@ import org.openpump.Traction;
 public class Migrate {
     // `throws Exception` only for the org.json constructor below, which is checked.
     public static void main(String[] a) throws Exception {
+        // GrowthTrack: old snapshots have no recorded designation, while new snapshots
+        // freeze the structured track and keep it through later routine edits/deletion.
+        Model.AsRunSnapshot gtOld = Model.AsRunSnapshot.fromJson(
+            new org.json.JSONObject("{\"rid\":\"legacy\",\"stages\":[]}"));
+        if (gtOld.trainerTrack != -1 || gtOld.toJson().has("trainerTrack"))
+            throw new AssertionError("Old track metadata must remain unknown");
+        Model.Routine gtRoutine = new Model.Routine(); gtRoutine.id = "gt-fixture";
+        gtRoutine.trainerTrack = org.openpump.Plan.TRACK_LENGTH;
+        Model.AsRunSnapshot gtFrozen = Model.AsRunSnapshot.of(gtRoutine, new Model());
+        gtRoutine.trainerTrack = Model.TRAINER_TRACK_NONE;
+        if (Model.AsRunSnapshot.fromJson(gtFrozen.toJson()).trainerTrack != org.openpump.Plan.TRACK_LENGTH
+                || Model.AsRunSnapshot.fromJson(Model.AsRunSnapshot.of(gtRoutine, new Model()).toJson()).trainerTrack != 0)
+            throw new AssertionError("Frozen Length and known unmarked metadata must round-trip");
+        System.out.println("GrowthTrack snapshot: old unknown / frozen Length / known unmarked preserved");
+
+        org.openpump.AsRun.Row gtOldRow = org.openpump.AsRun.Row.fromJson(new org.json.JSONObject());
+        if (gtOldRow.cyclePart != -1 || gtOldRow.toJson().has("cyclePart")) throw new AssertionError("Old stitch boundary must remain unknown");
+        gtOldRow.cyclePart = 1;
+        if (org.openpump.AsRun.Row.fromJson(gtOldRow.toJson()).cyclePart != 1) throw new AssertionError("Frozen stitch boundary must round-trip");
+        Model gtFresh = Model.seed();
+        if (gtFresh.growthTrackOfferSeen || !Model.fromJson("{\"sets\":[],\"routines\":[]}").growthTrackOfferSeen) throw new AssertionError("Optional invitation migration must never nag upgrades");
+        org.openpump.GrowthTrackOnboarding.presented(gtFresh);
+        if (!Model.fromJson(gtFresh.toJson()).growthTrackOfferSeen) throw new AssertionError("Invitation dismissal must round-trip");
+        System.out.println("GrowthTrack timing/onboarding: unknown old boundaries, frozen new boundaries, one-time offer preserved");
+
+        Model.Sess gtLegacyTime = Model.Sess.fromJson(new org.json.JSONObject("{\"ts\":\"1700000000000\",\"dur\":\"120\"}"));
+        if (gtLegacyTime.recordedStartMs != 0 || gtLegacyTime.recordedEndMs != 0) throw new AssertionError("Old wall-clock boundaries must not be invented");
+        gtLegacyTime.recordedStartMs = 1700000000000L; gtLegacyTime.recordedEndMs = 1700000120000L;
+        Model.Sess gtTimeRoundTrip = Model.Sess.fromJson(gtLegacyTime.toJson());
+        if (gtTimeRoundTrip.recordedStartMs != gtLegacyTime.recordedStartMs || gtTimeRoundTrip.recordedEndMs != gtLegacyTime.recordedEndMs) throw new AssertionError("Explicit wall-clock boundaries must round-trip");
+
+        if (!gtLegacyTime.growthTrackConnectionId.isEmpty()) throw new AssertionError("Legacy history must not opt into sync");
+        gtLegacyTime.growthTrackConnectionId = "fictional-browser-grant";
+        if (!Model.Sess.fromJson(gtLegacyTime.toJson()).growthTrackConnectionId.equals(gtLegacyTime.growthTrackConnectionId))
+            throw new AssertionError("Completion grant marker must round-trip for crash recovery");
+
         // EXACTLY what build 30 (pre-stage) wrote to model.json
         String old = "{\"ceil\":40,\"unit\":\"inHg\",\"selected\":\"r1\","
           + "\"sets\":[{\"id\":\"s1\",\"name\":\"Gentle Warm\",\"ramp\":false,\"up\":14,"
