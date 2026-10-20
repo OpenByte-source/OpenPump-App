@@ -30,10 +30,11 @@ A dashed box says "Never sent: measurements, photos, notes, practice runs." The 
 
 ## Privacy and the app lock
 
-- Every GrowthTrack screen, and the connect page, goes through the app lock (PIN through `LockHost`), shows the disguised name in Recents when Incognito is on, and is `FLAG_SECURE` under the same rule as the app's other screens. GrowthTrack dialogs are `FLAG_SECURE` too and are not usable over the app lock.
-- The browser step respects Incognito the same way.
-- The screens are portrait, like the rest of the app, and keep their state on rotation. Back from About, when it was opened during setup, returns to setup.
-- Erase all data reports done only after the GrowthTrack state (tokens, queue, retry job) is erased as well.
+- Every GrowthTrack screen, and the connect page, goes through the app lock: the Settings and Sessions areas (or the whole-app lock) gate it, using the same unlock state as the rest of the app, and under a disguise the PIN is asked through `LockHost`. A phone with no screen lock is never a dead end. It shows the disguised name and icon in Recents when Incognito is on, and is `FLAG_SECURE` under the same rule as the app's other screens ("Hide from recent apps"). GrowthTrack dialogs go through `Ui.dress`, are `FLAG_SECURE` too, and are taken down when the screen leaves the foreground, so none is usable over the app lock.
+- The browser step respects Incognito the same way: the sign-in's way back is one of four return entries (an activity-alias per identity, `Incognito.RETURNS`), and the identity's own is switched on just before the browser opens, so the browser offers to continue to the disguise's name.
+- The screens are portrait, like the rest of the app, and keep their state on rotation. Back from the page a screen was opened on leaves it: the connect page opened from setup's row goes straight back to setup. "About GrowthTrack" is the explanation behind the ⓘ on the connect page's first line.
+- The sign-in return draws nothing and parses no model. While a run is live (or anything is unsafe) it finishes at once and the code is exchanged with no screen; with no sign-in waiting it does nothing; otherwise it brings up the GrowthTrack screen to show the result. No GrowthTrack screen opens or stays during a live run.
+- Erase all data reports done only after the GrowthTrack state (tokens, queue, retry job) is erased as well, and says so if that part failed.
 
 ## What is sent, and when
 
