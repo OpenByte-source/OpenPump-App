@@ -586,10 +586,27 @@ public final class GrowthTrackActivity extends Activity {
             if (shown++ >= 300) continue;
             int colour = status.state == GrowthTrackOutbox.Status.SENT ? Ui.ACCENT
                 : status.state == GrowthTrackOutbox.Status.WAITING ? Ui.CMD : Ui.DIM;
-            Ui.kvRow(this, list, GrowthTrackWords.sessionTitle(s, now, ZONE), status.text, colour, null);
+            sessionRow(list, GrowthTrackWords.sessionTitle(s, now, ZONE), status.text, colour);
         }
         if (shown == 0) Ui.note(this, list, "No sessions on this phone yet.");
         else caption(list, GrowthTrackWords.listFacts(sent, waiting, not), Ui.DIM);
+    }
+
+    /** One session: what it was on the first line, its status under it (a reason can be
+     *  long, and a label squeezed into a third of the row broke at every word at 1.3x). */
+    private void sessionRow(LinearLayout list, String title, String status, int colour) {
+        LinearLayout row = Ui.col(this);
+        row.setMinimumHeight(Ui.dp(this, 48));
+        row.setPadding(0, Ui.dp(this, Look.S2), 0, Ui.dp(this, Look.S2));
+        TextView t = new TextView(this);
+        t.setText(title);
+        t.setTextColor(Ui.TEXT);
+        t.setTextSize(Look.SP_BODY);
+        row.addView(t);
+        caption(row, status, colour);
+        Ui.group(row, title + ": " + status);
+        list.addView(row);
+        Ui.divider(this, list);
     }
 
     /* ======================================================================= actions */
