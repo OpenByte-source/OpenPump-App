@@ -204,6 +204,40 @@ public final class Incognito {
         "org.openpump.LockHost$Notes"
     };
 
+    /**
+     * THE GROWTHTRACK SIGN-IN'S WAY BACK, ONE PER IDENTITY (bug 10, the browser step). The
+     * browser asks "Continue to <name>?" with the name of the activity that takes the
+     * gt-openpump:// return, and under a disguise that must be the disguise's. So the return
+     * is an activity-alias of GrowthTrackCallbackActivity per identity, each with its
+     * identity's name and icon, exactly one enabled (IncognitoShell#applyReturn, at the
+     * browser step); the manifest enables the real one, as it does the real launcher.
+     */
+    public static final String RETURN_REAL = "org.openpump.GrowthTrackReturnOpenPump";
+    public static final String[] DISGUISE_RETURNS = {
+        "org.openpump.GrowthTrackReturnFitnessLog", "org.openpump.GrowthTrackReturnHabits",
+        "org.openpump.GrowthTrackReturnNotes"
+    };
+    /** Every return entry: the real one first, then each disguise's. */
+    public static final String[] RETURNS = returns();
+
+    private static String[] returns() {
+        String[] out = new String[1 + DISGUISES.length];
+        out[0] = RETURN_REAL;
+        for (int i = 0; i < DISGUISES.length; i++) out[1 + i] = DISGUISE_RETURNS[DISGUISES[i]];
+        return out;
+    }
+
+    /** The sign-in return entry for this identity. */
+    public static String returnFor(int identity) {
+        return disguised(identity) ? DISGUISE_RETURNS[identity] : RETURN_REAL;
+    }
+
+    /** Whether `entry` is the one return to enable for this identity - true for exactly one
+     *  of {@link #RETURNS}, whatever the identity. */
+    public static boolean returnEnabled(String entry, int identity) {
+        return returnFor(identity).equals(entry);
+    }
+
     /** The real launcher entry - the only one the manifest enables. */
     public static final String LAUNCHER_REAL = "org.openpump.LauncherOpenPump";
     public static final String REAL_NAME = "OpenPump";

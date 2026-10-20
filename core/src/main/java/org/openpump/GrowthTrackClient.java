@@ -324,7 +324,7 @@ public final class GrowthTrackClient {
             // What GrowthTrack already holds stays "received"; only the update failed.
             if (receipt.startsWith("Received")) { save(); return false; }
             receiptPut(id, "Not synced: " + safeReason(item.failure));
-            put("message", "A finished recording cannot be sent. See session sync status for the reason."); save(); return false;
+            put("message", "A finished recording cannot be sent. See Sent and waiting sessions for the reason."); save(); return false;
         }
         approved().put(item.payload);
         JSONObject m = new JSONObject(); jput(m, "rev", item.revision); if (item.localId != null) jput(m, "local", item.localId);
@@ -371,7 +371,7 @@ public final class GrowthTrackClient {
         Snapshot s = snapshot(); return s.connected && s.queued > 0 && !s.paused ? Math.max(clock.now(), s.retryAt) : -1;
     }
     public synchronized void backgroundUnavailable() throws IOException {
-        put("message", "Background sync could not be scheduled. Pending sessions are secure; reopen OpenPump or tap Retry to resume."); save();
+        put("message", "Background sync could not be scheduled. Pending sessions are secure; they go the next time OpenPump opens."); save();
     }
     /** Called on the serial native worker after a fresh transport generation is entered. */
     public synchronized void prepareAutomaticSync() throws IOException {
@@ -437,7 +437,7 @@ public final class GrowthTrackClient {
             }
             if (response.status == 400 || response.status == 413 || response.status == 422) {
                 for (int i = 0; i < batch.length(); i++) receiptPut(batch.optJSONObject(i).optString("external_session_id"), "Needs review: GrowthTrack rejected this session (" + response.status + ")");
-                removeIds(ids(batch)); put("message", "GrowthTrack rejected a session. See session sync status."); save();
+                removeIds(ids(batch)); put("message", "GrowthTrack refused a session. See Sent and waiting sessions."); save();
                 continue;
             }
             if (response.status != 200) {
