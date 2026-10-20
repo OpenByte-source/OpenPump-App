@@ -4696,6 +4696,16 @@ public final class Model {
 
         /** One stage as it stood at run start: its name, the set ids it held, in order, and
          *  — parallel to setIds — what each of those sets SAID at that instant. */
+        public static final int ROLE_UNKNOWN = -1, ROLE_WORK = 0, ROLE_WARM = 1, ROLE_TRACTION = 2;
+        /** The role a live stage has, by the same flags the plan reads (Stage#traction marks
+         *  length work; a STAGE_WARM colour is the warm-up). */
+        public static int roleOf(Stage st) {
+            if (st == null) return ROLE_UNKNOWN;
+            if (st.traction) return ROLE_TRACTION;
+            if (!st.rest && st.colour == STAGE_WARM) return ROLE_WARM;
+            return ROLE_WORK;
+        }
+
         public static final class StageSnap {
             public String name = "";
             /** Whether the stage was a REST, and for how long. Recorded like every other
@@ -4705,6 +4715,12 @@ public final class Model {
              *  stages existed — false / 0, which is exactly what those runs held. */
             public boolean rest;
             public int restSec;
+            /** What the stage WAS for, frozen at run start, so a connected-app label never
+             *  reads a routine edited since: {@link #ROLE_WORK}, {@link #ROLE_WARM} (a warm-up
+             *  stage, Stage#colour STAGE_WARM) or {@link #ROLE_TRACTION} (Stage#traction, the
+             *  length work). MIGRATION: absent on every recording written before it - -1,
+             *  unknown, and then only a routine that still matches the snapshot may answer. */
+            public int role = ROLE_UNKNOWN;
             public final List<String> setIds = new ArrayList<String>();
             /** One entry per setIds entry (or EMPTY on a recording written before set values
              *  were snapshotted — see {@link SetSnap}). */
@@ -4825,6 +4841,7 @@ public final class Model {
                 st.name = src.name == null ? "" : src.name;
                 st.rest = src.rest;
                 st.restSec = src.restSec;
+                st.role = roleOf(src);
                 st.setIds.addAll(src.setIds);
                 if (m != null)
                     for (int j = 0; j < src.setIds.size(); j++)
@@ -4887,6 +4904,7 @@ public final class Model {
                 so.put("name", st.name);
                 so.put("rest", st.rest);
                 so.put("restSec", st.restSec);
+                if (st.role >= 0) so.put("role", st.role);
                 JSONArray ids = new JSONArray();
                 for (int j = 0; j < st.setIds.size(); j++) ids.put(st.setIds.get(j));
                 so.put("sets", ids);
@@ -4917,6 +4935,8 @@ public final class Model {
                 // which is the truth about all of them.
                 st.rest = so.optBoolean("rest", false);
                 st.restSec = so.optInt("restSec", 0);
+                int role = so.optInt("role", ROLE_UNKNOWN);
+                st.role = role >= ROLE_WORK && role <= ROLE_TRACTION ? role : ROLE_UNKNOWN;
                 JSONArray ids = so.optJSONArray("sets");
                 if (ids != null) for (int j = 0; j < ids.length(); j++) st.setIds.add(ids.optString(j));
                 // MIGRATION: absent on every recording written before set values were
@@ -4954,8 +4974,14 @@ public final class Model {
         /** Explicit wall-clock boundaries for optional partner export. Zero means unknown;
          * never infer the meaning of an old ts or reconstruct gaps between rejoined parts. */
         public long recordedStartMs, recordedEndMs;
-        /** Non-secret browser-grant identity captured at filing; empty records never enter sync. */
+        /** The connection this record belongs to: a random id OpenPump made for the connected
+         *  account (never the OAuth state), captured at filing; empty records never enter sync.
+         *  MIGRATION: "" on every record written before it, which is the truth about them. */
         public String growthTrackConnectionId = "";
+        /** A RESUMED OR REJOINED SESSION'S FIRST PART'S ID (RunParts#foldTime), so the whole
+         *  session replaces the part already sent instead of sitting beside it on GrowthTrack.
+         *  "" - the record's own id. MIGRATION: "" on every record written before it. */
+        public String syncId = "";
         public long durSec;             // the SAME elapsed the summary displayed
         public boolean completed;       // false = stopped early (an attempt)
         /** True when this was a MANUAL run (Task 18) — an ephemeral cycle, not a routine.
@@ -5435,6 +5461,7 @@ public final class Model {
             if (recordedStartMs > 0) o.put("recordedStartMs", String.valueOf(recordedStartMs));
             if (recordedEndMs > 0) o.put("recordedEndMs", String.valueOf(recordedEndMs));
             if (!growthTrackConnectionId.isEmpty()) o.put("growthTrackConnectionId", growthTrackConnectionId);
+            if (syncId != null && !syncId.isEmpty()) o.put("gtSyncId", syncId);
             o.put("done", completed);
             o.put("man", manual);
             o.put("tag", tag == null ? "" : tag);
@@ -5554,6 +5581,7 @@ public final class Model {
             s.recordedStartMs = parseLong(o.optString("recordedStartMs", "0"));
             s.recordedEndMs = parseLong(o.optString("recordedEndMs", "0"));
             s.growthTrackConnectionId = o.optString("growthTrackConnectionId", "");
+            s.syncId = o.optString("gtSyncId", "");
             s.durSec = parseLong(o.optString("dur", "0"));
             s.completed = o.optBoolean("done");
             // Absent (false) on every session filed before Task 18 — a routine run, which is
@@ -8007,6 +8035,9 @@ public final class Model {
     public int firstRun = FirstRun.DONE;
     /** Old phones have already set up; only seed creates an unshown optional invitation. */
     public boolean growthTrackOfferSeen = true;
+    /** Which sessions go to a connected GrowthTrack account - one setting for the connect
+     *  page and the GrowthTrack screen (GrowthTrackSettings). Never a credential. */
+    public GrowthTrackSettings gtSend = new GrowthTrackSettings();
     /** "Whole app" — gates the COLD OPEN only (the very first content this Activity shows
      *  after a fresh launch), never re-checked for the rest of that process's lifetime.
      *  See AppLock#isLocked's own doc for why this scope's re-lock rule differs from the
@@ -11770,6 +11801,7 @@ public final class Model {
             o.put("lockOn", appLockOn);
             o.put("firstRun", firstRun);
             o.put("growthTrackOfferSeen", growthTrackOfferSeen);
+            o.put("gtSend", (gtSend == null ? new GrowthTrackSettings() : gtSend).toJson());
             o.put("lockWhole", appLockWholeApp);
             o.put("lockPhotos", appLockPhotos);
             o.put("lockMeas", appLockMeasurements);
@@ -12160,6 +12192,8 @@ public final class Model {
             // MIGRATION: absent in every file written before the first-run setup existed, and
             // those phones are all set up already - so absent means DONE, never "not started".
             m.growthTrackOfferSeen = o.optBoolean("growthTrackOfferSeen", true);
+            // MIGRATION: absent before the GrowthTrack switches existed - the defaults.
+            m.gtSend = GrowthTrackSettings.fromJson(o.optJSONObject("gtSend"));
             m.firstRun = Math.max(FirstRun.NOT_STARTED,
                 Math.min(FirstRun.DONE, o.optInt("firstRun", FirstRun.DONE)));
             m.appLockWholeApp = o.optBoolean("lockWhole", false);

@@ -40,6 +40,43 @@ public class Migrate {
         if (!Model.Sess.fromJson(gtLegacyTime.toJson()).growthTrackConnectionId.equals(gtLegacyTime.growthTrackConnectionId))
             throw new AssertionError("Completion grant marker must round-trip for crash recovery");
 
+        // GrowthTrack, the owner's 19 Oct 2026 changes on top of Karl's fields. Each new field
+        // is absent on every 0.10.0 file and on every file Karl's branch wrote.
+        Model gtOldModel = Model.fromJson("{\"sets\":[],\"routines\":[],\"growthTrackOfferSeen\":false}");
+        if (gtOldModel.growthTrackOfferSeen || gtOldModel.gtSend == null || !gtOldModel.gtSend.on || !gtOldModel.gtSend.girthPlan
+                || !gtOldModel.gtSend.lengthPlan || !gtOldModel.gtSend.ownRoutines || !gtOldModel.gtSend.manualRuns || gtOldModel.gtSend.stoppedEarly)
+            throw new AssertionError("A model without the sending switches must read as the defaults, keeping Karl's offer flag");
+        gtOldModel.gtSend.manualRuns = false; gtOldModel.gtSend.stoppedEarly = true;
+        Model gtSwitches = Model.fromJson(gtOldModel.toJson());
+        if (gtSwitches.gtSend.manualRuns || !gtSwitches.gtSend.stoppedEarly) throw new AssertionError("Sending switches must round-trip");
+        Model.Sess gtKarl = Model.Sess.fromJson(new org.json.JSONObject(
+            "{\"id\":\"sess1700000120000\",\"ts\":\"1700000000000\",\"dur\":\"120\",\"recordedStartMs\":\"1700000000000\","
+            + "\"recordedEndMs\":\"1700000120000\",\"growthTrackConnectionId\":\"karl-grant\"}"));
+        if (gtKarl.recordedStartMs != 1700000000000L || gtKarl.recordedEndMs != 1700000120000L
+                || !"karl-grant".equals(gtKarl.growthTrackConnectionId) || !gtKarl.syncId.isEmpty())
+            throw new AssertionError("A record Karl's branch wrote must load, with no sync id");
+        gtKarl.syncId = "sess1699999000000";
+        if (!"sess1699999000000".equals(Model.Sess.fromJson(gtKarl.toJson()).syncId)) throw new AssertionError("The sync id must round-trip");
+        Model.AsRunSnapshot gtNoRole = Model.AsRunSnapshot.fromJson(new org.json.JSONObject("{\"rid\":\"r\",\"stages\":[{\"name\":\"Warm-up\"}]}"));
+        if (gtNoRole.stages.get(0).role != Model.AsRunSnapshot.ROLE_UNKNOWN
+                || gtNoRole.toJson().getJSONArray("stages").getJSONObject(0).has("role"))
+            throw new AssertionError("An old stage snapshot's role must stay unknown");
+        gtNoRole.stages.get(0).role = Model.AsRunSnapshot.ROLE_WARM;
+        if (Model.AsRunSnapshot.fromJson(gtNoRole.toJson()).stages.get(0).role != Model.AsRunSnapshot.ROLE_WARM)
+            throw new AssertionError("A frozen stage role must round-trip");
+        org.openpump.RunParts gtP1 = org.openpump.RunParts.fromCode("p1;1000;2000;;;0.000;;-1;0;1;sessA");
+        if (gtP1 == null || !"sessA".equals(gtP1.sessId) || !gtP1.syncId.isEmpty())
+            throw new AssertionError("A 0.10.0 run snapshot (p1) must still read");
+        gtP1.syncId = "sessFirst";
+        if (!"sessFirst".equals(org.openpump.RunParts.fromCode(gtP1.code()).syncId)) throw new AssertionError("The carried sync id must round-trip");
+        Model.Sess gtLegacy = Model.Sess.fromJson(new org.json.JSONObject("{\"id\":\"sess1700000120000\",\"ts\":\"1700000000000\",\"dur\":\"120\"}"));
+        org.openpump.AsRun gtOwn = new org.openpump.AsRun(); gtOwn.ts = 1700000000000L;
+        org.openpump.AsRun.Row gtRow = new org.openpump.AsRun.Row(); gtRow.t0 = 0; gtRow.t1 = 120000; gtOwn.rows.add(gtRow);
+        long[] gtBounds = org.openpump.GrowthTrackSession.bounds(gtLegacy, gtOwn);
+        if (gtBounds == null || gtBounds[0] != 1700000000000L || gtBounds[1] != 1700000120000L || gtLegacy.recordedStartMs != 0)
+            throw new AssertionError("A 0.10.0 session's times come from its own record, without rewriting it");
+        System.out.println("GrowthTrack 19 Oct: switches default, sync id / stage role / p1 snapshot / 0.10.0 times read");
+
         // EXACTLY what build 30 (pre-stage) wrote to model.json
         String old = "{\"ceil\":40,\"unit\":\"inHg\",\"selected\":\"r1\","
           + "\"sets\":[{\"id\":\"s1\",\"name\":\"Gentle Warm\",\"ramp\":false,\"up\":14,"

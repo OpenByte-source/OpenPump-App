@@ -42,17 +42,17 @@ class GrowthTrackIntegrationTest {
     }
     static class Fixture {
         final Storage storage = new Storage(); final Http http = new Http(); final Clock clock = new Clock(); final GrowthTrackClient client;
-        Fixture(boolean routines) throws Exception {
-            client = new GrowthTrackClient(storage, http, clock); client.begin(routines);
+        Fixture() throws Exception {
+            client = new GrowthTrackClient(storage, http, clock); client.begin();
             String state = storage.saved.getJSONObject("pending").getString("state");
-            http.responses.add(token(R, routines)); client.callback(GrowthTrackProtocol.REDIRECT + "?code=" + CODE + "&state=" + state);
+            http.responses.add(token(R)); client.callback(GrowthTrackProtocol.REDIRECT + "?code=" + CODE + "&state=" + state);
             http.requests.clear();
         }
         void approve(String... ids) throws Exception { List<JSONObject> list = new ArrayList<>(); for (String id : ids) list.add(payload(id)); client.approve(list); }
     }
-    static GrowthTrackClient.Response token(String refresh, boolean routines) throws Exception {
+    static GrowthTrackClient.Response token(String refresh) throws Exception {
         return new GrowthTrackClient.Response(200, new JSONObject().put("access_token", A).put("refresh_token", refresh)
-            .put("token_type", "Bearer").put("expires_in", 900).put("scope", "sessions:write" + (routines ? " routines:read" : "")).toString());
+            .put("token_type", "Bearer").put("expires_in", 900).put("scope", "sessions:write").toString());
     }
     static GrowthTrackClient.Response ok(int accepted, int duplicates, JSONArray rejected) throws Exception { return new GrowthTrackClient.Response(200, new JSONObject().put("accepted", accepted).put("duplicates", duplicates).put("rejected", rejected).toString()); }
     static Model.Sess session(String id) {
@@ -65,13 +65,13 @@ class GrowthTrackIntegrationTest {
 
     @Test void pkceMatchesRfc7636() { assertEquals("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", GrowthTrackProtocol.challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")); }
     @Test void authorizationUsesOnlyPublicClientAndExactRedirect() {
-        GrowthTrackProtocol.Pending p = GrowthTrackProtocol.pending(true, 1000);
+        GrowthTrackProtocol.Pending p = GrowthTrackProtocol.pending(1000);
         String url = p.authorizeUrl(); assertTrue(url.startsWith(GrowthTrackProtocol.API + "/oauth-authorize?"));
         assertTrue(url.contains("client_id=" + GrowthTrackProtocol.CLIENT_ID)); assertTrue(url.contains("code_challenge_method=S256"));
         assertFalse(url.contains("secret")); assertNotEquals(p.state, p.verifier); assertEquals(64, p.state.length());
     }
     @Test void callbackRejectsWrongStateEndpointDuplicateAndMissingParameters() {
-        GrowthTrackProtocol.Pending p = GrowthTrackProtocol.pending(false, 1000);
+        GrowthTrackProtocol.Pending p = GrowthTrackProtocol.pending(1000);
         String suffix = "?code=" + CODE + "&state=" + p.state;
         assertThrows(IllegalArgumentException.class, () -> GrowthTrackProtocol.callback(GrowthTrackProtocol.REDIRECT + "?code=" + CODE + "&state=wrong", p, 1001));
         assertThrows(IllegalArgumentException.class, () -> GrowthTrackProtocol.callback("gt-openpump://evil/callback" + suffix, p, 1001));
@@ -82,18 +82,18 @@ class GrowthTrackIntegrationTest {
     }
     @Test void denialAndCancelNeverExchangeOrSend() throws Exception {
         Storage storage = new Storage(); Http http = new Http(); Clock clock = new Clock(); GrowthTrackClient client = new GrowthTrackClient(storage, http, clock);
-        client.begin(false); String state = storage.saved.getJSONObject("pending").getString("state");
+        client.begin(); String state = storage.saved.getJSONObject("pending").getString("state");
         client.callback(GrowthTrackProtocol.REDIRECT + "?error=access_denied&state=" + state);
         assertFalse(client.snapshot().connected); assertFalse(client.snapshot().pending); assertTrue(http.requests.isEmpty());
-        client.begin(false); client.cancelAuthorization(); assertFalse(client.snapshot().pending); assertTrue(http.requests.isEmpty());
+        client.begin(); client.cancelAuthorization(); assertFalse(client.snapshot().pending); assertTrue(http.requests.isEmpty());
     }
     @Test void forgedCallbackPreservesPendingRequestAndSendsNothing() throws Exception {
-        Storage store = new Storage(); Http http = new Http(); GrowthTrackClient c = new GrowthTrackClient(store, http, new Clock()); c.begin(false);
+        Storage store = new Storage(); Http http = new Http(); GrowthTrackClient c = new GrowthTrackClient(store, http, new Clock()); c.begin();
         assertThrows(IOException.class, () -> c.callback(GrowthTrackProtocol.REDIRECT + "?code=" + CODE + "&state=forged"));
         assertTrue(c.snapshot().pending); assertTrue(http.requests.isEmpty());
     }
     @Test void lostCodeExchangeRequiresFreshApprovalAndIsNotReplayed() throws Exception {
-        Storage storage = new Storage(); Http http = new Http(); Clock clock = new Clock(); GrowthTrackClient c = new GrowthTrackClient(storage, http, clock); c.begin(false);
+        Storage storage = new Storage(); Http http = new Http(); Clock clock = new Clock(); GrowthTrackClient c = new GrowthTrackClient(storage, http, clock); c.begin();
         String callback = GrowthTrackProtocol.REDIRECT + "?code=" + CODE + "&state=" + storage.saved.getJSONObject("pending").getString("state");
         http.responses.add(new IOException()); assertThrows(IOException.class, () -> c.callback(callback));
         assertFalse(c.snapshot().pending); assertFalse(c.snapshot().connected); assertThrows(IOException.class, () -> c.callback(callback)); assertEquals(1, http.requests.size());
@@ -113,105 +113,132 @@ class GrowthTrackIntegrationTest {
         AsRun run = new AsRun(); run.rows.add(row(AsRun.PLAN, 0, 30_000, 0)); run.rows.add(row(AsRun.REST, 30_000, 40_000, 0)); run.rows.add(row(AsRun.OVERRIDE, 40_000, 60_000, 0)); run.rows.add(row(AsRun.PLAN, 60_000, 90_000, 1));
         AsRun.Row unconfirmed = row(AsRun.OVERRIDE, 90_000, 120_000, 1); unconfirmed.confirmed = false; run.rows.add(unconfirmed);
         run.rows.get(0).uhWire = 6; run.rows.get(0).lh = 4; run.rows.get(2).uhWire = 6; run.rows.get(2).lh = 4; run.rows.get(3).uhWire = 31;
-        GrowthTrackSession.Draft d = GrowthTrackSession.draft(session("mixed"), run); assertEquals(2, d.parts.size());
+        // CHANGED (owner's bug 16): an unacknowledged change the pump ran is no longer silently
+        // left out of an uploaded session, so the last 30 s are two more sets (25 s of RIP
+        // cycles and its 5 s interrupted hold). The rest and the order are as before.
+        GrowthTrackSession.Draft d = GrowthTrackSession.draft(session("mixed"), run); assertEquals(4, d.parts.size());
         JSONObject p = d.payload(); assertEquals("milking", p.getJSONArray("sets").getJSONObject(0).getString("method")); assertEquals(50, p.getJSONArray("sets").getJSONObject(0).getInt("duration_seconds"));
         assertEquals(30, p.getJSONArray("sets").getJSONObject(1).getInt("duration_seconds")); assertEquals("rip", p.getJSONArray("sets").getJSONObject(1).getString("method")); assertFalse(p.getJSONArray("sets").getJSONObject(0).has("pressure_inhg"));
+        assertEquals(25, p.getJSONArray("sets").getJSONObject(2).getInt("duration_seconds")); assertEquals(5, p.getJSONArray("sets").getJSONObject(3).getInt("duration_seconds"));
     }
     @Test void inconsistentRecordingIsRejectedRatherThanInventingDurations() {
         AsRun run = new AsRun(); run.rows.add(row(AsRun.PLAN, 0, 60_000, 0)); run.rows.add(row(AsRun.PLAN, 50_000, 80_000, 1));
         assertThrows(IllegalArgumentException.class, () -> GrowthTrackSession.draft(session("overlap"), run));
     }
     @Test void sendRequiresExplicitApprovalAndNoTrafficOnStartup() throws Exception {
-        Fixture f = new Fixture(false); f.client.sendApproved(); assertTrue(f.http.requests.isEmpty());
+        Fixture f = new Fixture(); f.client.sendApproved(); assertTrue(f.http.requests.isEmpty());
         GrowthTrackClient restarted = new GrowthTrackClient(f.storage, f.http, f.clock); assertTrue(restarted.snapshot().connected); assertTrue(f.http.requests.isEmpty());
     }
     @Test void durableApprovedSnapshotsAreDetachedFromMutableReviewObjects() throws Exception {
-        Fixture f = new Fixture(false); JSONObject p = payload("stable"); f.client.approve(Arrays.asList(p)); p.put("routine_name", "changed later");
+        Fixture f = new Fixture(); JSONObject p = payload("stable"); f.client.approve(Arrays.asList(p)); p.put("routine_name", "changed later");
         GrowthTrackClient restarted = new GrowthTrackClient(f.storage, f.http, f.clock); f.http.responses.add(ok(1, 0, new JSONArray())); restarted.resumeApproved();
         assertEquals("Fictional fixture", new JSONObject(f.http.requests.get(0).body).getJSONArray("sessions").getJSONObject(0).getString("routine_name"));
     }
     @Test void duplicateSendUsesExactlyTheSameExternalId() throws Exception {
-        Fixture f = new Fixture(false); f.approve("stable"); f.http.responses.add(ok(1, 0, new JSONArray())); f.client.sendApproved();
+        Fixture f = new Fixture(); f.approve("stable"); f.http.responses.add(ok(1, 0, new JSONArray())); f.client.sendApproved();
         f.approve("stable"); f.http.responses.add(ok(0, 1, new JSONArray())); f.client.sendApproved();
         assertEquals(f.http.requests.get(0).body, f.http.requests.get(1).body); assertEquals(0, f.client.snapshot().queued); assertTrue(f.client.receipt("op_stable").startsWith("Received"));
     }
     @Test void offlineRetrySurvivesRestartAndHonorsBackoff() throws Exception {
-        Fixture f = new Fixture(false); f.approve("offline"); f.http.responses.add(new IOException()); assertThrows(IOException.class, () -> f.client.sendApproved());
+        Fixture f = new Fixture(); f.approve("offline"); f.http.responses.add(new IOException()); assertThrows(IOException.class, () -> f.client.sendApproved());
         String first = f.http.requests.get(0).body; assertEquals(1, f.client.snapshot().queued); assertEquals(f.clock.time + 5000, f.client.snapshot().retryAt);
         GrowthTrackClient restarted = new GrowthTrackClient(f.storage, f.http, f.clock); assertThrows(IOException.class, () -> restarted.resumeApproved()); assertEquals(1, f.http.requests.size());
         f.clock.time += 5001; f.http.responses.add(ok(0, 1, new JSONArray())); restarted.resumeApproved(); assertEquals(first, f.http.requests.get(1).body); assertEquals(0, restarted.snapshot().queued);
     }
     @Test void repeatedServerFailuresBackOffAndHonorRetryAfter() throws Exception {
-        Fixture f = new Fixture(false); f.approve("server"); f.http.responses.add(new GrowthTrackClient.Response(503, "", "30")); assertThrows(IOException.class, () -> f.client.sendApproved()); assertEquals(f.clock.time + 30_000, f.client.snapshot().retryAt);
+        Fixture f = new Fixture(); f.approve("server"); f.http.responses.add(new GrowthTrackClient.Response(503, "", "30")); assertThrows(IOException.class, () -> f.client.sendApproved()); assertEquals(f.clock.time + 30_000, f.client.snapshot().retryAt);
         f.clock.time += 30_001; f.http.responses.add(new GrowthTrackClient.Response(503, "")); assertThrows(IOException.class, () -> f.client.resumeApproved()); assertEquals(f.clock.time + 10_000, f.client.snapshot().retryAt);
     }
     @Test void unauthorizedRefreshesOnlyOnceAndRotatesBeforeResendingTheSameBatch() throws Exception {
-        Fixture f = new Fixture(false); f.approve("auth"); f.http.responses.add(new GrowthTrackClient.Response(401, "{}")); f.http.responses.add(token(R2, false)); f.http.responses.add(ok(1, 0, new JSONArray())); f.client.sendApproved();
+        Fixture f = new Fixture(); f.approve("auth"); f.http.responses.add(new GrowthTrackClient.Response(401, "{}")); f.http.responses.add(token(R2)); f.http.responses.add(ok(1, 0, new JSONArray())); f.client.sendApproved();
         assertEquals(3, f.http.requests.size()); assertEquals("/oauth-token", f.http.requests.get(1).path); assertEquals(f.http.requests.get(0).body, f.http.requests.get(2).body); assertEquals(R2, f.storage.saved.getJSONObject("tokens").getString("refresh_token"));
         assertFalse(f.storage.saved.optBoolean("refreshing")); assertFalse(f.http.requests.get(0).headers.containsKey("x-partner-key"));
     }
     @Test void aSecondUnauthorizedResponseDisconnectsWithoutAnInfiniteRefreshLoop() throws Exception {
-        Fixture f = new Fixture(false); f.approve("auth"); f.http.responses.add(new GrowthTrackClient.Response(401, "{}")); f.http.responses.add(token(R2, false)); f.http.responses.add(new GrowthTrackClient.Response(401, "{}"));
+        Fixture f = new Fixture(); f.approve("auth"); f.http.responses.add(new GrowthTrackClient.Response(401, "{}")); f.http.responses.add(token(R2)); f.http.responses.add(new GrowthTrackClient.Response(401, "{}"));
         assertThrows(IOException.class, () -> f.client.sendApproved()); assertEquals(3, f.http.requests.size()); assertFalse(f.client.snapshot().connected); assertEquals(0, f.client.snapshot().queued);
     }
-    @Test void ambiguousRotatingRefreshRequiresRelinkRatherThanReplaying() throws Exception {
-        Fixture f = new Fixture(false); f.approve("refresh"); f.clock.time += 900_000; f.http.responses.add(new IOException()); assertThrows(IOException.class, () -> f.client.sendApproved());
-        assertFalse(f.client.snapshot().connected); assertEquals(0, f.client.snapshot().queued); assertEquals(1, f.http.requests.size()); assertThrows(IOException.class, () -> f.client.resumeApproved()); assertEquals(1, f.http.requests.size());
+    /** CHANGED (owner's bug 1, 19 Oct 2026): a refresh that failed on the network may never
+     *  have reached GrowthTrack, so the connection and the queue are kept and it is retried
+     *  after a backoff - not at once, and never in a loop. Only a definitive refusal ends the
+     *  credential (definitiveRefusalOfTheRefreshEndsTheCredentialButNotTheConnection). */
+    @Test void ambiguousRotatingRefreshKeepsTheConnectionAndRetriesAfterABackoff() throws Exception {
+        Fixture f = new Fixture(); f.approve("refresh"); f.clock.time += 900_000; f.http.responses.add(new IOException()); assertThrows(IOException.class, () -> f.client.sendApproved());
+        assertTrue(f.client.snapshot().connected); assertEquals(1, f.client.snapshot().queued); assertEquals(1, f.http.requests.size()); assertThrows(IOException.class, () -> f.client.resumeApproved()); assertEquals(1, f.http.requests.size());
+        assertFalse(f.storage.saved.optBoolean("refreshing"));
     }
-    @Test void restartDuringRefreshDropsTheOldCredentialAndQueuedApprovals() throws Exception {
-        Fixture f = new Fixture(false); f.approve("refresh"); f.storage.saved.put("refreshing", true);
-        GrowthTrackClient restarted = new GrowthTrackClient(f.storage, f.http, f.clock); assertFalse(restarted.snapshot().connected); assertEquals(0, restarted.snapshot().queued); assertTrue(f.http.requests.isEmpty());
+    /** CHANGED (owner's bugs 1 and 18): a process that died while renewing access no longer
+     *  disconnects the account or drops its queue; the marker is cleared, nothing is sent at
+     *  startup, and the next sync renews again. */
+    @Test void restartDuringRefreshKeepsTheCredentialAndQueueAndClearsTheMarker() throws Exception {
+        Fixture f = new Fixture(); f.approve("refresh"); f.storage.saved.put("refreshing", true);
+        GrowthTrackClient restarted = new GrowthTrackClient(f.storage, f.http, f.clock); assertTrue(restarted.snapshot().connected); assertEquals(1, restarted.snapshot().queued); assertTrue(f.http.requests.isEmpty());
+        assertFalse(f.storage.saved.optBoolean("refreshing"));
     }
     @Test void partialResultsRecordOnlyKnownCompleteOutcomesAndRetainTransientFailures() throws Exception {
-        Fixture f = new Fixture(false); f.approve("accepted", "duplicate", "temporary");
+        Fixture f = new Fixture(); f.approve("accepted", "duplicate", "temporary");
         f.http.responses.add(ok(1, 1, new JSONArray().put(new JSONObject().put("external_session_id", "op_temporary").put("reason", "Insert failed")))); f.client.sendApproved();
         assertEquals(1, f.client.snapshot().queued); assertTrue(f.client.receipt("op_accepted").startsWith("Received")); assertEquals("", f.client.receipt("op_temporary"));
     }
     @Test void permanentPerSessionRejectionIsVisibleAndNotRetriedAutomatically() throws Exception {
-        Fixture f = new Fixture(false); f.approve("bad"); f.http.responses.add(ok(0, 0, new JSONArray().put(new JSONObject().put("external_session_id", "op_bad").put("reason", "Unknown method")))); f.client.sendApproved();
+        Fixture f = new Fixture(); f.approve("bad"); f.http.responses.add(ok(0, 0, new JSONArray().put(new JSONObject().put("external_session_id", "op_bad").put("reason", "Unknown method")))); f.client.sendApproved();
         assertEquals(0, f.client.snapshot().queued); assertTrue(f.client.receipt("op_bad").startsWith("Needs review"));
     }
     @Test void incompleteOrForeignResultDoesNotMarkAnythingSent() throws Exception {
-        Fixture f = new Fixture(false); f.approve("mine"); f.http.responses.add(ok(0, 0, new JSONArray().put(new JSONObject().put("external_session_id", "op_someone_else").put("reason", "bad"))));
+        Fixture f = new Fixture(); f.approve("mine"); f.http.responses.add(ok(0, 0, new JSONArray().put(new JSONObject().put("external_session_id", "op_someone_else").put("reason", "bad"))));
         assertThrows(IOException.class, () -> f.client.sendApproved()); assertEquals(1, f.client.snapshot().queued); assertEquals("", f.client.receipt("op_mine"));
     }
     @Test void oversizeResponseSplitsWithoutChangingStableIds() throws Exception {
-        Fixture f = new Fixture(false); f.approve("one", "two"); f.http.responses.add(new GrowthTrackClient.Response(413, "{}")); f.http.responses.add(ok(1, 0, new JSONArray())); f.http.responses.add(ok(1, 0, new JSONArray())); f.client.sendApproved();
+        Fixture f = new Fixture(); f.approve("one", "two"); f.http.responses.add(new GrowthTrackClient.Response(413, "{}")); f.http.responses.add(ok(1, 0, new JSONArray())); f.http.responses.add(ok(1, 0, new JSONArray())); f.client.sendApproved();
         assertEquals(2, new JSONObject(f.http.requests.get(0).body).getJSONArray("sessions").length()); assertEquals(1, new JSONObject(f.http.requests.get(1).body).getJSONArray("sessions").length()); assertEquals(0, f.client.snapshot().queued);
     }
     @Test void boundedBatchingCountsUtf8BytesAndNeverExceedsLimits() throws Exception {
-        Fixture f = new Fixture(false); List<JSONObject> list = new ArrayList<>();
+        Fixture f = new Fixture(); List<JSONObject> list = new ArrayList<>();
         for (int i = 0; i < 105; i++) { JSONObject s = payload("batch" + i); s.put("routine_name", "å".repeat(150)); s.remove("method"); s.put("total_duration_seconds", 1000); JSONArray sets = new JSONArray(); for (int j = 0; j < 500; j++) sets.put(new JSONObject().put("set_index", j + 1).put("method", "rapid_interval_vacuum_extending").put("duration_seconds", 1)); s.put("sets", sets); list.add(s); }
         f.client.approve(list); f.http.acceptAll = true; f.client.sendApproved(); assertTrue(f.http.requests.size() > 2);
         for (Request r : f.http.requests) { assertTrue(r.body.getBytes(StandardCharsets.UTF_8).length <= GrowthTrackProtocol.MAX_BYTES); assertTrue(new JSONObject(r.body).getJSONArray("sessions").length() <= GrowthTrackProtocol.BATCH_SIZE); }
         assertEquals(0, f.client.snapshot().queued);
     }
     @Test void approvalRejectsPrivateFieldsBeforeAnyNetworkRequest() throws Exception {
-        Fixture f = new Fixture(false); JSONObject s = payload("private"); s.put("note", "must never escape"); assertThrows(IOException.class, () -> f.client.approve(Arrays.asList(s))); assertTrue(f.http.requests.isEmpty());
+        Fixture f = new Fixture(); JSONObject s = payload("private"); s.put("note", "must never escape"); assertThrows(IOException.class, () -> f.client.approve(Arrays.asList(s))); assertTrue(f.http.requests.isEmpty());
     }
     @Test void cancelAndDisconnectStopFutureRequestsAndClearAuthority() throws Exception {
-        Fixture f = new Fixture(false); f.approve("cancel"); f.http.beforeReturn = () -> f.client.cancelRequests(); f.http.responses.add(ok(1, 0, new JSONArray()));
+        Fixture f = new Fixture(); f.approve("cancel"); f.http.beforeReturn = () -> f.client.cancelRequests(); f.http.responses.add(ok(1, 0, new JSONArray()));
         assertThrows(IOException.class, () -> f.client.sendApproved()); f.client.cancelApproved(); assertEquals(0, f.client.snapshot().queued); assertEquals("", f.client.receipt("op_cancel"));
         f.client.disconnect(); assertFalse(f.client.snapshot().connected); assertFalse(f.storage.saved.has("tokens")); assertThrows(IOException.class, () -> f.client.resumeApproved()); assertEquals(1, f.http.requests.size());
     }
+    /** CHANGED (owner decision 4 / bug 12): starting a change of account leaves the working
+     *  connection and its queue alone until the new approval arrives; once it does, nothing of
+     *  the old account is carried - no waiting payload, no receipt. */
     @Test void relinkingCannotCarryAnOldAccountsApprovedPayloadsOrReceipts() throws Exception {
-        Fixture f = new Fixture(false); f.approve("previous"); f.client.begin(true); assertFalse(f.client.snapshot().connected); assertEquals(0, f.client.snapshot().queued); assertTrue(f.client.snapshot().pending); assertEquals("", f.client.receipt("op_previous"));
+        Fixture f = new Fixture(); f.approve("previous"); f.http.responses.add(ok(1, 0, new JSONArray())); f.client.sendApproved(); f.approve("waiting");
+        f.client.beginChangeAccount(GrowthTrackClient.EARLIER_NEW);
+        assertTrue(f.client.snapshot().connected); assertEquals(1, f.client.snapshot().queued); assertTrue(f.client.snapshot().pending);
+        String state = f.storage.saved.getJSONObject("pending").getString("state"); f.http.responses.add(token(R2));
+        f.client.callback(GrowthTrackProtocol.REDIRECT + "?code=" + CODE + "&state=" + state);
+        assertTrue(f.client.snapshot().connected); assertEquals(0, f.client.snapshot().queued); assertFalse(f.client.snapshot().pending);
+        assertEquals("", f.client.receipt("op_previous"));
     }
     @Test void storageFailureFailsClosedBeforeUpload() throws Exception {
-        Fixture f = new Fixture(false); f.storage.fail = true; assertThrows(IOException.class, () -> f.approve("storage")); assertThrows(IOException.class, () -> f.client.resumeApproved()); assertFalse(f.client.snapshot().connected); assertTrue(f.http.requests.isEmpty());
+        Fixture f = new Fixture(); f.storage.fail = true; assertThrows(IOException.class, () -> f.approve("storage")); assertThrows(IOException.class, () -> f.client.resumeApproved()); assertFalse(f.client.snapshot().connected); assertTrue(f.http.requests.isEmpty());
     }
     @Test void serializedSendsCannotRefreshInParallelOrDuplicateTheQueue() throws Exception {
-        Fixture f = new Fixture(false); f.approve("parallel"); f.clock.time += 900_000; f.http.responses.add(token(R2, false)); f.http.responses.add(ok(1, 0, new JSONArray()));
+        Fixture f = new Fixture(); f.approve("parallel"); f.clock.time += 900_000; f.http.responses.add(token(R2)); f.http.responses.add(ok(1, 0, new JSONArray()));
         var executor = Executors.newFixedThreadPool(2);
         try { List<Callable<Void>> calls = Arrays.asList(() -> { f.client.sendApproved(); return null; }, () -> { f.client.sendApproved(); return null; }); for (var future : executor.invokeAll(calls)) future.get(5, TimeUnit.SECONDS); }
         finally { executor.shutdownNow(); }
         assertEquals(2, f.http.requests.size()); assertEquals(0, f.client.snapshot().queued);
     }
-    @Test void routinePermissionIsSeparateAndUnsupportedFormatsAreRejected() throws Exception {
-        Fixture without = new Fixture(false); assertThrows(IOException.class, () -> without.client.routines(null)); assertTrue(without.http.requests.isEmpty());
-        Fixture with = new Fixture(true); with.http.responses.add(new GrowthTrackClient.Response(200, "{\"format\":\"pet-routine\",\"schema_version\":1,\"routines\":[]}")); assertThrows(IOException.class, () -> with.client.routines(null));
-        with.http.responses.add(new GrowthTrackClient.Response(200, "{\"format\":\"gt-routine\",\"schema_version\":2,\"routines\":[]}")); assertThrows(IOException.class, () -> with.client.routines(null));
-        with.http.responses.add(new GrowthTrackClient.Response(200, "{\"format\":\"gt-routine\",\"schema_version\":1,\"routines\":[],\"new_optional_field\":true}")); assertEquals(0, with.client.routines(null).getJSONArray("routines").length());
+    /** CHANGED (owner decision 6, 19 Oct 2026: routine previews removed for now). OpenPump asks
+     *  for sessions:write only, and refuses a token answer that grants it anything more. */
+    @Test void onlyTheSessionWritePermissionIsRequestedOrAccepted() throws Exception {
+        Storage storage = new Storage(); Http http = new Http(); GrowthTrackClient c = new GrowthTrackClient(storage, http, new Clock());
+        String url = c.begin(); assertTrue(url.contains("scope=sessions%3Awrite&")); assertFalse(url.contains("routines"));
+        String state = storage.saved.getJSONObject("pending").getString("state");
+        http.responses.add(new GrowthTrackClient.Response(200, new JSONObject().put("access_token", A).put("refresh_token", R)
+            .put("token_type", "Bearer").put("expires_in", 900).put("scope", "sessions:write routines:read").toString()));
+        assertThrows(IOException.class, () -> c.callback(GrowthTrackProtocol.REDIRECT + "?code=" + CODE + "&state=" + state));
+        assertFalse(c.snapshot().connected);
     }
 
     @Test void fixedHoldRulesHonorEveryInclusiveBoundaryBeforeRounding() {
@@ -290,7 +317,7 @@ class GrowthTrackIntegrationTest {
         AsRun run = new AsRun(); AsRun.Row r = row(AsRun.PLAN, 0, 600, 0); r.uhWire = 6; run.rows.add(r);
         JSONObject p = GrowthTrackSession.draft(s, run).payload();
         assertTrue(p.getJSONArray("sets").getJSONObject(0).isNull("duration_seconds"));
-        Fixture f = new Fixture(false); f.client.approve(Arrays.asList(p)); assertEquals(1, f.client.snapshot().queued);
+        Fixture f = new Fixture(); f.client.approve(Arrays.asList(p)); assertEquals(1, f.client.snapshot().queued);
         s.durSec = 0; assertThrows(IllegalArgumentException.class, () -> GrowthTrackSession.draft(s, run));
     }
     @Test void grossSealedTimeIsNeverSentAsUnderTensionWhenNetWasNotRecorded() throws Exception {
@@ -299,35 +326,36 @@ class GrowthTrackIntegrationTest {
         assertFalse(GrowthTrackSession.draft(s, run).payload().has("time_under_tension_seconds"));
     }
     @Test void transientPerItemFailuresUseIncreasingBackoffAcrossRetries() throws Exception {
-        Fixture f = new Fixture(false); f.approve("temporary");
+        Fixture f = new Fixture(); f.approve("temporary");
         JSONArray rejected = new JSONArray().put(new JSONObject().put("external_session_id", "op_temporary").put("reason", "Insert failed"));
         f.http.responses.add(ok(0, 0, rejected)); f.client.sendApproved(); assertEquals(f.clock.time + 5000, f.client.snapshot().retryAt);
         f.clock.time += 5001; f.http.responses.add(ok(0, 0, rejected)); f.client.resumeApproved(); assertEquals(f.clock.time + 10000, f.client.snapshot().retryAt);
     }
     @Test void invalidTypedPayloadFieldsFailBeforeNetworkAndDoNotCreateApproval() throws Exception {
         for (String field : Arrays.asList("total_duration_seconds", "time_under_tension_seconds", "pressure_peak_inhg", "started_at", "completed_at", "routine_name")) {
-            Fixture f = new Fixture(false); JSONObject p = payload("bad");
+            Fixture f = new Fixture(); JSONObject p = payload("bad");
             if (field.endsWith("seconds")) p.put(field, 1.5); else if (field.equals("pressure_peak_inhg")) p.put(field, 30); else if (field.equals("routine_name")) p.put(field, "x".repeat(201)); else p.put(field, "invalid");
             assertThrows(IOException.class, () -> f.client.approve(Arrays.asList(p)), field);
             assertTrue(f.http.requests.isEmpty()); assertEquals(0, f.client.snapshot().queued);
         }
-        Fixture f = new Fixture(false); JSONObject p = payload("index"); p.getJSONArray("sets").getJSONObject(0).put("set_index", 0);
+        Fixture f = new Fixture(); JSONObject p = payload("index"); p.getJSONArray("sets").getJSONObject(0).put("set_index", 0);
         assertThrows(IOException.class, () -> f.client.approve(Arrays.asList(p))); assertTrue(f.http.requests.isEmpty());
     }
     @Test void goneGrantClearsAuthorityAndForbiddenPermissionPreservesApprovalForExplicitRelink() throws Exception {
-        Fixture gone = new Fixture(false); gone.approve("gone"); gone.http.responses.add(new GrowthTrackClient.Response(410, "{}"));
+        Fixture gone = new Fixture(); gone.approve("gone"); gone.http.responses.add(new GrowthTrackClient.Response(410, "{}"));
         assertThrows(IOException.class, () -> gone.client.sendApproved()); assertFalse(gone.client.snapshot().connected); assertEquals(0, gone.client.snapshot().queued);
-        Fixture denied = new Fixture(false); denied.approve("denied"); denied.http.responses.add(new GrowthTrackClient.Response(403, "{}"));
+        Fixture denied = new Fixture(); denied.approve("denied"); denied.http.responses.add(new GrowthTrackClient.Response(403, "{}"));
         assertThrows(IOException.class, () -> denied.client.sendApproved()); assertEquals(1, denied.client.snapshot().queued); assertEquals(1, denied.http.requests.size());
     }
-    @Test void supportedRoutineDetailUsesReadScopeAndDoesNotChangeSessionQueue() throws Exception {
-        Fixture f = new Fixture(true); String id = "00000000-0000-4000-8000-000000000001";
-        JSONObject detail = new JSONObject().put("format", "gt-routine").put("schema_version", 1)
-            .put("routine", new JSONObject().put("external_id", id).put("steps", new JSONArray()));
-        f.http.responses.add(new GrowthTrackClient.Response(200, detail.toString())); assertEquals(id, f.client.routines(id).getJSONObject("routine").getString("external_id"));
-        assertEquals("GET", f.http.requests.get(0).method); assertNull(f.http.requests.get(0).body);
-        assertEquals("no-store", f.http.requests.get(0).headers.get("Cache-Control")); assertEquals(0, f.client.snapshot().queued);
-        assertThrows(IOException.class, () -> f.client.routines("../../tokens")); assertEquals(1, f.http.requests.size());
+    /** CHANGED (owner decision 6): there is no routine endpoint any more; every request the
+     *  client makes goes to the token or session-ingest endpoint, with no-store. */
+    @Test void theClientOnlyEverCallsTheTokenAndIngestEndpoints() throws Exception {
+        Fixture f = new Fixture(); f.approve("only"); f.clock.time += 901_000; f.http.responses.add(token(R2)); f.http.responses.add(ok(1, 0, new JSONArray())); f.client.sendApproved();
+        for (Request r : f.http.requests) {
+            assertTrue(r.path.equals("/oauth-token") || r.path.equals("/partner-ingest"), r.path);
+            assertEquals("no-store", r.headers.get("Cache-Control"));
+        }
+        for (java.lang.reflect.Method m : GrowthTrackClient.class.getDeclaredMethods()) assertFalse(m.getName().toLowerCase(java.util.Locale.ROOT).contains("routine"), m.getName());
     }
     @Test void stoppedUpperHoldUsesClippedDurationAndNeverItsLongerSetting() {
         AsRun run = new AsRun(); AsRun.Row r = row(AsRun.PLAN, 0, 6000, 0); r.uhWire = 121; run.rows.add(r);
@@ -369,7 +397,9 @@ class GrowthTrackIntegrationTest {
     }
     @Test void changedOrUnconfirmedStitchFailsClosedAndStoppedChunkIsClipped() {
         Model.Sess s = session("badStitch"); s.durSec = 360; s.recordedEndMs = s.recordedStartMs + 360000L; AsRun run = stitch(true); run.rows.get(1).confirmed = false; final AsRun unconfirmed = run;
-        assertThrows(IllegalArgumentException.class, () -> GrowthTrackSession.draft(s, unconfirmed));
+        // CHANGED (owner's bug 16): an unacknowledged continuation of a proven stitch ran in the
+        // common case; it now joins the hold instead of making the session unsendable.
+        assertEquals(300000, GrowthTrackSession.draft(s, unconfirmed).parts.get(0).holdMillis);
         run = stitch(true); run.rows.get(1).up = 21; final AsRun changed = run;
         assertThrows(IllegalArgumentException.class, () -> GrowthTrackSession.draft(s, changed));
         run = stitch(true); run.rows.remove(1); run.rows.get(0).t1 = 6000;
@@ -378,7 +408,10 @@ class GrowthTrackIntegrationTest {
     @Test void pausedOrLostPhaseCannotBeInventedButStructuredLengthStillOverrides() {
         for (int kind : new int[]{AsRun.HOLD, AsRun.LOST}) {
             AsRun run = new AsRun(); run.rows.add(row(AsRun.PLAN, 0, 20000, 0)); run.rows.add(row(kind, 20000, 30000, 0)); run.rows.add(row(AsRun.PLAN, 30000, 50000, 0));
-            assertThrows(IllegalArgumentException.class, () -> GrowthTrackSession.draft(session("gap"), run));
+            // CHANGED (owner's bug 15): a Hold or a dropout no longer makes the whole session
+            // unsendable. The gap is never work: only the 2 x 20 s either side are sent.
+            long sent = 0; for (GrowthTrackSession.Part p : GrowthTrackSession.draft(session("gap"), run).parts) sent += p.recordedMillis;
+            assertEquals(40000, sent);
             run.snap = new Model.AsRunSnapshot(); run.snap.trainerTrack = Plan.TRACK_LENGTH;
             for (GrowthTrackSession.Part p : GrowthTrackSession.draft(session("gap"), run).parts) assertEquals("length_pumping", p.method);
         }
@@ -391,24 +424,27 @@ class GrowthTrackIntegrationTest {
         preset.cyclePart = false; assertEquals(0, run.open(AsRun.PLAN, 1000, preset, 20, 20, 0, 6, 6, 4, 50).cyclePart);
     }
 
+    /** CHANGED (owner decision 4): only a change of account starts a new connection, and its
+     *  queue is dropped when the new approval arrives - not when it is merely started. */
     @Test void staleReviewCannotBeApprovedAfterAnAccountRelink() throws Exception {
-        Fixture f = new Fixture(false); String old = f.client.snapshot().connectionId; f.approve("old");
-        f.client.begin(false); assertEquals(0, f.client.snapshot().queued);
-        String state = f.storage.saved.getJSONObject("pending").getString("state"); f.http.responses.add(token(R2, false));
+        Fixture f = new Fixture(); String old = f.client.snapshot().connectionId; f.approve("old");
+        f.client.beginChangeAccount(""); assertEquals(1, f.client.snapshot().queued);
+        String state = f.storage.saved.getJSONObject("pending").getString("state"); f.http.responses.add(token(R2));
         f.client.callback(GrowthTrackProtocol.REDIRECT + "?code=" + CODE + "&state=" + state); f.http.requests.clear();
+        assertEquals(0, f.client.snapshot().queued);
         assertNotEquals(old, f.client.snapshot().connectionId);
         assertThrows(IOException.class, () -> f.client.approve(Arrays.asList(payload("stale")), old));
         assertEquals(0, f.client.snapshot().queued); assertTrue(f.http.requests.isEmpty());
         f.client.approve(Arrays.asList(payload("fresh")), f.client.snapshot().connectionId); assertEquals(1, f.client.snapshot().queued);
     }
     @Test void restoredQueueWithDifferentGrantIdentityIsDiscardedWithoutTraffic() throws Exception {
-        Fixture f = new Fixture(false); f.approve("old"); f.storage.saved.put("approved_connection_id", "another-grant");
+        Fixture f = new Fixture(); f.approve("old"); f.storage.saved.put("approved_connection_id", "another-grant");
         GrowthTrackClient restored = new GrowthTrackClient(f.storage, f.http, f.clock);
         assertTrue(restored.snapshot().connected); assertEquals(0, restored.snapshot().queued); assertTrue(f.http.requests.isEmpty());
     }
     @Test void refreshRetainsGrantIdentityAndApprovedSnapshotsForTheSameAccount() throws Exception {
-        Fixture f = new Fixture(false); String id = f.client.snapshot().connectionId; f.approve("refreshIdentity");
-        f.clock.time += 901000; f.http.responses.add(token(R2, false)); f.http.responses.add(ok(1, 0, new JSONArray())); f.client.sendApproved();
+        Fixture f = new Fixture(); String id = f.client.snapshot().connectionId; f.approve("refreshIdentity");
+        f.clock.time += 901000; f.http.responses.add(token(R2)); f.http.responses.add(ok(1, 0, new JSONArray())); f.client.sendApproved();
         assertEquals(id, f.client.snapshot().connectionId); assertEquals(0, f.client.snapshot().queued); assertEquals(2, f.http.requests.size());
     }
 

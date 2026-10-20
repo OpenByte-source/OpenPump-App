@@ -44,15 +44,19 @@ public final class RunParts {
     public int rejoins, resumes;
     /** The earlier parts' record, already filed, that the one session replaces; "" none. */
     public String sessId = "";
+    /** The id GrowthTrack knows the session by: the FIRST filed part's (Sess#syncId), so the
+     *  one session is sent as an update of that part, never as a second session beside it.
+     *  "" when no part was filed. Data only. */
+    public String syncId = "";
 
-    private static final String V = "p1";
+    private static final String V = "p2", V1 = "p1";
 
     public RunParts copy() {
         RunParts p = new RunParts();
         p.startTs = startTs; p.playedMs = playedMs;
         p.netSec = netSec; p.grossSec = grossSec;
         p.doseKpaS = doseKpaS; p.peakKpa = peakKpa; p.cycles = cycles;
-        p.rejoins = rejoins; p.resumes = resumes; p.sessId = sessId;
+        p.rejoins = rejoins; p.resumes = resumes; p.sessId = sessId; p.syncId = syncId;
         return p;
     }
 
@@ -86,6 +90,7 @@ public final class RunParts {
         p.rejoins = s.rejoins;
         p.resumes = s.resumes;
         p.sessId = s.id == null ? "" : s.id;
+        p.syncId = s.syncId != null && !s.syncId.isEmpty() ? s.syncId : p.sessId;
         return p;
     }
 
@@ -97,6 +102,11 @@ public final class RunParts {
         rec.ts = prior.startTs > 0 ? prior.startTs : rec.ts - prior.playedMs;
         rec.rejoins = prior.rejoins;
         rec.resumes = prior.resumes;
+        // GrowthTrack (bug 5): the whole session keeps the first part's wall-clock start and
+        // the id that part was sent under. Its end is stamped where it files.
+        if (prior.startTs > 0) rec.recordedStartMs = prior.startTs;
+        String carried = prior.syncId != null && !prior.syncId.isEmpty() ? prior.syncId : prior.sessId;
+        if (carried != null && !carried.isEmpty()) rec.syncId = carried;
     }
 
     /** ...and carries the earlier parts' figures, once its own are on it. */
@@ -152,14 +162,16 @@ public final class RunParts {
     public String code() {
         return V + ";" + startTs + ";" + playedMs + ";" + num(netSec) + ";" + num(grossSec)
             + ";" + num(doseKpaS) + ";" + num(peakKpa) + ";" + cycles + ";" + rejoins + ";"
-            + resumes + ";" + (sessId == null ? "" : sessId.replace(";", ""));
+            + resumes + ";" + (sessId == null ? "" : sessId.replace(";", ""))
+            + ";" + (syncId == null ? "" : syncId.replace(";", ""));
     }
 
     /** Read back; null for a snapshot that holds none (written before it) or an odd one. */
     public static RunParts fromCode(String c) {
         if (c == null) return null;
         String[] f = c.split(";", -1);
-        if (f.length != 11 || !V.equals(f[0])) return null;
+        // MIGRATION: "p1" (11 fields) was written before syncId existed; it reads as "".
+        if (!((f.length == 12 && V.equals(f[0])) || (f.length == 11 && V1.equals(f[0])))) return null;
         try {
             RunParts p = new RunParts();
             p.startTs = Math.max(0L, Long.parseLong(f[1]));
@@ -173,6 +185,7 @@ public final class RunParts {
             p.rejoins = Math.max(0, Integer.parseInt(f[8]));
             p.resumes = Math.max(0, Integer.parseInt(f[9]));
             p.sessId = f[10];
+            p.syncId = f.length == 12 ? f[11] : "";
             return p;
         } catch (NumberFormatException e) {
             return null;

@@ -18,7 +18,9 @@ public final class GrowthTrackProtocol {
     public static final String CLIENT_ID = "gtc_bfa5809efbd314f246dd5d0f";
     public static final String REDIRECT = "gt-openpump://oauth/callback";
     public static final String CONNECTED_APPS = "https://pe-growth-track.com/connected-apps";
-    public static final String WRITE = "sessions:write", READ = "routines:read";
+    /** The one scope OpenPump asks for. Routine reading (routines:read) was removed with the
+     *  routine previews (owner decision 6, 19 Oct 2026); it may come back in a later release. */
+    public static final String WRITE = "sessions:write";
     public static final int MAX_BYTES = 1_000_000;
     // Below both the older pilot's 100 and the current handler's 500-session limit.
     public static final int BATCH_SIZE = 100;
@@ -39,8 +41,7 @@ public final class GrowthTrackProtocol {
             if (!state.matches("[a-f0-9]{64}") || !verifier.matches("[A-Za-z0-9._~-]{43,128}"))
                 throw new JSONException("Invalid saved authorization");
             String scope = o.getString("scope");
-            if (!WRITE.equals(scope) && !(WRITE + " " + READ).equals(scope))
-                throw new JSONException("Invalid saved scope");
+            if (!WRITE.equals(scope)) throw new JSONException("Invalid saved scope");
             return new Pending(state, verifier, scope, o.getLong("created_at"));
         }
         public String authorizeUrl() {
@@ -52,10 +53,16 @@ public final class GrowthTrackProtocol {
         }
     }
 
-    public static Pending pending(boolean routines, long now) {
+    public static Pending pending(long now) {
         SecureRandom random = new SecureRandom();
         byte[] a = new byte[32], b = new byte[32]; random.nextBytes(a); random.nextBytes(b);
-        return new Pending(hex(a), hex(b), WRITE + (routines ? " " + READ : ""), now);
+        return new Pending(hex(a), hex(b), WRITE, now);
+    }
+    /** THE CONNECTION'S OWN ID (small fix): a fresh random value made when an account is
+     *  connected, never the OAuth state - that one went to the server in the authorize URL and
+     *  sits in browser history, and this one is copied into model.json and backups. */
+    public static String connectionId() {
+        byte[] a = new byte[32]; new SecureRandom().nextBytes(a); return hex(a);
     }
     public static String challenge(String verifier) {
         if (verifier == null || !verifier.matches("[A-Za-z0-9._~-]{43,128}"))
@@ -66,6 +73,11 @@ public final class GrowthTrackProtocol {
         if (id == null || id.trim().isEmpty()) throw new IllegalArgumentException("This record has no stable session ID");
         return id.length() <= 125 ? "op_" + id : "op_" + hex(digest(id));
     }
+
+    private static final java.util.Set<String> KNOWN_PARAMS = new java.util.HashSet<String>(
+        java.util.Arrays.asList("state", "code", "error", "error_description"));
+    private static final java.util.Set<String> CREDENTIAL_PARAMS = new java.util.HashSet<String>(
+        java.util.Arrays.asList("access_token", "refresh_token", "id_token", "token", "code_verifier", "client_secret"));
 
     public static final class Callback {
         public final String code, error;
@@ -88,8 +100,12 @@ public final class GrowthTrackProtocol {
             for (String pair : u.getRawQuery().split("&", -1)) {
                 String[] parts = pair.split("=", 2);
                 String key = decode(parts[0]), val = parts.length == 2 ? decode(parts[1]) : "";
-                if (!("state".equals(key) || "code".equals(key) || "error".equals(key) || "error_description".equals(key))
-                        || p.put(key, val) != null) throw new IllegalArgumentException("Invalid connection response parameters");
+                // Extra parameters a server may add (iss per RFC 9207, session_state, error_uri)
+                // are accepted and ignored (small fix). A credential in the redirect is never
+                // ordinary: it means a different flow answered, so it is refused.
+                if (CREDENTIAL_PARAMS.contains(key)) throw new IllegalArgumentException("Invalid connection response parameters");
+                if (!KNOWN_PARAMS.contains(key)) continue;
+                if (p.put(key, val) != null) throw new IllegalArgumentException("Invalid connection response parameters");
             }
             String state = p.get("state");
             if (state == null || !MessageDigest.isEqual(pending.state.getBytes(StandardCharsets.UTF_8),
