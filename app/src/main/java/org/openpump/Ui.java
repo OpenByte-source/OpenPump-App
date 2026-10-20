@@ -2957,6 +2957,27 @@ public final class Ui {
     }
 
     /**
+     * A SWITCH THAT CANNOT BE USED NOW, DRAWN SO (GrowthTrack, decision 3: the type switches
+     * dim while the master switch is off). Its state is kept - on stays on the right - but
+     * the lime track becomes the unavailable fill and the thumb the unavailable ink, the same
+     * pair stateFill gives an unavailable button. Walks `g` for the switches switchView built.
+     */
+    public static void dimSwitches(Activity a, ViewGroup g) {
+        for (int i = 0; i < g.getChildCount(); i++) {
+            View v = g.getChildAt(i);
+            if (v instanceof android.widget.FrameLayout && ((android.widget.FrameLayout) v).getChildCount() == 2
+                    && ("on".equals(v.getContentDescription()) || "off".equals(v.getContentDescription()))) {
+                android.widget.FrameLayout f = (android.widget.FrameLayout) v;
+                f.getChildAt(0).setBackground(roundRect(a, LINE, SWITCH_H / 2));
+                android.graphics.drawable.GradientDrawable t = new android.graphics.drawable.GradientDrawable();
+                t.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+                t.setColor(FAINT_OFF);
+                f.getChildAt(1).setBackground(t);
+            } else if (v instanceof ViewGroup) dimSwitches(a, (ViewGroup) v);
+        }
+    }
+
+    /**
      * A CATEGORY CARD THE CALLER FILLS. {@link #card} draws a title, a sub and nothing
      * else; Settings needs its controls INSIDE the card that names them, or the category
      * header is a heading floating above a flat column and the grouping exists only in the

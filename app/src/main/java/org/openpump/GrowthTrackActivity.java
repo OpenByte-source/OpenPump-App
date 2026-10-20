@@ -554,6 +554,7 @@ public final class GrowthTrackActivity extends Activity {
         typeSwitches(block);
         // Master off: the type switches dim, kept as they are (decision 3).
         Ui.dependentBlock(this, block, s.on);
+        if (!s.on) Ui.dimSwitches(this, block);
 
         Ui.navCard(this, body, "Sent and waiting sessions", new Tap(Action.LIST));
 
