@@ -1,44 +1,54 @@
 # GrowthTrack verification record
 
-Final behavior: connection authorizes automatic sync of every new real finished session; disconnected/preconnection history sends none. No per-session selection/review/Send UI. Unsupported recordings have explicit status. Historical bulk import and a GrowthTrack routine builder are outside scope.
+What has been checked for the optional GrowthTrack connection, and what has not. The behaviour being checked is described in [the developer handoff](growthtrack-developer-handoff.md); the owner's decisions of 19 October 2026 are the reference. Tests use a fake transport and fictional data: nothing here contacted GrowthTrack, and no check ran against a pump.
 
-## Passed locally
+## The gate
 
-| Check | Evidence |
+Every change to the connection must pass the project gate:
+
+```
+./gradlew --offline test :app:assembleDebug :app:lintDebug
+```
+
+That is: `Migrate` OK, the scenario harness (58 or more, 0 failing), the self-test (0 failing), `WiringCheck` (0 violations) and JUnit (0 failures), plus a debug build and lint. No check or test was weakened, skipped or deleted to pass. Where one of Karl's tests asserted a behaviour the owner reversed, it was changed to assert the new behaviour, with a comment saying why.
+
+## Bugs found in review, and the tests that hold them
+
+A review of pull request #1 found the problems below and wrote a failing test for each. The fixes make these tests pass; they stay in the suite so a regression shows up.
+
+| Test class | What it holds |
 |---|---|
-| Full JVM suite | `:core:test` BUILD SUCCESSFUL3m49s;2,140 JUnit,0 failures,0 errors. |
-| Feature mocks |57 integration/protocol/mapping +12 automatic-sync +5 onboarding. All fictional HTTP/storage fixtures; no live GT request. |
-| Legacy harness | SelfTest35,830 passed,0 failed; Scenarios58/0; MigrationOK, including unknown historical timestamps and completion-grant marker round-trip. |
-| Unchanged wiring |1,787 self-tests; final source scan0 violations. Final Android network-source follow-up BUILD SUCCESSFUL2m44s;453 pure/46 Android sources,0 violations. |
-| Android syntax | Java17 parse45 main Java sources,0 grammar errors; **no Android API/type compile**. |
-| Manifest/source | Exact callback, private status Activity, protected retry JobService, INTERNET/ACCESS_NETWORK_STATE, backup disabled and release cleartext disabled; no pump calls or credential logging in feature classes. |
-| Site source/JS |21 original roadmap entries and metadata preserved;10 main steps;2c in both layouts;6 inline scripts parse. No separate-page destination or public local/QA status. |
-| Images |3 official Library-materialized PNGs readable/inspected; unmodified source/site SHA256 matches;327×692,313×550,313×478;full-size links. |
-| Layout | Same wrap and padding as adjacent section. Exact-source isolated fixture at default desktop/390px mobile;3 images loaded; no document horizontal overflow; mobile gallery scrolls internally. |
-| Whitespace | `git diff --check`, no errors. |
+| `GrowthTrackSyncBugsTest` (with `GtSim`), 18 tests | offline or 5xx at token refresh keeps the connection and the session; reconnecting after a permission pause delivers the paused session; starting then cancelling a reconnect leaves the connection alone; a request-level rejection does not drop the whole batch; one 413 does not shrink later batches; a failing session does not hold back new ones; a session deleted while queued is not uploaded; retry timing survives the clock being set back; a stitch chunk a millisecond late, and a Traditional session with ordinary timer lateness, are still sent; timer lateness invents no Milking sets; a Length session's girth expansion is not `length_pumping`; warm-up is not sent as work sets; STOP then Resume ends with the whole session on GrowthTrack; an unacknowledged set is not left out; a short dropout does not make a session unsendable; a long routine name is shortened |
+| `AppFindingsTest`, 3 tests | a session finished offline an hour after connecting stays queued and connected; a job stopped during refresh does not disconnect; a resumed session replaces the fragment already sent |
+| `GrowthTrackSecurityBugTest`, 7 tests | offline, a busy token endpoint or a stopped job during refresh keep the connection and queue, and a session caught by that is still sent; a transport failure during refresh neither replays the token nor strands the marker; the OAuth `state` does not become a stored identifier; an expired sign-in request does not stay pending |
 
-The initial automatic-sync run stopped on two unchanged wiring rules (onStop service guard and a142-character face note). Both source violations were corrected; no check was altered, disabled or deleted. The completed full rerun then passed.
+Findings without a JVM test (the browser opening only the first time, practice runs marked for sending, the setup offer marked seen when drawn, extra callback parameters such as `iss`, the callback covering a live run, Incognito and the app lock on the new screens, dialogs without `FLAG_SECURE`, rotation, Back from About in setup, Erase all finishing before the GrowthTrack erase) are fixed in the core and app code, with a JUnit test wherever the logic is pure; what can only be seen on a phone is on the list below.
 
-Automatic cases cover new completion without selection, every distinct completion appending while work is pending, duplicate completion before/after receipt, disconnected/preconnection exclusion, durable offline delay/restart, filing/queue crash-gap recovery, old/new grant isolation, in-flight disconnect and remaining batches, simulated/invalid/unsupported statuses, partial transient/permanent results, paused missing permission and old manual-only consent requiring a fresh link.
+## Release permissions
 
-## Platform checks still required
+The release workflow (`.github/workflows/release.yml`) pins every permission the release APK may hold and fails on anything else, and on a release manifest that allows cleartext traffic. The check was run locally on 19 October 2026 against `aapt2 dump xmltree` of an unsigned release APK built from this branch, and against edited copies of that dump:
 
-Android SDK/adb/emulator absent on Hemmaservern. The user explicitly chose no SDK/emulator/BlueStacks setup or license acceptance. Android compile/dex/lint, actual Keystore/AtomicFile, system browser callback/lifecycle/locks, JobScheduler/network/Doze/reboot/force-stop behavior, consent/end-to-end GT ingest and device timing remain **NOT RUN**. Source parsing and mocked JVM checks cannot confirm these. See the concrete checklist and commands in `growthtrack-developer-handoff.md`.
+| Manifest | Result |
+|---|---|
+| The release APK as built (17 permissions, INTERNET and ACCESS_NETWORK_STATE among them, cleartext off) | passes |
+| plus `ACCESS_WIFI_STATE` | fails, naming it |
+| plus `CHANGE_NETWORK_STATE` as `uses-permission-sdk-23` | fails, naming it |
+| cleartext switched on | fails |
+| ACCESS_NETWORK_STATE removed | passes, with a warning to take it off the list |
+| empty dump | fails: the check read no permissions |
+| the debug APK | fails: diagnostic console present |
 
-Material limits: labels project saved acknowledged command phases, not sampled pressure plateaus; ambiguous paused/lost/stitch histories and missing original timestamps remain unsupported. Old Sess.ts meaning varies across releases; old/rejoined boundaries are not invented. GT durations are whole seconds/null for subsecond work. Invalid new records show reasons, never optional selection. Android controls background delivery timing; an in-flight commit cannot be recalled. Local disconnect differs from remote Connected apps revocation. No executable routine import or new GT builder is present.
+## Website
 
-## Website evidence and privacy
+The site's GrowthTrack section, gallery and screenshots were removed. The Data section keeps "Nothing leaves your phone unless you export, back up or share it yourself." and adds an "Optional · GrowthTrack" callout after it. Checked with Playwright at 1440 and 390 px wide, light and dark: no console errors, no horizontal overflow, text contrast 6.8:1 or better in the callout. The roadmap's step 2c row is kept and labelled Implemented; its link lands on the callout.
 
-Main preview: `http://127.0.0.1:8766/index.html#growthtrack`, HTTP200; loopback server remains alive. Separate growthtrack.html removed. Compact inline card has automatic sync, one mixed-method session and advanced/voluntary tracking/study benefits; no routine-transfer claim.
+## Not yet checked on a device
 
-The main site's first-use liability agreement was not accepted. Live read-only DOM verifies the section/roadmap; screenshots were made using an isolated fixture from the exact current HTML and stylesheet, avoiding changes to the agreement or production page. Local screenshot files: `growthtrack-website-desktop.png`, `growthtrack-website-mobile.png` in the task workspace. Temporary QA server is stopped after verification; main8766 remains alive.
+- A live sign-in against a GrowthTrack test account, and a real upload. (Never against a real person's account, and never during a run.)
+- The retry job through airplane mode, network changes, Doze, reboot, force-stop and a stopped job.
+- Android Keystore and `AtomicFile` behaviour on a real phone: missing or invalidated key, full disk, tampered file.
+- The labels and set timings against real recordings from the pump.
+- Incognito, the app lock and `FLAG_SECURE` on every GrowthTrack screen and dialog, on a real phone.
+- The browser opening on every Connect tap, rotation and page state, Back from About during setup, and a callback arriving during a live run (refused, never covering the run).
 
-Supplied screenshots contain genital measurements and dated training charts, with no account name/email observed. The user explicitly approved publishing all three unchanged in the public personal fork on 10 October 2026. This publication does not deploy the website.
-
-## Repository state
-
-Fork `https://github.com/kwikmn/OpenPump-App`; path `F:\Codex\OpenPump-App`; branch `codex/growthtrack-integration`; baseline `1dddec436e552b0669e69427e9d054a71598d859`; origin personal fork, upstream OpenByte-source/OpenPump-App. Implementation source/docs/assets are carried by the [personal-fork feature branch](https://github.com/kwikmn/OpenPump-App/tree/codex/growthtrack-integration). Publishing it does not merge main or deploy the site. The developer draft is unsent; no PR, live grant, real data transfer or hardware use occurred. Existing CI triggers only on main pushes or pull requests, so this feature-branch push alone does not run CI.
-
-GT checkout remains tracked-clean on `codex/routine-intensity-defaults`, with the same three preexisting untracked docs. No GT file was changed.
-
-Logs in task workspace: `growthtrack-auto-tests-final.log`, `growthtrack-auto-wiring-final.log`; JUnit XML/HTML in ignored core build output. Private Library replacements preserve the existing four attachment identities; results are recorded separately after replacement.
+Until these run, the record does not claim end-to-end validation.

@@ -10,10 +10,13 @@ app/     Android shell — screens, the foreground run service, Bluetooth (PumpL
          notifications, widget, file providers. Depends on core.
          app/src/debug is in debug builds only: the diagnostic console (MainActivity,
          its own Bluetooth connection and raw frames) and cleartext diagnostic log upload.
-         The release APK carries no diagnostic console. Optional
-         GrowthTrack has INTERNET/ACCESS_NETWORK_STATE in main. Browser approval enables
-         automatic same-account session sync, with a separate Activity/task, encrypted
-         no-backup state and persisted network-constrained retry jobs.
+         The release APK carries neither.
+         The one network feature in the release APK is the optional GrowthTrack
+         connection (INTERNET and ACCESS_NETWORK_STATE, HTTPS only; ADR 0010): sign-in in
+         the system browser, encrypted no-backup token and queue storage, and a background
+         job that sends finished sessions to the person's own account. It never touches the
+         pump, the run engine or the run screen. It sends sessions only; the routine
+         preview from the first GrowthTrack draft was removed and may come back later.
 core/    Plain Java — no Android imports, enforced by ArchitectureTest.
          Training plan, session engine, data model and persistence, share codes,
          progress/analytics, and the ZD21 pump protocol (Proto) with its simulator;
@@ -28,7 +31,7 @@ is being removed — see the roadmap).
 
 | You want to… | Look in |
 |---|---|
-| Change the optional GrowthTrack connection | `core/./GrowthTrack*.java`, `app/./GrowthTrack*.java`; [developer handoff](docs/growthtrack-developer-handoff.md) |
+| Change the optional GrowthTrack connection | `core/…/GrowthTrack*.java`, `app/…/GrowthTrack*.java`; [developer handoff](docs/growthtrack-developer-handoff.md) |
 | Change a screen | `app/src/main/java/org/openpump/*Screen.java`, `SessionActivity.java` |
 | Change the training plan | `core/…/Plan.java`, `RxBuild.java`, `Mint.java`, `Deload.java` |
 | Change how a run is recorded or saved | `core/…/AsRun.java`, `RunEdit.java`, `Session.java` |
