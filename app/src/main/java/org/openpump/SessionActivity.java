@@ -540,7 +540,7 @@ public class SessionActivity extends Activity
         Model.Fmt.unit = model.unit;              // keep the formatter in step with what was saved
         Model.Fmt.sizeUnit = model.sizeUnit;      // ...and the SIZE formatter, the same way
         Model.Fmt.loadUnit = model.loadUnit;      // ...and the LOAD formatter (2026-09-30)
-        GrowthTrackManager.get(this).startSync(null);
+        GrowthTrackManager.get(this).startSync(model, null);
         openLog();
         storeUnreadable = Store.storeWasUnreadable();
         // KEEP THE PHOTOS OUT OF THE PHONE'S GALLERY. The directory below is
@@ -27962,12 +27962,11 @@ public class SessionActivity extends Activity
         // ...and with the earlier parts, the session lasts them all and starts when the first
         // did - before anything below keys on rec.ts (the as-run, the traces, the day).
         RunParts.foldTime(parts, rec);
-        // Data-only wall-clock facts: do not reinterpret old history's end/start key.
-        // A rejoined record lacks independently preserved wall-clock bounds for all parts.
-        if (parts == null || parts.playedMs == 0) {
-            rec.recordedStartMs = session.runStartedAtOrZero();
-            rec.recordedEndMs = now;
-        }
+        // Data-only wall-clock facts: do not reinterpret old history's end/start key. A
+        // resumed or rejoined session already has its FIRST part's start (RunParts#foldTime),
+        // and it ends now like any other (GrowthTrack bug 5).
+        if (rec.recordedStartMs <= 0) rec.recordedStartMs = session.runStartedAtOrZero();
+        rec.recordedEndMs = now;
         el = rec.durSec;
         sessionElapsedSec = el;
         rec.completed = !aborted;
@@ -28229,9 +28228,10 @@ public class SessionActivity extends Activity
         manualSource = null;
         model.adhoc.clear();
         GrowthTrackManager sync = GrowthTrackManager.get(this);
-        rec.growthTrackConnectionId = sync.connectionId();
+        // Never a practice run, and never one its GrowthTrack switch was off for.
+        rec.growthTrackConnectionId = GrowthTrackOutbox.markerFor(rec, sync.connectionId(), model, null);
         Store.save(this, model);
-        sync.startSync(null);
+        sync.startSync(model, null);
 
         // The run is over: stop attributing samples to it and stop its clock. What it
         // accumulated stays readable (the summary is redrawn after the after-measurement
@@ -28612,6 +28612,8 @@ public class SessionActivity extends Activity
             // Evidence does not outlive its run.
             Store.deleteTau(SessionActivity.this, target.ts);
             Store.save(SessionActivity.this, model);
+            // A deleted session that was still waiting is never sent to GrowthTrack.
+            GrowthTrackManager.get(SessionActivity.this).withdraw(target.id, null);
             refreshWidgetIdle();     // the streak on the home screen just changed
             Ui.snack(SessionActivity.this, rootFrame, "Session deleted");
             showSessionHistory();

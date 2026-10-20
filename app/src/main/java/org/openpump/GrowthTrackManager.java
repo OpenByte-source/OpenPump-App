@@ -26,17 +26,23 @@ final class GrowthTrackManager {
     private volatile GrowthTrackClient client;
     private volatile boolean blocked;
     private volatile String connectedGrant = "";
+    /** The worker's last word on finished records (GrowthTrackClient#settled), read on the
+     *  main thread when the next snapshot is taken; null until the client has been read. */
+    private volatile java.util.Map<String, Integer> settled;
     static synchronized GrowthTrackManager get(Context c) { if (instance == null) instance = new GrowthTrackManager(c.getApplicationContext()); return instance; }
     private GrowthTrackManager(Context c) { context = c; store = new GrowthTrackStore(c); }
     private GrowthTrackClient client() throws IOException {
         if (client == null) client = new GrowthTrackClient(store, http, new GrowthTrackClient.Clock() { @Override public long now() { return System.currentTimeMillis(); } });
         return client;
     }
-    /** Main-thread observation only; this non-secret identity is frozen in the filed record. */
+    /** Main-thread observation only; this non-secret connection id is frozen in the filed
+     *  record (GrowthTrackOutbox#markerFor). A connection whose credential GrowthTrack refused
+     *  still marks: those sessions go once the person reconnects. */
     String connectionId() { return blocked ? "" : connectedGrant; }
     private void cacheConnection(GrowthTrackClient ready) {
         GrowthTrackClient.Snapshot state = ready.snapshot();
-        connectedGrant = !blocked && state.connected ? state.connectionId : "";
+        connectedGrant = !blocked && (state.connected || state.needsReconnect) ? state.connectionId : "";
+        settled = ready.settled();
     }
     void run(final Work work, final Listener listener) { dispatch(work, listener, null); }
     private void dispatch(final Work work, final Listener listener, final SyncRequest request) {
@@ -63,22 +69,49 @@ final class GrowthTrackManager {
             }
         } });
     }
-    /** Only records marked at completion for this exact grant can recover into the encrypted queue. */
-    SyncRequest startSync(final Listener listener) { return startSync(listener, null); }
-    SyncRequest startSync(final Listener listener, final android.net.Network network) {
+    /**
+     * MAIN THREAD. One sync pass. The worker never reads Store (bug 8: Store's statics are
+     * single-threaded); the pass works from a snapshot of the Model and its recordings taken
+     * here (GrowthTrackOutbox#take). Before the client has been read once there is no
+     * connection id to take it for, so the first pass reads the client and comes back here.
+     */
+    SyncRequest startSync(final Listener listener) { return startSync(Store.load(context, false), listener, null); }
+    SyncRequest startSync(Model model, final Listener listener) { return startSync(model, listener, null); }
+    SyncRequest startSync(final Listener listener, final android.net.Network network) { return startSync(Store.load(context, false), listener, network); }
+    SyncRequest startSync(final Model model, final Listener listener, final android.net.Network network) {
         final SyncRequest request = new SyncRequest();
+        if (settled == null) {
+            dispatch(new Work() { @Override public Object run(GrowthTrackClient ready) { return null; } }, new Listener() {
+                @Override public void done(Object result, final String error) {
+                    main.post(new Runnable() { @Override public void run() {
+                        if (request.stopped) { if (listener != null) listener.done(null, "Background sync was stopped"); return; }
+                        if (settled == null) { if (listener != null) listener.done(null, error); return; }
+                        sync(model, listener, network, request);
+                    } });
+                }
+            }, null);
+            return request;
+        }
+        sync(model, listener, network, request);
+        return request;
+    }
+    private void sync(Model model, Listener listener, final android.net.Network network, SyncRequest request) {
+        final GrowthTrackOutbox box = GrowthTrackOutbox.take(model, connectionId(), new GrowthTrackOutbox.AsRunLookup() {
+            @Override public AsRun asRun(Model.Sess s) { return Store.loadAsRun(context, s.ts); }
+        }, settled);
         dispatch(new Work() { @Override public Object run(GrowthTrackClient ready) throws Exception {
             GrowthTrackClient.Snapshot state = ready.snapshot();
-            if (!state.connected) return null;
+            if (!state.connected && !state.needsReconnect) return null;
             http.useNetwork(network); ready.prepareAutomaticSync();
-            Model recorded = Store.load(context, false);
-            for (Model.Sess session : recorded.sessLog.all) {
-                if (state.connectionId.equals(session.growthTrackConnectionId))
-                    ready.recordCompleted(session, Store.loadAsRun(context, session.ts), recorded, session.growthTrackConnectionId);
-            }
-            ready.syncPending(); return null;
+            ready.sync(box); return null;
         } }, listener, request);
-        return request;
+    }
+    /** History > Delete: a waiting session is withdrawn before it can be sent (bug 6). The
+     *  listener gets GrowthTrackClient#withdraw's answer (an Integer). */
+    void withdraw(final String sessionId, Listener listener) {
+        dispatch(new Work() { @Override public Object run(GrowthTrackClient ready) throws Exception {
+            return ready.withdraw(sessionId);
+        } }, listener, null);
     }
     private JobScheduler jobs() { return (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE); }
     private void schedule(final GrowthTrackClient ready) {
