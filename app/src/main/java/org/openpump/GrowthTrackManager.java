@@ -201,10 +201,18 @@ final class GrowthTrackManager {
         } }, listener, null);
     }
 
-    /** The sign-in return's code, exchanged on the worker; the listener may be null. */
-    void exchange(final String uri, Listener listener) {
+    /** The sign-in return's code, exchanged on the worker; the listener may be null. Its
+     *  refusal (a return that did not match, an expired request) is kept for the GrowthTrack
+     *  screen, which reads it next (takeReturnNote) - the return itself shows nothing. */
+    void exchange(final String uri, final Listener listener) {
         dispatch(new Work() { @Override public Object run(GrowthTrackClient ready) throws Exception {
             ready.callback(uri); return null;
-        } }, listener, null);
+        } }, new Listener() { @Override public void done(Object result, String error) {
+            returnNote = error;
+            if (listener != null) listener.done(result, error);
+        } }, null);
     }
+    private volatile String returnNote;
+    /** The last sign-in return's refusal, once; null when it went through. */
+    String takeReturnNote() { String n = returnNote; returnNote = null; return n; }
 }

@@ -64,7 +64,7 @@ public final class GrowthTrackSettings {
         if (s == null) return "No session";
         if (s.sim) return "Practice runs are never sent";
         if (!on) return "Sending to GrowthTrack is switched off";
-        if (!s.completed && !stoppedEarly) return "Stopped early - sessions stopped early are switched off";
+        if (!s.completed && !stoppedEarly) return "Stopped early, and sessions stopped early are switched off";
         switch (kindOf(s, run, m)) {
             case KIND_GIRTH_PLAN: return girthPlan ? null : "Girth plan sessions are switched off";
             case KIND_LENGTH_PLAN: return lengthPlan ? null : "Length plan sessions are switched off";

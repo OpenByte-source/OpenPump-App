@@ -325,8 +325,11 @@ public final class GrowthTrackActivity extends Activity {
                         snapshot = v.snapshot; states.clear(); states.putAll(v.states);
                         boolean linked = snapshot.connected || snapshot.needsReconnect;
                         if (afterSignIn) {
-                            // The sign-in's return: the exchange ran first on the serial worker.
+                            // The sign-in's return: the exchange ran first on the serial worker,
+                            // and a refusal of it is said here, in plain words.
                             afterSignIn = false; busy = false;
+                            String refused = manager.takeReturnNote();
+                            if (refused != null) localNote = refused;
                             if (snapshot.connected) { changing = false; manager.startSync(model, new Completed(Result.DONE)); }
                         } else if (wasLinked && !linked) changing = false;
                     } else if (error != null) localNote = error;
