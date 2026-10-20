@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -2599,6 +2600,9 @@ public final class WiringCheck {
         /* Invariant 251 (the owner's decision, 2026-10-07): a step done by hand is named while
          * it plays, and the release waits for Done. */
         checkByHandFiles(SRC_DIR, violations);
+        /* Invariants 252-253 (GrowthTrack, app phase): no GrowthTrack screen opens or stays
+         * during a live run, and every GrowthTrack dialog goes through Ui.dress. */
+        checkGrowthTrackFiles(SRC_DIR, violations);
         System.out.println("WiringCheck: " + pure.size() + " source(s) scanned for the pure "
             + "invariants (28, 29, 30)");
 
@@ -5519,8 +5523,16 @@ public final class WiringCheck {
      * person's informed choice about an unconfirmed stop that a refusal here would overrule.
      * The console's own file owns no hold and is not read.
      *
+     * (GrowthTrack app phase) A GATE COUNTS BY WHAT IT DOES, NOT BY ITS NAME. The pull request
+     * named its own refusal refuseHandOffUnderHold, and every launch in its files then passed
+     * on the name alone. So the backstop counts only in a file that DECLARES it with a body
+     * that reads the hold (`heldKpa()`) - the one screen's; and the GrowthTrack screens' door,
+     * GT_DOOR_NAME, counts only in a GrowthTrack file, where invariant 252 holds what it asks
+     * (a live run and SessionActivity#stillUnsafe, which covers a hold).
+     *
      * Returns how many launches were checked, for the survival half.
      */
+    static final String GT_DOOR_NAME = "doorShut";
     static final String HAND_OFF_DOOR = "ventFirst(";
     static final String HAND_OFF_BACKSTOP = "refuseHandOffUnderHold(";
     static final String HAND_OFF_NAME = "ventFirst";
@@ -5541,6 +5553,9 @@ public final class WiringCheck {
     static int checkHandOffAsksTheHold(String src, String where, List<String> violations) {
         if (where.equals(CONSOLE_FILE)) return 0;
         int seen = 0;
+        int[] own = findMethodBodySpan(src, HAND_OFF_BACKSTOP_NAME);
+        boolean realBackstop = own != null && src.substring(own[0], own[1]).indexOf("heldKpa()") >= 0;
+        boolean gtFile = where.startsWith("GrowthTrack");
         List<MethodSpan> methods = findAllMethodLikeBodies(src);
         List<MethodSpan> classes = findAllClassBodies(src);
         Matcher m = Pattern.compile("(?<![A-Za-z0-9_$])(?<!void\\s)"
@@ -5584,7 +5599,15 @@ public final class WiringCheck {
             // the ordinary one unless the link is down - and only there.
             boolean linkFix = owner.name.equals(LINK_FIX_LAUNCH)
                 && gatedCallAt(before, LINK_FIX_DOOR) >= 0;
-            if (door < 0 && gatedCallAt(before, HAND_OFF_BACKSTOP_NAME) < 0 && !linkFix)
+            int backstop = gatedCallAt(before, HAND_OFF_BACKSTOP_NAME);
+            if (door < 0 && backstop >= 0 && !realBackstop && !linkFix) {
+                violations.add(line + " in " + qualified + "() is gated by a "
+                    + HAND_OFF_BACKSTOP + ") that is not the hold's backstop - this file does not "
+                    + "declare one that reads the hold (heldKpa()), so the name proves nothing");
+                continue;
+            }
+            int gtDoor = gtFile ? gatedCallAt(before, GT_DOOR_NAME) : -1;
+            if (door < 0 && backstop < 0 && gtDoor < 0 && !linkFix)
                 violations.add(line + " in " + qualified + "() hands the phone to another app "
                     + "without asking " + HAND_OFF_DOOR + ") or " + HAND_OFF_BACKSTOP + ") first "
                     + "- a hold on the cuff goes into the background with it, where its limit "
@@ -17153,6 +17176,15 @@ public final class WiringCheck {
      *       (d) lockPlate - the lock card and the cover after a quick hide - draws, of
      *           identity = Incognito.identity(model), IncognitoShell.iconRes(identity) and
      *           Incognito.shownName(identity), and never R.mipmap.ic_launcher or REAL_NAME;
+     *       (f) (GrowthTrack app phase, bug 10) the GrowthTrack screen asks its own unlock the
+     *           same way: GrowthTrackActivity.askUnlock asks `if (doorShut(` first and takes its
+     *           host from IncognitoShell.lockHost(Incognito.identity(model)) - the only other
+     *           place it may be asked - before any createConfirmDeviceCredentialIntent(;
+     *       (g) its Recents entry wears the identity: applyLook (onCreate and onResume) sets the
+     *           task description from Incognito.shownName(identity) and IncognitoShell.iconRes;
+     *       (h) the browser's way back wears it too: openBrowser asks
+     *           IncognitoShell.applyReturn(this, Incognito.identity(model)) before the browser;
+     *       (i) applyReturn enables Incognito.returnFor(identity) before it disables the others;
      *       (e) LockHost asks and answers only: it names no Model, Store, RunService, PumpLink,
      *           Session or AppLock, unlocks nothing itself (it has no unlockGranted), and opens
      *           the lock screen from askCredential only (HAND_OFF_EXEMPT: SessionActivity asked
@@ -17189,9 +17221,14 @@ public final class WiringCheck {
     static final String DIS_SAY_ASKS = "Ui.disguisedNow";
     static final String DIS_SAY_RUN = "Ui.say.runScreen";
     static final String DIS_SAY_RUN_ASKS = "Ui.runScreenNow";
+    static final String DIS_GT_ASK = "GrowthTrackActivity.askUnlock";
+    static final String DIS_GT_RECENTS = "GrowthTrackActivity.applyLook";
+    static final String DIS_GT_RETURN = "GrowthTrackActivity.openBrowser.return";
+    static final String DIS_RETURN_SWITCH = "IncognitoShell.applyReturn";
     static final List<String> DISGUISE_SITES = Arrays.asList(DIS_ICON_TABLE, DIS_HOST_TABLE,
         DIS_ICON_RES, DIS_SPLASH, DIS_SPLASH_ASKED, DIS_CHALLENGE, DIS_CREDENTIAL, DIS_ASK,
-        DIS_ANSWER, DIS_PLATE, DIS_HOST, DIS_SAY, DIS_SAY_ASKS, DIS_SAY_RUN, DIS_SAY_RUN_ASKS);
+        DIS_ANSWER, DIS_PLATE, DIS_HOST, DIS_SAY, DIS_SAY_ASKS, DIS_SAY_RUN, DIS_SAY_RUN_ASKS,
+        DIS_GT_ASK, DIS_GT_RECENTS, DIS_GT_RETURN, DIS_RETURN_SWITCH);
     private static final Pattern SYSTEM_TOAST = Pattern.compile(
         "\\bToast\\s*\\.\\s*makeText\\s*\\(|\\bnew\\s+(?:android\\s*\\.\\s*widget\\s*\\.\\s*)?Toast\\s*\\("
         + "|\\bimport\\s+android\\s*\\.\\s*widget\\s*\\.\\s*Toast\\s*;");
@@ -17270,12 +17307,15 @@ public final class WiringCheck {
                 + raw.group(1) + " is read here - what the app is shown as is "
                 + "Incognito.identity(model), and nothing else");
 
-        /* 233 (b) - the host is asked for in one place */
+        /* 233 (b) - the host is asked for in one place (and, f, the GrowthTrack screen's own) */
         int[] ask = file.equals("SessionActivity.java")
             ? findMethodBodySpan(src, "askUnderDisguise") : null;
+        int[] gtAsk = file.equals("GrowthTrackActivity.java")
+            ? findMethodBodySpan(src, "askUnlock") : null;
         Matcher lh = Pattern.compile("\\bIncognitoShell\\s*\\.\\s*lockHost\\s*\\(").matcher(src);
         while (lh.find()) {
             boolean inAsk = ask != null && lh.start() > ask[0] && lh.start() < ask[1];
+            if (gtAsk != null && lh.start() > gtAsk[0] && lh.start() < gtAsk[1]) inAsk = true;
             if (!inAsk)
                 violations.add(where + ":" + lineOf(src, lh.start()) + ": invariant 233 - a lock "
                     + "host is asked for outside SessionActivity.askUnderDisguise, where the "
@@ -17415,6 +17455,62 @@ public final class WiringCheck {
                 + "currentScreen == Nav.SCR_RUN - whether the run screen, and STOP, are showing");
         }
 
+        /* 233 (f)-(i): the GrowthTrack screen (app phase, bug 10) - its PIN under the
+         * disguise, its name and icon in Recents, and the browser's way back. */
+        if (file.equals("GrowthTrackActivity.java")) {
+            if (gtAsk != null) {
+                String body = src.substring(gtAsk[0], gtAsk[1]).replaceAll("\\s", "");
+                int door = body.indexOf("if(doorShut(");
+                int host = body.indexOf("IncognitoShell.lockHost(Incognito.identity(model))");
+                int pin = body.indexOf("createConfirmDeviceCredentialIntent(");
+                int launch = body.indexOf("startActivityForResult(");
+                if (door >= 0 && door <= 1 && host > door && (pin < 0 || pin > host) && launch > host)
+                    seen.add(DIS_GT_ASK);
+                else violations.add(where + ": invariant 233 - GrowthTrackActivity.askUnlock at line "
+                    + lineOf(src, gtAsk[0]) + " must ask `if (doorShut(` first, then take its host from "
+                    + "IncognitoShell.lockHost(Incognito.identity(model)) before any "
+                    + "createConfirmDeviceCredentialIntent( - the PIN screen would show the real logo "
+                    + "under a disguise");
+            }
+            int[] look = findMethodBodySpan(src, "applyLook");
+            String lookBody = look == null ? "" : src.substring(look[0], look[1]).replaceAll("\\s", "");
+            if (lookBody.indexOf("intidentity=Incognito.identity(model);") >= 0
+                    && lookBody.indexOf("TaskDescription(Incognito.shownName(identity),IncognitoShell.iconRes(identity))") >= 0
+                    && lookBody.indexOf("setTaskDescription(") >= 0) {
+                int[] oc = findMethodBodySpan(src, "onCreate"), or = findMethodBodySpan(src, "onResume");
+                if (oc != null && or != null && src.substring(oc[0], oc[1]).indexOf("applyLook()") >= 0
+                        && src.substring(or[0], or[1]).indexOf("applyLook()") >= 0)
+                    seen.add(DIS_GT_RECENTS);
+                else violations.add(where + ": invariant 233 - applyLook must run in onCreate and "
+                    + "onResume - Recents would show the real name and logo over the GrowthTrack screen");
+            } else violations.add(where + ": invariant 233 - GrowthTrackActivity.applyLook must set "
+                + "the task's name and icon from Incognito.shownName(identity) and "
+                + "IncognitoShell.iconRes(identity), identity = Incognito.identity(model)");
+            int[] ob = findMethodBodySpan(src, "openBrowser");
+            if (ob != null) {
+                String body = src.substring(ob[0], ob[1]).replaceAll("\\s", "");
+                int ret = body.indexOf("IncognitoShell.applyReturn(this,Incognito.identity(model));");
+                int go = body.indexOf("startActivity(");
+                if (ret >= 0 && go > ret) seen.add(DIS_GT_RETURN);
+                else violations.add(where + ": invariant 233 - openBrowser at line " + lineOf(src, ob[0])
+                    + " must switch the sign-in's way back to the identity "
+                    + "(IncognitoShell.applyReturn(this, Incognito.identity(model))) before the browser - "
+                    + "it would ask to continue to the real app's name");
+            }
+        }
+        if (file.equals("IncognitoShell.java")) {
+            int[] ar = findMethodBodySpan(src, "applyReturn");
+            if (ar != null) {
+                String body = src.substring(ar[0], ar[1]).replaceAll("\\s", "");
+                int on = body.indexOf("setEnabled(pm,c,Incognito.returnFor(identity),true)");
+                int off = body.indexOf("if(!Incognito.returnEnabled(r,identity))changed|=setEnabled(pm,c,r,false)");
+                if (on >= 0 && off > on) seen.add(DIS_RETURN_SWITCH);
+                else violations.add(where + ": invariant 233 - applyReturn must enable the identity's "
+                    + "return (Incognito.returnFor) before it disables every other one - never a moment "
+                    + "with no way back from the sign-in");
+            }
+        }
+
         /* 233 (e) */
         int[] host = file.equals("LockHost.java") ? findClassBodySpan(src, "LockHost") : null;
         if (host != null) {
@@ -17538,12 +17634,47 @@ public final class WiringCheck {
             + "            && ((SessionActivity) a).currentScreen == Nav.SCR_RUN;\n"
             + "    }\n"
             + "}\n";
+        // (GrowthTrack app phase, 233 f-i) the GrowthTrack screen's lock, Recents and way back,
+        // and the switch of the way back.
+        String gt =
+              "public final class GrowthTrackActivity extends Activity {\n"
+            + "    @Override protected void onCreate(Bundle b) { model = manager.model(); applyLook(); }\n"
+            + "    @Override protected void onResume() { model = manager.model(); applyLook(); }\n"
+            + "    private void applyLook() {\n"
+            + "        int identity = Incognito.identity(model);\n"
+            + "        setTaskDescription(new android.app.ActivityManager.TaskDescription(\n"
+            + "            Incognito.shownName(identity), IncognitoShell.iconRes(identity)));\n"
+            + "    }\n"
+            + "    private void askUnlock() {\n"
+            + "        if (doorShut(null)) return;\n"
+            + "        Class<?> host = IncognitoShell.lockHost(Incognito.identity(model));\n"
+            + "        if (host != null) { startActivityForResult(new Intent(this, host), 2); return; }\n"
+            + "        Intent ask = keyguard.createConfirmDeviceCredentialIntent(\"Unlock\", null);\n"
+            + "        startActivityForResult(ask, 1);\n"
+            + "    }\n"
+            + "    private void openBrowser(String url) {\n"
+            + "        if (doorShut(null)) return;\n"
+            + "        IncognitoShell.applyReturn(this, Incognito.identity(model));\n"
+            + "        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));\n"
+            + "    }\n"
+            + "}\n";
+        String shellReturn = shell.substring(0, shell.lastIndexOf('}'))
+            + "    public static boolean applyReturn(Context c, int identity) {\n"
+            + "        changed |= setEnabled(pm, c, Incognito.returnFor(identity), true);\n"
+            + "        for (int i = 0; i < Incognito.RETURNS.length; i++) {\n"
+            + "            String r = Incognito.RETURNS[i];\n"
+            + "            if (!Incognito.returnEnabled(r, identity)) changed |= setEnabled(pm, c, r, false);\n"
+            + "        }\n"
+            + "        return changed;\n"
+            + "    }\n"
+            + "}\n";
         List<String> v = new ArrayList<String>();
         List<String> seen = new ArrayList<String>();
-        seen.addAll(checkDisguises(shell, "IncognitoShell.java", v));
+        seen.addAll(checkDisguises(shellReturn, "IncognitoShell.java", v));
         seen.addAll(checkDisguises(act, "SessionActivity.java", v));
         seen.addAll(checkDisguises(host, "LockHost.java", v));
         seen.addAll(checkDisguises(ui, "Ui.java", v));
+        seen.addAll(checkDisguises(gt, "GrowthTrackActivity.java", v));
         selfCheck(counts, v.isEmpty() && seen.containsAll(DISGUISE_SITES),
             "INV232-235: the app's shapes pass and every site is seen (got " + v + ", missing "
             + missingFrom(DISGUISE_SITES, seen) + ")");
@@ -17628,6 +17759,22 @@ public final class WiringCheck {
             { "Ui.java", ui, "((SessionActivity) a).currentScreen == Nav.SCR_RUN",
               "((SessionActivity) a).running", "235",
               "the run screen asked of the run, not of the screen showing" },
+            { "GrowthTrackActivity.java", gt, "        Class<?> host = IncognitoShell.lockHost(Incognito.identity(model));\n"
+              + "        if (host != null) { startActivityForResult(new Intent(this, host), 2); return; }\n",
+              "", "233", "the GrowthTrack screen's PIN asked from itself under a disguise" },
+            { "GrowthTrackActivity.java", gt, "        if (doorShut(null)) return;\n        Class<?>",
+              "        Class<?>", "233", "the GrowthTrack screen's lock host started with the door unasked" },
+            { "GrowthTrackActivity.java", gt, "Incognito.shownName(identity)", "\"OpenPump\"", "233",
+              "the GrowthTrack screen named as the real app in Recents" },
+            { "GrowthTrackActivity.java", gt, "    @Override protected void onResume() { model = manager.model(); applyLook(); }\n",
+              "    @Override protected void onResume() { model = manager.model(); }\n", "233",
+              "the GrowthTrack screen's Recents entry not brought up to date on resume" },
+            { "GrowthTrackActivity.java", gt, "        IncognitoShell.applyReturn(this, Incognito.identity(model));\n", "",
+              "233", "the browser handed the real app's way back under a disguise" },
+            { "IncognitoShell.java", shellReturn, "        changed |= setEnabled(pm, c, Incognito.returnFor(identity), true);\n",
+              "", "233", "every way back disabled before the identity's is enabled" },
+            { "GrowthTrackSyncService.java", "void f() { IncognitoShell.lockHost(x); }", "x", "x", "233",
+              "a lock host asked for anywhere else" },
         };
         for (int i = 0; i < bad.length; i++) {
             v.clear();
@@ -24352,6 +24499,8 @@ public final class WiringCheck {
             String good =
                 "private void shareLog() { if (ventFirst(HoldHandOff.SHARE, null, again, null)) "
                 + "return; startActivity(Intent.createChooser(i, x)); ownLaunchPending = true; }\n"
+                + "boolean refuseHandOffUnderHold(String opens) { "
+                + "if (session.heldKpa() == null) return false; return true; }\n"
                 + "public void launchCaptureIntent(Intent intent, int requestCode) { "
                 + "if (refuseHandOffUnderHold(x)) throw new IllegalStateException(); "
                 + "startActivityForResult(intent, requestCode); ownLaunchPending = true; }\n"
@@ -24393,6 +24542,32 @@ public final class WiringCheck {
             selfCheck(counts, vGate74.size() == 3,
                 "INV74: an ignored door, a sentence named ventFirst, and HoldHandOff's "
                 + "ventFirst gating are each flagged (got " + vGate74 + ")");
+
+            // (GrowthTrack app phase) The backstop by name alone, in a file whose own one does
+            // not read the hold - or declares none - proves nothing; the GrowthTrack door counts
+            // only in a GrowthTrack file.
+            List<String> vName74 = new ArrayList<String>();
+            checkHandOffAsksTheHold(
+                "static boolean refuseHandOffUnderHold(Activity from) { return false; }\n"
+                + "static void open(Activity o) { if (refuseHandOffUnderHold(o)) return; "
+                + "o.startActivity(new Intent()); }\n", "GrowthTrackActivity.java", vName74);
+            checkHandOffAsksTheHold(
+                "void open() { if (GrowthTrackActivity.refuseHandOffUnderHold(this)) return; "
+                + "startActivity(new Intent()); }\n", "GrowthTrackCallbackActivity.java", vName74);
+            checkHandOffAsksTheHold(
+                "void open() { if (doorShut(this)) return; startActivity(new Intent()); }\n",
+                "SettingsScreen.java", vName74);
+            selfCheck(counts, vName74.size() == 3,
+                "INV74: a backstop that does not read the hold, one declared elsewhere, and the "
+                + "GrowthTrack door outside a GrowthTrack file are each flagged (got " + vName74 + ")");
+            List<String> vGt74 = new ArrayList<String>();
+            int nGt74 = checkHandOffAsksTheHold(
+                "static void open(Activity o) { if (doorShut(o)) return; o.startActivity(new Intent()); }\n"
+                + "private void openBrowser(String u) { if (doorShut(null)) return; "
+                + "startActivity(new Intent()); }\n", "GrowthTrackActivity.java", vGt74);
+            selfCheck(counts, vGt74.isEmpty() && nGt74 == 2,
+                "INV74: the GrowthTrack door gating a GrowthTrack file's launches passes (got "
+                + vGt74 + " " + nGt74 + ")");
 
             List<String> vCon74 = new ArrayList<String>();
             int nCon74 = checkHandOffAsksTheHold(
@@ -28199,6 +28374,8 @@ public final class WiringCheck {
         sharedHelpersSelfTests(counts);
         /* ---- invariant 251 (a step done by hand is named; the release waits for Done) ---- */
         byHandSelfTests(counts);
+        /* ---- invariants 252-253 (GrowthTrack: no screen over a run; every dialog dressed) ---- */
+        growthTrackSelfTests(counts);
 
         /* ---- blankStringLiterals ------------------------------------------------ */
 
@@ -31451,6 +31628,275 @@ public final class WiringCheck {
         if (gs != null && gs.indexOf("ByHand.startWords(") < 0)
             violations.add("SessionActivity.java: invariant 251 - the start check after Done "
                 + "says \"The routine starts\" again (ByHand.startWords)");
+    }
+
+    /* =====================================================================================
+     * INVARIANT 252 (GrowthTrack, app phase; bug 9): NO GROWTHTRACK SCREEN OPENS DURING A
+     * LIVE RUN, AND NONE STAYS OVER ONE.
+     *
+     * The optional connection's screens live in their own tasks, above the one screen; the
+     * pull request's sign-in return could come up over a live run and stay there, and its
+     * refusal passed invariant 74 on its name alone. So:
+     *   (a) GrowthTrackActivity.doorShut - the GrowthTrack door invariant 74 accepts in a
+     *       GrowthTrack file - asks RunService.isRunning() and the one screen's stillUnsafe()
+     *       (a hold, a check, a stop not yet confirmed), through liveForDataHandoff();
+     *   (b) GrowthTrackActivity finishes at once when the door is shut: in onCreate, onNewIntent
+     *       and onResume (`if (doorShut(null)) { finish(); return; }`), and when a worker's answer
+     *       arrives (Delivered);
+     *   (c) its onStop leaves nothing drawn under a run (RunService.isRunning() clears the body);
+     *   (d) the sign-in return decides through GrowthTrackPages.onReturn(GrowthTrackActivity
+     *       .doorShut(: shut, it exchanges with no screen and finishes; it brings the screen up
+     *       only from show(), which asks the door first; and it never reads the Model or Store
+     *       (no main-thread parse, nothing of the person's data);
+     *   (e) nothing else starts a GrowthTrack screen: `GrowthTrackActivity.class` is named in an
+     *       Intent only in GrowthTrackActivity.open (door first) and the return's show().
+     * ===================================================================================== */
+    static void checkGrowthTrackDoor(String gt, String cb, Map<String, String> others,
+                                     List<String> violations) {
+        String door = body228(gt, "static\\s+boolean\\s+doorShut\\s*\\(", "GrowthTrackActivity.java",
+            "doorShut", violations);
+        if (door != null && (door.indexOf("RunService.isRunning()") < 0 || door.indexOf(".stillUnsafe()") < 0
+                || door.indexOf("SessionActivity.liveForDataHandoff()") < 0))
+            violations.add("GrowthTrackActivity.java: invariant 252 - doorShut no longer asks a live "
+                + "run (RunService.isRunning()) and the one screen's stillUnsafe() - a GrowthTrack "
+                + "screen could open over a run or a hold");
+        String[] entries = { "onCreate", "onNewIntent", "onResume" };
+        for (int i = 0; i < entries.length; i++) {
+            String b = body228(gt, "void\\s+" + entries[i] + "\\s*\\(", "GrowthTrackActivity.java",
+                entries[i], violations);
+            if (b != null && b.indexOf("if(doorShut(null)){finish();return;}") < 0)
+                violations.add("GrowthTrackActivity.java: invariant 252 - " + entries[i] + " does not "
+                    + "finish when the door is shut (`if (doorShut(null)) { finish(); return; }`) - the "
+                    + "GrowthTrack screen could come up over a live run");
+        }
+        String del = body228(gt, "class\\s+Delivered\\b", "GrowthTrackActivity.java", "Delivered",
+            violations);
+        if (del != null && del.indexOf("if(doorShut(null)){finish();return;}") < 0)
+            violations.add("GrowthTrackActivity.java: invariant 252 - a worker's answer (Delivered) is "
+                + "drawn without asking the door - a run started meanwhile would be covered");
+        String stop = body228(gt, "void\\s+onStop\\s*\\(", "GrowthTrackActivity.java", "onStop",
+            violations);
+        if (stop != null && stop.indexOf("if(RunService.isRunning()") < 0)
+            violations.add("GrowthTrackActivity.java: invariant 252 - onStop leaves the page drawn "
+                + "behind a live run");
+        String create = body228(cb, "void\\s+onCreate\\s*\\(", "GrowthTrackCallbackActivity.java",
+            "onCreate", violations);
+        if (create != null) {
+            int ask = create.indexOf("GrowthTrackPages.onReturn(GrowthTrackActivity.doorShut(null),");
+            int headless = create.indexOf("==GrowthTrackPages.RETURN_HEADLESS)");
+            int fin = headless < 0 ? -1 : create.indexOf("finish();return;", headless);
+            if (ask < 0 || headless < ask || fin < 0)
+                violations.add("GrowthTrackCallbackActivity.java: invariant 252 - the sign-in return "
+                    + "no longer finishes at once when the door is shut (GrowthTrackPages.onReturn("
+                    + "GrowthTrackActivity.doorShut(null), ...) == RETURN_HEADLESS, then finish) - it "
+                    + "would cover a live run");
+        }
+        String show = body228(cb, "void\\s+show\\s*\\(", "GrowthTrackCallbackActivity.java", "show",
+            violations);
+        if (show != null) {
+            int d = show.indexOf("if(GrowthTrackActivity.doorShut(null))return;");
+            int go = show.indexOf("startActivity(");
+            if (d < 0 || go < d)
+                violations.add("GrowthTrackCallbackActivity.java: invariant 252 - show() starts the "
+                    + "GrowthTrack screen without asking the door first");
+        }
+        Matcher data = Pattern.compile("\\b(Store|Model)\\b").matcher(cb);
+        while (data.find())
+            violations.add("GrowthTrackCallbackActivity.java:" + lineOf(cb, data.start()) + ": invariant "
+                + "252 - the sign-in return names " + data.group(1) + " - it parses no model on the "
+                + "main thread and touches none of the person's data");
+        String open = body228(gt, "static\\s+void\\s+open\\s*\\(", "GrowthTrackActivity.java", "open",
+            violations);
+        if (open != null && open.indexOf("if(doorShut(owner))return;") != 0)
+            violations.add("GrowthTrackActivity.java: invariant 252 - open does not ask the door "
+                + "before anything else");
+        for (Map.Entry<String, String> e : others.entrySet()) {
+            String name = e.getKey(), src = e.getValue();
+            Matcher m = Pattern.compile("GrowthTrackActivity\\s*\\.\\s*class").matcher(src);
+            while (m.find()) {
+                boolean ok = false;
+                if (name.equals("GrowthTrackActivity.java")) {
+                    int[] o = robustBody(src, "static\\s+void\\s+open\\s*\\(");
+                    ok = o != null && m.start() > o[0] && m.start() < o[1];
+                } else if (name.equals("GrowthTrackCallbackActivity.java")) {
+                    int[] o = robustBody(src, "void\\s+show\\s*\\(");
+                    ok = o != null && m.start() > o[0] && m.start() < o[1];
+                }
+                if (!ok)
+                    violations.add(name + ":" + lineOf(src, m.start()) + ": invariant 252 - a "
+                        + "GrowthTrack screen is started outside GrowthTrackActivity.open and the "
+                        + "sign-in return's show(), where the door is asked first");
+            }
+        }
+    }
+
+    /* =====================================================================================
+     * INVARIANT 253 (GrowthTrack, app phase; bug 11): EVERY GROWTHTRACK DIALOG GOES THROUGH
+     * Ui.dress, AND NONE IS USABLE OVER THE APP LOCK.
+     *   (a) in the GrowthTrack screens every dialog is built with Ui.dialog( and dressed -
+     *       each method that builds one also calls Ui.dress( after it; there is no bare
+     *       AlertDialog.Builder, no Dialog of their own, no picker;
+     *   (b) Ui.dress gives a GrowthTrackActivity's dialog window the flag
+     *       (((GrowthTrackActivity) a).applySecureFlag(w)), and that hands it to
+     *       SessionActivity.applySecureFlag(w, model) - FLAG_SECURE under Hide from recent apps,
+     *       the one switch (invariant 193);
+     *   (c) GrowthTrackActivity.onStop takes its own dialog down (Ui.dismissDialogOf(this)) before
+     *       anything else - a Disconnect or an explanation left open is neither usable nor
+     *       readable when the screen comes back under its lock;
+     *   (d) Ui.dismissDialogOf takes down only the dialog that screen raised.
+     * ===================================================================================== */
+    static void checkGrowthTrackDialogs(String gt, String cb, String ui, List<String> violations) {
+        String[][] files = { { "GrowthTrackActivity.java", gt }, { "GrowthTrackCallbackActivity.java", cb } };
+        for (int f = 0; f < files.length; f++) {
+            String name = files[f][0], src = files[f][1];
+            Matcher bare = Pattern.compile("new\\s+(?:android\\s*\\.\\s*app\\s*\\.\\s*)?(?:AlertDialog\\s*\\.\\s*Builder|"
+                + "AlertDialog|Dialog|DatePickerDialog|TimePickerDialog|ProgressDialog)\\s*\\(").matcher(src);
+            while (bare.find())
+                violations.add(name + ":" + lineOf(src, bare.start()) + ": invariant 253 - a dialog "
+                    + "built outside Ui.dialog( - it would miss the dark frame and the secure flag");
+            List<MethodSpan> methods = findAllMethodLikeBodies(src);
+            Matcher d = Pattern.compile("\\bUi\\s*\\.\\s*dialog\\s*\\(").matcher(src);
+            while (d.find()) {
+                MethodSpan owner = innermostMethodAt(methods, d.start());
+                String after = owner == null ? "" : src.substring(d.start(), owner.bodyEnd);
+                if (after.indexOf("Ui.dress(") < 0)
+                    violations.add(name + ":" + lineOf(src, d.start()) + ": invariant 253 - a "
+                        + "GrowthTrack dialog is shown without Ui.dress( - no FLAG_SECURE under Hide "
+                        + "from recent apps, and nothing takes it down when the screen locks");
+            }
+        }
+        String dress = body228(ui, "static\\s+void\\s+dress\\s*\\(", "Ui.java", "dress", violations);
+        if (dress != null && dress.indexOf("elseif(ainstanceofGrowthTrackActivity)((GrowthTrackActivity)a)"
+                + ".applySecureFlag(w);") < 0)
+            violations.add("Ui.java: invariant 253 - Ui.dress no longer gives a GrowthTrack dialog's "
+                + "window the secure flag");
+        String own = body228(gt, "void\\s+applySecureFlag\\s*\\(\\s*android\\.view\\.Window",
+            "GrowthTrackActivity.java", "applySecureFlag", violations);
+        if (own != null && own.indexOf("SessionActivity.applySecureFlag(w,model);") < 0)
+            violations.add("GrowthTrackActivity.java: invariant 253 - applySecureFlag(w) does not hand "
+                + "the dialog's window to SessionActivity.applySecureFlag(w, model)");
+        String stop = body228(gt, "void\\s+onStop\\s*\\(", "GrowthTrackActivity.java", "onStop", violations);
+        if (stop != null) {
+            int down = stop.indexOf("Ui.dismissDialogOf(this);");
+            int ret = stop.indexOf("return;");
+            if (down < 0 || (ret >= 0 && ret < down))
+                violations.add("GrowthTrackActivity.java: invariant 253 - onStop does not take its own "
+                    + "dialog down (Ui.dismissDialogOf(this)) before it returns - a dialog would stay "
+                    + "usable over the app lock");
+        }
+        String mine = body228(ui, "static\\s+void\\s+dismissDialogOf\\s*\\(", "Ui.java", "dismissDialogOf",
+            violations);
+        if (mine != null && mine.indexOf("lastDressedBy!=a)return;") < 0)
+            violations.add("Ui.java: invariant 253 - dismissDialogOf would take down another screen's "
+                + "dialog");
+    }
+
+    static void checkGrowthTrackFiles(String dir, List<String> violations) throws IOException {
+        String gt = runScreenRaw(dir, "GrowthTrackActivity.java", violations);
+        String cb = runScreenRaw(dir, "GrowthTrackCallbackActivity.java", violations);
+        String ui = runScreenRaw(dir, "Ui.java", violations);
+        if (gt == null || cb == null || ui == null) return;
+        Map<String, String> all = new java.util.LinkedHashMap<String, String>();
+        File[] list = new File(dir).listFiles();
+        if (list != null)
+            for (int i = 0; i < list.length; i++)
+                if (list[i].getName().endsWith(".java")) {
+                    String raw = new String(Files.readAllBytes(list[i].toPath()), "UTF-8");
+                    // The Android sources only: a harness's own fixtures name the class in text.
+                    if (raw.indexOf("import android.") >= 0) all.put(list[i].getName(), stripComments(raw));
+                }
+        checkGrowthTrackDoor(gt, cb, all, violations);
+        checkGrowthTrackDialogs(gt, cb, ui, violations);
+    }
+
+    /** Invariants 252-253's self-tests: the app's shapes pass, and each road off is caught. */
+    static void growthTrackSelfTests(int[] counts) {
+        String gt =
+              "public final class GrowthTrackActivity extends Activity {\n"
+            + "  static boolean doorShut(Activity from) { SessionActivity owner = SessionActivity.liveForDataHandoff();\n"
+            + "    return RunService.isRunning() || (owner != null && owner.stillUnsafe()); }\n"
+            + "  static void open(SessionActivity owner, int page) { if (doorShut(owner)) return;\n"
+            + "    owner.startActivity(new Intent(owner, GrowthTrackActivity.class)); }\n"
+            + "  @Override protected void onCreate(Bundle b) { super.onCreate(b); if (doorShut(null)) { finish(); return; } }\n"
+            + "  @Override protected void onNewIntent(Intent i) { if (doorShut(null)) { finish(); return; } }\n"
+            + "  @Override protected void onResume() { if (doorShut(null)) { finish(); return; } }\n"
+            + "  @Override protected void onStop() { super.onStop(); Ui.dismissDialogOf(this); if (ownLaunch) return;\n"
+            + "    if (RunService.isRunning() || locked()) body.removeAllViews(); }\n"
+            + "  void applySecureFlag(android.view.Window w) { SessionActivity.applySecureFlag(w, model); }\n"
+            + "  private final class Delivered implements Runnable { public void run() {\n"
+            + "    if (doorShut(null)) { finish(); return; } } }\n"
+            + "  private void ask() { AlertDialog d = Ui.dialog(this).setTitle(\"x\").show(); Ui.dress(this, d); }\n"
+            + "}\n";
+        String cb =
+              "public final class GrowthTrackCallbackActivity extends Activity {\n"
+            + "  @Override protected void onCreate(Bundle b) { super.onCreate(b);\n"
+            + "    if (GrowthTrackPages.onReturn(GrowthTrackActivity.doorShut(null), true) == GrowthTrackPages.RETURN_HEADLESS) {\n"
+            + "      manager.exchange(callback, null); finish(); return; } }\n"
+            + "  private void show() { if (GrowthTrackActivity.doorShut(null)) return;\n"
+            + "    startActivity(new Intent(this, GrowthTrackActivity.class)); }\n"
+            + "}\n";
+        String ui =
+              "public final class Ui {\n"
+            + "  public static void dismissDialogOf(Activity a) { if (lastDressed == null || lastDressedBy != a) return; dismissDialog(); }\n"
+            + "  public static void dress(Activity a, android.app.AlertDialog d) {\n"
+            + "    if (a instanceof SessionActivity) ((SessionActivity) a).applySecureFlag(w);\n"
+            + "    else if (a instanceof GrowthTrackActivity) ((GrowthTrackActivity) a).applySecureFlag(w); }\n"
+            + "}\n";
+        Map<String, String> others = new java.util.LinkedHashMap<String, String>();
+        others.put("GrowthTrackActivity.java", gt);
+        others.put("GrowthTrackCallbackActivity.java", cb);
+        others.put("SettingsScreen.java", "void f() { GrowthTrackActivity.open(a, 0); }");
+        List<String> v = new ArrayList<String>();
+        checkGrowthTrackDoor(gt, cb, others, v);
+        checkGrowthTrackDialogs(gt, cb, ui, v);
+        selfCheck(counts, v.isEmpty(), "INV252-253 control: the app's shapes pass (got " + v + ")");
+
+        String[][] bad = {
+            { "252", "gt", "RunService.isRunning() || ", "", "a door that no longer asks a live run" },
+            { "252", "gt", "(owner != null && owner.stillUnsafe())", "false", "a door that no longer asks a hold" },
+            { "252", "gt", "protected void onResume() { if (doorShut(null)) { finish(); return; } }",
+              "protected void onResume() { }", "a screen resumed over a run" },
+            { "252", "gt", "protected void onNewIntent(Intent i) { if (doorShut(null)) { finish(); return; } }",
+              "protected void onNewIntent(Intent i) { }", "a screen brought forward over a run" },
+            { "252", "gt", "    if (doorShut(null)) { finish(); return; } } }\n", "    } }\n",
+              "a worker's answer drawn over a run" },
+            { "252", "gt", "if (RunService.isRunning() || locked())", "if (locked())", "a page left drawn behind a run" },
+            { "252", "cb", "== GrowthTrackPages.RETURN_HEADLESS) {\n      manager.exchange(callback, null); finish(); return; }",
+              "== GrowthTrackPages.RETURN_HEADLESS) {\n      manager.exchange(callback, null); }",
+              "a sign-in return that stays over a run" },
+            { "252", "cb", "private void show() { if (GrowthTrackActivity.doorShut(null)) return;",
+              "private void show() {", "a sign-in return that opens the screen with the door unasked" },
+            { "252", "cb", "super.onCreate(b);", "super.onCreate(b); Model m = Store.load(this, false);",
+              "a sign-in return that parses the model on the main thread" },
+            { "252", "settings", "GrowthTrackActivity.open(a, 0);", "a.startActivity(new Intent(a, GrowthTrackActivity.class));",
+              "a GrowthTrack screen started around the door" },
+            { "253", "gt", " Ui.dress(this, d); }", " }", "a GrowthTrack dialog shown undressed" },
+            { "253", "gt", "AlertDialog d = Ui.dialog(this)", "AlertDialog d = new AlertDialog.Builder(this)",
+              "a GrowthTrack dialog built around Ui.dialog" },
+            { "253", "ui", "\n    else if (a instanceof GrowthTrackActivity) ((GrowthTrackActivity) a).applySecureFlag(w);", "",
+              "a GrowthTrack dialog window left without the secure flag" },
+            { "253", "gt", "Ui.dismissDialogOf(this); if (ownLaunch) return;", "if (ownLaunch) return; Ui.dismissDialogOf(this);",
+              "a dialog left usable over the lock after an own launch" },
+            { "253", "gt", "super.onStop(); Ui.dismissDialogOf(this);", "super.onStop();", "a dialog left up when the screen stops" },
+            { "253", "ui", "|| lastDressedBy != a", "", "a screen that takes down another screen's dialog" },
+        };
+        for (int i = 0; i < bad.length; i++) {
+            String g = gt, c = cb, u = ui, st = others.get("SettingsScreen.java");
+            String which = bad[i][1];
+            if (which.equals("gt")) g = gt.replace(bad[i][2], bad[i][3]);
+            else if (which.equals("cb")) c = cb.replace(bad[i][2], bad[i][3]);
+            else if (which.equals("ui")) u = ui.replace(bad[i][2], bad[i][3]);
+            else st = st.replace(bad[i][2], bad[i][3]);
+            boolean edited = !g.equals(gt) || !c.equals(cb) || !u.equals(ui) || !st.equals(others.get("SettingsScreen.java"));
+            Map<String, String> o = new java.util.LinkedHashMap<String, String>();
+            o.put("GrowthTrackActivity.java", g); o.put("GrowthTrackCallbackActivity.java", c); o.put("SettingsScreen.java", st);
+            List<String> vb = new ArrayList<String>();
+            checkGrowthTrackDoor(g, c, o, vb);
+            checkGrowthTrackDialogs(g, c, u, vb);
+            boolean hit = false;
+            for (int k = 0; k < vb.size(); k++) if (vb.get(k).indexOf("invariant " + bad[i][0]) >= 0) hit = true;
+            selfCheck(counts, edited && hit, "INV" + bad[i][0] + " REJECTS " + bad[i][4] + " (got " + vb + ")");
+        }
     }
 
     static void checkByHandFiles(String dir, List<String> violations) throws IOException {
