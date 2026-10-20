@@ -24,6 +24,21 @@ A review of pull request #1 found the problems below and wrote a failing test fo
 
 Findings without a JVM test (the browser opening only the first time, practice runs marked for sending, the setup offer marked seen when drawn, extra callback parameters such as `iss`, the callback covering a live run, Incognito and the app lock on the new screens, dialogs without `FLAG_SECURE`, rotation, Back from About in setup, Erase all finishing before the GrowthTrack erase) are fixed in the core and app code, with a JUnit test wherever the logic is pure; what can only be seen on a phone is on the list below.
 
+## The screens and their lifecycle (app phase)
+
+| Check | What it holds |
+|---|---|
+| `GrowthTrackScreensTest`, 13 tests | the Settings row's three states and the status card's line; the latest result in plain words, never repeating the status line; the account shown only when the sign-in gave one; Back from the page a screen was opened on leaves it (setup's row, then Back, is setup again); the earlier-sessions question asked once per account, with "also" only when some can be sent; the sign-in return never covers a live run and answers only its own request; the setup offer seen when acted on or left, never when drawn; Erase all reports the GrowthTrack erase; one sign-in return entry per identity |
+| `OneScreenManifestTest` | the four return entries (name, icon, filter, exactly one enabled); the callback not exported, drawing nothing, out of Recents; the GrowthTrack screen portrait with its configuration changes absorbed |
+| `WiringCheck` 74 (strengthened) | a launch's gate counts by what it does: the hold's backstop only where it reads the hold, the GrowthTrack door only in a GrowthTrack file |
+| `WiringCheck` 233 (strengthened) | the GrowthTrack screen's PIN asked through `LockHost` under a disguise, its Recents name and icon, the browser's way back switched to the identity before the browser |
+| `WiringCheck` 252 (new) | no GrowthTrack screen opens or stays during a live run; the sign-in return finishes at once over a run and parses no model |
+| `WiringCheck` 253 (new) | every GrowthTrack dialog goes through `Ui.dress` (secure flag) and is taken down when the screen stops |
+
+On the emulator (19 October 2026, a side-by-side debug build with a local fake transport and airplane mode on; nothing signed in anywhere): every new screen in light and dark and at font scale 1.3; Connect opened the browser on three taps out of three; a return arriving during a live (simulated) run left the run screen in front and started no GrowthTrack screen; a refused return was said on the screen; the connected states (waiting, sent, sending off) and the list; Back from the connect page opened in setup returned to setup; the lock card after leaving, one card however often Unlock is tapped, and no dead end without a screen lock; an open Disconnect dialog gone when the screen came back under its lock; the screen stayed portrait with rotation forced.
+
+Seen there and not fixed: Recents on that emulator shows the app's real icon over both the main task and the GrowthTrack task under a disguise (the task's name is the disguise's); it is the same for the main screen, so it is the launcher's behaviour, not the GrowthTrack screen's.
+
 ## Release permissions
 
 The release workflow (`.github/workflows/release.yml`) pins every permission the release APK may hold and fails on anything else, and on a release manifest that allows cleartext traffic. The check was run locally on 19 October 2026 against `aapt2 dump xmltree` of an unsigned release APK built from this branch, and against edited copies of that dump:
@@ -49,6 +64,6 @@ The site's GrowthTrack section, gallery and screenshots were removed. The Data s
 - Android Keystore and `AtomicFile` behaviour on a real phone: missing or invalidated key, full disk, tampered file.
 - The labels and set timings against real recordings from the pump.
 - Incognito, the app lock and `FLAG_SECURE` on every GrowthTrack screen and dialog, on a real phone.
-- The browser opening on every Connect tap, rotation and page state, Back from About during setup, and a callback arriving during a live run (refused, never covering the run).
+- The above on a real phone, and the app lock with a real screen lock (the emulator has none).
 
 Until these run, the record does not claim end-to-end validation.
