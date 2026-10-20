@@ -53,11 +53,9 @@ own risk — the full terms, including the warranty and liability disclaimer, ar
    or leaving a screen never orphans a pump under pressure.
 6. **Practice mode is never mistaken for a pump.** Simulated runs are labelled everywhere
    and filed as simulated.
-7. **Connection is optional and authorizes automatic sync.** GrowthTrack linking uses
-   the system browser; every new real finished session transfers to that grant. Disconnected
-   and preconnection history never sends. No measurements, photos or notes are uploaded.
-   Account-bound encrypted pending work retries automatically. Data transfer owns no pump connection and
-   cannot start hardware. The diagnostic log console remains debug-only.
+7. **Nothing is sent unless the user connects an account or exports.** Connecting is
+   opt-in and can be switched off; transfer code never touches the pump. The diagnostic
+   log console is in debug builds only.
 
 These are enforced by code review, by `WiringCheck` (static checks over the source), by
 the self-test, and — as pump drivers arrive — by a conformance kit every driver must pass.

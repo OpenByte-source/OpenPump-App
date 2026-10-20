@@ -14,7 +14,9 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <application android:usesCleartextTraffic="true" tools:replace="android:usesCleartextTraffic">
+    <application
+        android:usesCleartextTraffic="true"
+        tools:replace="android:usesCleartextTraffic">
         <!-- exported=FALSE, corrected for 1.0. It carried exported="true" with no
              intent-filter and no permission, which is the combination that lets ANY
              installed app start it by explicit component name - and this is the raw console
