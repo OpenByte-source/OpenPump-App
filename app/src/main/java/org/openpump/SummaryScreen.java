@@ -314,10 +314,8 @@ final class SummaryScreen {
             a.streakBlock(st.streak, "day streak", sub, st.weekDays, st.scheduledDays);
         }
 
-        if (s != null && !s.sim) {
-            Button growthTrack = Ui.flat(a, a.body, "GrowthTrack sync status");
-            growthTrack.setOnClickListener(new GrowthTrackActivity.OpenTap(a, s));
-        }
+        // (owner decision 5, 19 Oct 2026) No GrowthTrack button here: a session's status is
+        // on the GrowthTrack screen's "Sent and waiting sessions".
 
         boolean man = s != null && s.manual;
         // The after-session measurement now leads the summary rather than closing it - see

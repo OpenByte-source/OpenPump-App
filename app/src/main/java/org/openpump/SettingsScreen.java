@@ -1027,14 +1027,15 @@ final class SettingsScreen {
          * Privacy's "Hide from recent apps" since 0.10 (incognito): the same switch
          * (Model#secureWindow), the same flag, now beside the other things that keep the app
          * out of sight. */
+        /* ===== CONNECTED APPS (owner decision 2, bug 20) - its own group, after App lock
+         * where the pull request put it, so Jump to and Settings search find it. One row,
+         * "GrowthTrack", and a status line in three states (GrowthTrackWords#settingsRow). */
+        settingsCategory("Connected apps");
+        LinearLayout gConnected = Ui.cardGroup(a, a.body, null, null);
+        growthTrackRow(gConnected);
+
         // Whether this build has the diagnostic console at all: only a debug build does (see
         // the Diagnostics card below).
-        LinearLayout gConnected = Ui.cardGroup(a, a.body, "Connected apps", null, Ui.DIM);
-        Ui.note(a, gConnected, "GrowthTrack is optional. Connected: new sessions sync automatically. "
-            + "Disconnected: nothing sends.");
-        Button growthTrack = Ui.flat(a, gConnected, "GrowthTrack >");
-        growthTrack.setOnClickListener(new GrowthTrackActivity.OpenTap(a, null));
-
         boolean console = SessionActivity.hasConsole();
 
         /* ===== DEVICE & DEVELOPER — deliberately last ================================== */
@@ -1971,6 +1972,61 @@ final class SettingsScreen {
         }
     }
 
+    /** Settings › Connected apps › GrowthTrack: the name, a dot and the status line, a chevron;
+     *  the whole row opens the GrowthTrack screen. Drawn from the last known connection, then
+     *  brought up to date in place when the worker has read it. */
+    private void growthTrackRow(LinearLayout parent) {
+        LinearLayout row = new LinearLayout(a);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(Ui.dp(a, 48));
+        LinearLayout words = Ui.col(a);
+        TextView name = new TextView(a);
+        name.setText("GrowthTrack");
+        name.setTextColor(Ui.TEXT);
+        name.setTextSize(Look.SP_BODY);
+        name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);
+        words.addView(name);
+        LinearLayout status = new LinearLayout(a);
+        status.setOrientation(LinearLayout.HORIZONTAL);
+        status.setGravity(Gravity.CENTER_VERTICAL);
+        words.addView(status);
+        row.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(Ui.iconView(a, R.drawable.ic_chevron_right, Ui.DIM, 20));
+        row.setOnClickListener(new GrowthTrackActivity.OpenTap(a, 0));
+        parent.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT));
+        GrowthTrackManager gt = GrowthTrackManager.get(a);
+        paintGrowthTrackRow(row, status, gt.cached());
+        gt.run(new GrowthTrackManager.Work() {
+            @Override public Object run(GrowthTrackClient client) { return client.snapshot(); }
+        }, new GrowthTrackRowRead(row, status));
+    }
+
+    private void paintGrowthTrackRow(LinearLayout row, LinearLayout status, GrowthTrackClient.Snapshot snap) {
+        GrowthTrackWords.Line line = GrowthTrackWords.settingsRow(snap,
+            a.model.gtSend == null || a.model.gtSend.on, System.currentTimeMillis(), java.util.TimeZone.getDefault());
+        status.removeAllViews();
+        status.addView(GrowthTrackActivity.dot(a, line.dot));
+        TextView t = new TextView(a);
+        t.setText(line.text);
+        t.setTextColor(Ui.DIM);
+        t.setTextSize(Look.SP_CAPTION);
+        status.addView(t);
+        Ui.group(row, "GrowthTrack: " + line.text);
+    }
+
+    private final class GrowthTrackRowRead implements GrowthTrackManager.Listener {
+        private final LinearLayout row, status;
+        GrowthTrackRowRead(LinearLayout row, LinearLayout status) { this.row = row; this.status = status; }
+        @Override public void done(final Object result, String error) {
+            if (!(result instanceof GrowthTrackClient.Snapshot)) return;
+            a.runOnUiThread(new Runnable() { @Override public void run() {
+                if (row.isAttachedToWindow()) paintGrowthTrackRow(row, status, (GrowthTrackClient.Snapshot) result);
+            } });
+        }
+    }
+
     private final class DeleteAllConfirm1 implements DialogInterface.OnClickListener {
         @Override public void onClick(DialogInterface d, int w) {
             // Re-asked, because the state can have moved between the two taps — a run
@@ -2015,7 +2071,14 @@ final class SettingsScreen {
             for (int i = 0; i < orphans.length; i++)
                 if (a.deletePhotoFile(orphans[i].getAbsolutePath())) photos++;
 
+        // GROWTHTRACK FIRST, AND ITS ANSWER WAITED FOR (bug 19): the tokens, the queue and the
+        // retry job live outside the files below. Started before them - the worker cancels
+        // whatever was in flight - and "All data deleted" is said only with its answer.
+        // Should the process end in between, nothing of the erased history is ever sent: a
+        // pass sends only sessions still on the phone (GrowthTrackOutbox#live).
+        GrowthTrackManager.eraseWithAppData(a, new GrowthTrackErased());
         boolean filesGone = Store.deleteAll(a);
+        eraseFilesGone = filesGone;
 
         a.model = Model.seed();
         // THE TWO SCREENS THAT HOLD THE MODEL BY REFERENCE ARE REBUILT ON IT. CameraScreen
@@ -2061,9 +2124,22 @@ final class SettingsScreen {
 
         a.log("delete all data: " + photos + " photo file(s) removed, store files "
             + (filesGone ? "deleted" : "PARTIALLY deleted"));
-        Ui.snack(a, a.rootFrame,
-            filesGone ? "All data deleted" : "Deleted — some files could not be removed");
         a.showHome();
+        Ui.snack(a, a.rootFrame, "Erasing…");
+    }
+
+    /** What Store.deleteAll answered, for the report that waits for GrowthTrack's erase. */
+    private boolean eraseFilesGone;
+
+    /** GrowthTrack's erase answered (on its worker): the one report, on the main thread. */
+    private final class GrowthTrackErased implements GrowthTrackManager.Listener, Runnable {
+        private String error;
+        @Override public void done(Object result, String err) { error = err; a.runOnUiThread(this); }
+        @Override public void run() {
+            if (a.isFinishing() || a.isDestroyed()) return;
+            a.log("delete all data: GrowthTrack state " + (error == null ? "erased" : "NOT erased"));
+            Ui.snack(a, a.rootFrame, GrowthTrackWords.eraseResult(eraseFilesGone, error));
+        }
     }
 
     private final class BackupTap implements View.OnClickListener, Runnable {

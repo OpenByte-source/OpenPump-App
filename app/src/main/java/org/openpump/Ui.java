@@ -1013,13 +1013,28 @@ public final class Ui {
      * Activity alive through this field.
      */
     private static android.app.AlertDialog lastDressed;
+    /** The screen that raised {@link #lastDressed} - dropped with it - so a screen that goes
+     *  under its lock can take down its own dialog and never another screen's. */
+    private static Activity lastDressedBy;
 
     /** True while a dialog raised through {@link #dress} is on screen. */
     public static boolean dialogShowing() {
         if (lastDressed == null) return false;
         if (lastDressed.isShowing()) return true;
         lastDressed = null;
+        lastDressedBy = null;
         return false;
+    }
+
+    /**
+     * Takes down the dialog `a` raised, if it is still up (GrowthTrack, bugs 11 and L2). A
+     * screen whose content goes behind its app lock when it leaves the foreground calls this,
+     * so an open Disconnect or explanation is neither usable nor readable over the lock - and
+     * a dialog left in a background task never makes the one screen think one of its own is up.
+     */
+    public static void dismissDialogOf(Activity a) {
+        if (lastDressed == null || lastDressedBy != a) return;
+        dismissDialog();
     }
 
     /** Takes down whatever {@link #dialogShowing} is reporting. */
@@ -1028,11 +1043,13 @@ public final class Ui {
         try { if (lastDressed.isShowing()) lastDressed.dismiss(); }
         catch (IllegalArgumentException e) { /* window already gone */ }
         lastDressed = null;
+        lastDressedBy = null;
     }
 
     public static void dress(Activity a, android.app.AlertDialog d) {
         if (d == null) return;
         lastDressed = d;
+        lastDressedBy = a;
         // The debug log records every dialog's opening, closing and touches - dress() is
         // the one place every dialog passes through.
         if (a instanceof SessionActivity) ((SessionActivity) a).journalDialog(d);
@@ -1040,7 +1057,9 @@ public final class Ui {
         if (w == null) return;
         // (the incognito safety review, M6) A dialog is its own window: with "Hide from recent
         // apps" on it carries FLAG_SECURE too (SessionActivity#applySecureFlag, invariant 193).
+        // The GrowthTrack screen's dialogs too (bug 11): the same switch, the same flag.
         if (a instanceof SessionActivity) ((SessionActivity) a).applySecureFlag(w);
+        else if (a instanceof GrowthTrackActivity) ((GrowthTrackActivity) a).applySecureFlag(w);
         w.setBackgroundDrawable(roundRect(a, Look.SURFACE, Look.R_SHEET));
         w.setDimAmount(0.62f);
         w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT,

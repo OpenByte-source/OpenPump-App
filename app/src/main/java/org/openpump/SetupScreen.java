@@ -146,6 +146,7 @@ final class SetupScreen {
     void back() {
         Walk w = w();
         if (w.step <= STEP_WELCOME) { a.moveTaskToBack(true); return; }
+        if (w.step == STEP_READY) growthTrackOfferSeen(GrowthTrackOnboarding.LEFT_STEP);
         w.needsLock = false;
         w.step--;
         show();
@@ -166,6 +167,7 @@ final class SetupScreen {
      *  Starter goes through selectAndConfirmStart - Today, then START's own confirmation
      *  and gate, exactly as the checklist's row does. */
     private void finish() {
+        growthTrackOfferSeen(GrowthTrackOnboarding.LEFT_STEP);
         FirstRun.finish(a.model);
         Store.save(a, a.model);
         String first = w().first;
@@ -933,31 +935,16 @@ final class SetupScreen {
 
     private void ready() {
         Walk w = w();
-        if (GrowthTrackOnboarding.shouldOffer(a.model, RunService.isRunning(), a.dataStoreUnreadable())) {
-            GrowthTrackOnboarding.presented(a.model);
-            Store.save(a, a.model);
+        // The GrowthTrack invitation is drawn for this walk; it counts as seen only when the
+        // person taps it or leaves this step (GrowthTrackOnboarding#marksSeen), never here.
+        if (GrowthTrackOnboarding.shouldOffer(a.model, RunService.isRunning(), a.dataStoreUnreadable()))
             w.growthTrackVisible = true;
-        }
         TextView h = text(SetupText.READY_TITLE, 22f, Ui.TEXT);
         h.setTypeface(Typeface.DEFAULT_BOLD);
         if (android.os.Build.VERSION.SDK_INT >= 28) h.setAccessibilityHeading(true);
         LinearLayout.LayoutParams hl = full();
         hl.bottomMargin = dp(Look.S4);
         page.addView(h, hl);
-
-        if (w.growthTrackVisible) {
-            LinearLayout gt = card();
-            Ui.head(a, gt, "Connect your own GrowthTrack account?");
-            Ui.note(a, gt, "GrowthTrack records PE training sessions, routines and measurements. Connection is optional; you can skip and connect later in Settings.");
-            Ui.noteInfo(a, gt, "Nothing uploads just by connecting.", "Your choice",
-                "Use your own account and approve in your browser. While connected, every new real finished session syncs automatically. Disconnected sessions and earlier history stay on your phone. Skipping, cancelling or going back leaves OpenPump ready to use.");
-            Button connect = Ui.flat(a, gt, "Connect to GrowthTrack");
-            connect.setOnClickListener(new GrowthTrackChoice(true));
-            Button info = Ui.flat(a, gt, "About GrowthTrack and account setup");
-            info.setOnClickListener(new GrowthTrackActivity.InformationTap(a));
-            Button skip = Ui.flat(a, gt, "Skip for now");
-            skip.setOnClickListener(new GrowthTrackChoice(false));
-        }
 
         // THE BATTERY: the one explanation open from the start, and the one row that goes
         // out to a system screen - so the answer is read again on the way back (onResume).
@@ -976,6 +963,11 @@ final class SetupScreen {
         kv(c, SetupText.BATTERY_LABEL, SetupText.BATTERY_SUBTITLE, I_BATTERY,
             SetupText.BATTERY_WHY, allow);
         if (exempt) say(c, SetupText.BATTERY_DONE, false);
+
+        // OWNER DECISION 1: the GrowthTrack invitation, made quiet - under a small "Optional"
+        // label below the battery card, ONE divider row (a hairline, no box): the mark, the
+        // name, one line, a chevron, the whole row the target. No Skip; it never blocks Done.
+        if (w.growthTrackVisible) growthTrackRow();
 
         TextView sl = Ui.microLabel(a, null, SetupText.SUMMARY_TITLE, Ui.DIM);
         page.addView(sl, gapped(Look.S2));
@@ -1002,13 +994,42 @@ final class SetupScreen {
         page.addView(opts, ol);
     }
 
+    private void growthTrackRow() {
+        TextView label = Ui.microLabel(a, null, "Optional", Ui.DIM);
+        page.addView(label, gapped(Look.S2));
+        Ui.divider(a, page);
+        LinearLayout row = new LinearLayout(a);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(dp(48));
+        TextView mark = GrowthTrackActivity.mark(a, 24);
+        ((LinearLayout.LayoutParams) mark.getLayoutParams()).rightMargin = dp(Look.S3);
+        row.addView(mark);
+        LinearLayout words = Ui.col(a);
+        TextView name = text("GrowthTrack", Look.SP_BODY, Ui.TEXT);
+        name.setTypeface(Typeface.DEFAULT_BOLD);
+        words.addView(name);
+        words.addView(text("Keep your sessions in your own account too", Look.SP_CAPTION, Ui.DIM));
+        row.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(Ui.iconView(a, R.drawable.ic_chevron_right, Ui.DIM, 20));
+        Ui.group(row, "GrowthTrack, optional: keep your sessions in your own account too");
+        row.setOnClickListener(new GrowthTrackChoice());
+        page.addView(row, full());
+    }
+
+    /** The invitation counts as seen: tapped, or the Ready step left. Saved unless a run is
+     *  live (never a save under a run). */
+    private void growthTrackOfferSeen(int event) {
+        if (!w().growthTrackVisible || a.model.growthTrackOfferSeen) return;
+        if (!GrowthTrackOnboarding.marksSeen(event)) return;
+        GrowthTrackOnboarding.presented(a.model);
+        if (!RunService.isRunning()) Store.save(a, a.model);
+    }
+
     private final class GrowthTrackChoice implements View.OnClickListener {
-        final boolean connect;
-        GrowthTrackChoice(boolean connect) { this.connect = connect; }
         @Override public void onClick(View view) {
-            w().growthTrackVisible = false;
-            show();
-            if (connect) GrowthTrackActivity.open(a, null);
+            growthTrackOfferSeen(GrowthTrackOnboarding.TAPPED);
+            GrowthTrackActivity.open(a, GrowthTrackPages.CONNECT);
         }
     }
 
