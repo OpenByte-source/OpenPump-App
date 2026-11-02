@@ -275,11 +275,11 @@ Tests only. Nothing moves.
 
 ## S11 — Golden wire transcripts from the real ZD21
 
-- **Needs.** Captures from the owner's pump (decision 11): connect and subscribe; a
+- **Needs.** Recordings from the owner's pump (decision 11): connect and subscribe; a
   routine upload and start; a long hold; a live adjustment; STOP from pressure through to
   no measurement; a table read-back; five minutes idle.
-- **Files.** A converter from the Android HCI snoop log to the transcript format, in the
-  test sources (plain Java, reads the btsnoop file format). Scrubbed transcripts in
+- **Files.** A converter from those recordings to the transcript format, in the
+  test sources (plain Java). Scrubbed transcripts in
   `core/src/test/resources/transcripts/zd21/hardware/`.
 - **Tests.** The ZD21 driver decodes every recorded pump frame to the recorded meaning.
   `Zd21Sim` agrees with the hardware within stated tolerances: vent rate, reading period,

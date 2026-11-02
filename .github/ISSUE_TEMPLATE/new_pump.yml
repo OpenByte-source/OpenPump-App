@@ -4,7 +4,7 @@ labels: [new-pump]
 body:
   - type: markdown
     attributes:
-      value: "Thank you! Please share captures and observations only — never the manufacturer's app, code or text copied from it. See docs/adding-a-pump.md."
+      value: "Thank you! Tell us about the pump and how you can help. See docs/adding-a-pump.md."
   - type: input
     id: model
     attributes:
@@ -16,10 +16,10 @@ body:
     attributes:
       label: Name it advertises over Bluetooth
   - type: textarea
-    id: capture
+    id: testing
     attributes:
-      label: Capture and notes
-      description: "An extract of a Bluetooth snoop log of its own app starting, changing pressure and stopping: only the pump's packets, as a text list, with the addresses replaced by PUMP and PHONE and any ID, serial number or name replaced by XX. Add a short timeline of what you did. Please don't attach the raw log: it holds every Bluetooth device around you. How: docs/adding-a-pump.md, steps 3 and 10."
+      label: Can you help test?
+      description: "Would you run test builds on the bench? Do you have a rigid, sealed container such as a cylinder, or a vacuum gauge? Please leave out your pump's Bluetooth address and serial number."
   - type: textarea
     id: telemetry
     attributes:

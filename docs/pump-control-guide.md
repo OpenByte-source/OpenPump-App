@@ -1170,7 +1170,7 @@ produces a negative time.
 
 ## 13. A worked example
 
-This example is worked out from OpenPump's own rules, not captured from a pump. The pump's replies
+This example comes from OpenPump's own rules, not from a real run. The pump's replies
 and readings aren't shown.
 
 ### The routine
@@ -1301,8 +1301,7 @@ These have not been established on the pump yet:
 ## 15. Licence
 
 The facts in this guide (UUIDs, byte layouts, opcodes, ranges, timings and behaviour) describe how
-the pump behaves over the air. You are free to use them to build your own app. Nothing here comes
-from the maker's software.
+the pump behaves over the air. You are free to use them to build your own app.
 
 OpenPump's source code is licensed under the GNU Affero General Public License v3.0. If you copy or
 adapt OpenPump's code, your app becomes a derived work and must be released under the AGPL too, with

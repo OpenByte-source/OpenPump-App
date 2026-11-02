@@ -48,8 +48,8 @@ import java.util.UUID;
 /**
  * OpenPump - diagnostic BLE client for the Epic Hydro PE Pump (ZD21_PUMP) and PE06_Scale.
  *
- * Runs on the phone next to the real hardware and logs EVERYTHING, so the reverse
- * engineered spec can be checked against ground truth and the open probes settled.
+ * Runs on the phone next to the real hardware and logs EVERYTHING, so the protocol
+ * notes can be checked against ground truth and the open probes settled.
  *
  * Logs:
  *   - every scan result: advertised name, RSSI, service UUIDs, raw AD payload
@@ -735,7 +735,7 @@ public class MainActivity extends Activity {
         @Override public void run() {
             if (rxCount == 0)
                 log("[probe P2] NO unsolicited telemetry 5 s after subscribe."
-                    + " For the pump this contradicts the static analysis.");
+                    + " For the pump this contradicts the protocol notes.");
             else
                 log("[probe P2] " + rxCount + " frame(s) in the first 5 s"
                     + " - the device streams on subscribe, unprompted.");
@@ -1071,7 +1071,7 @@ public class MainActivity extends Activity {
             return "ACK " + name + " status=OK  (<opcode> 01)";
         }
         return "!! UNKNOWN opcode 0x" + String.format("%02X", op)
-             + " - undocumented frame type, this is worth capturing";
+             + " - undocumented frame type, this is worth noting";
     }
 
     // ------------------------------------------------------------------- tx

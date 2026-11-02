@@ -63,7 +63,7 @@ The plan, in phases (each ships on its own and changes no behaviour unless state
 3. **Pump driver seam** — a `PumpDriver` interface between the session engine and the
    wire, a `SafetySupervisor` every driver must pass through, a conformance kit every
    driver must pass. Adding a pump then means adding a driver module. Verified
-   byte-for-byte against recorded pump traffic and on real hardware.
+   byte-for-byte against golden transcripts and on real hardware.
    **Next:** the design is [docs/design/driver-seam.md](docs/design/driver-seam.md) and
    the step-by-step plan [docs/design/driver-seam-plan.md](docs/design/driver-seam-plan.md)
    ([ADR 0008](docs/adr/0008-driver-seam.md), proposed).

@@ -588,7 +588,7 @@ A transcript is a text file of bytes and times. It is diffable and holds no iden
 
 ```
 # openpump wire transcript v1
-# pump=zd21 source=hardware captured=YYYY-MM-DD notes=stop from 18 kPa
+# pump=zd21 source=hardware recorded=YYYY-MM-DD notes=stop from 18 kPa
 # ms       dir  bytes                       note
 +000000    TX   66 2A 2D                    stop
 +000031    RX   2D 01                       ack stop
@@ -608,15 +608,13 @@ Three kinds:
 3. **Behaviour goldens** — real runs: a stop from pressure (the 4.68 kPa/s vent), a long
    hold (the coast — which also answers release check H14), the reading period.
 
-Kinds 2 and 3 must come from the real ZD21 — fresh captures from the owner's pump
-(decision 11), cut down to the pump's traffic and scrubbed as the
-[protocol guide](../adding-a-pump.md) describes. A small converter from Android's
-Bluetooth HCI snoop log to this format lives in the test sources, so pump owners can use
-it too.
+Kinds 2 and 3 must come from the real ZD21 — fresh recordings from the owner's pump
+running OpenPump (decision 11), cut down to the pump's frames and scrubbed of anything
+identifying. A small converter to this format lives in the test sources.
 
 ### 4.4 What passing means
 
-Passing the kit means the driver is consistent with its own simulator, its own captures
+Passing the kit means the driver is consistent with its own simulator, its own recordings
 and the supervisor's rules. It does not mean the driver is safe on a person. Only the
 hardware checklist on the real pump shows that (section 5).
 
@@ -701,7 +699,7 @@ Each is a behaviour or scope call. The plan does not take one without a yes.
    supervisor refuses them. Revisit only with a real pump and a safety review.*
 9. **The diagnostic console** (`MainActivity`) keeps its own connection and raw frames,
    outside every check. *Recommended: keep it as a named exception during the seam, behind
-   the developer unlock; retire it once the protocol guide and nRF Connect cover what it
+   the developer unlock; retire it once other tools cover what it
    was for.* *Decided: out of the downloadable app. Done — it lives in `app/src/debug`, so
    the release APK has neither the class nor its manifest entry, and Settings shows its
    door only in a debug build.*
@@ -709,7 +707,7 @@ Each is a behaviour or scope call. The plan does not take one without a yes.
     firmware-update mode; nothing OpenPump sends or receives supports that, and what makes a pump
     advertise the name is unknown ([zd21.md](../protocols/zd21.md)). *Decided: keep accepting both
     names and treat them the same.*
-11. **Where the hardware transcripts come from.** *Recommended: fresh captures from the
+11. **Where the hardware transcripts come from.** *Recommended: fresh recordings from the
     owner's pump with the 0.9.0 build, scrubbed, and read by the owner before they are
     committed — not material from the private history.*
 
@@ -727,7 +725,7 @@ Each is a behaviour or scope call. The plan does not take one without a yes.
 | 8 | Refuse pumps that can't report pressure or whose stop doesn't vent | **No.** Behaviour unchanged. |
 | 9 | The diagnostic console | **Out of the downloadable app.** It stays in builds developers make themselves. |
 | 10 | `ZD21_PUMP_OTA` | **No change.** Keep accepting both names and treat them the same (see question 10 above). |
-| 11 | Golden transcripts | **Yes:** fresh captures from the owner's pump with 0.9.0, scrubbed of anything identifying, read by the owner before they are committed. |
+| 11 | Golden transcripts | **Yes:** fresh recordings from the owner's pump with 0.9.0, scrubbed of anything identifying, read by the owner before they are committed. |
 
 ---
 

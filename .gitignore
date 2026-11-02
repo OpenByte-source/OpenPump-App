@@ -15,8 +15,6 @@ local.properties
 *.jks
 keystore.properties
 
-# Logs, captures and personal data never belong in the repo
+# Logs and personal data never belong in the repo
 *.log
-*.btsnoop
-btsnoop_hci*
-captures/
+logs/

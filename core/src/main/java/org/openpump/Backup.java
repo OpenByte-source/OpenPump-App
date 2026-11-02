@@ -307,7 +307,7 @@ public final class Backup {
      *      no randomness — hardcoded example sets/routines only), so its
      *      {@code toJson()} is byte-identical on every call; a restore that quietly
      *      produced it is therefore detectable by direct comparison, with no need to
-     *      reverse-engineer which internal branch fired. This is the belt to check 1's
+     *      work out which internal branch fired. This is the belt to check 1's
      *      braces — it keeps catching a silent seed() even if a future change to
      *      {@code Model#fromJson} ever adds a different way to reach one.
      *

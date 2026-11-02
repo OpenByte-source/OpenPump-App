@@ -31308,7 +31308,7 @@ public class SessionActivity extends Activity
      * a placeholder.
      *
      * WHY DISCONNECT EXISTS. A connected pump stops advertising, so it cannot be reached by
-     * anything else — another phone, the vendor's app, a second copy of this one — until
+     * anything else — another phone, another app, a second copy of this one — until
      * this app lets go. "Hand the pump back" is an ordinary thing to want, so it has a
      * control; it was the bar's own button before the chip, and it is offered here on every
      * screen the bar is on, a run included, exactly as that button was.
@@ -33037,7 +33037,7 @@ public class SessionActivity extends Activity
         }
         setEditLadderHint.setVisibility(View.VISIBLE);
         // POLISH #7: unit-aware — "whole kPa" beside a row of inHg figures read as a
-        // contradiction. The wire fact is the same; only the sentence follows the unit.
+        // contradiction. The bytes sent are the same; only the sentence follows the unit.
         setEditLadderHint.setText(("kPa".equals(Model.Fmt.unit)
             ? "whole kPa on the wire — pull steps  "
             : "sent as whole kPa — pull steps  ") + rungs);

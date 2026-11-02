@@ -235,7 +235,7 @@ OpenPump gets better when more people use it, question it and take it somewhere 
 **Ways in:**
 - **Suggest an idea, or vote on one,** in [Discussions › Ideas](https://github.com/OpenByte-source/OpenPump-App/discussions/categories/ideas). The ▲ button is the vote, and the most wanted rise to the top.
 - **Report a bug** with the [bug form](https://github.com/OpenByte-source/OpenPump-App/issues/new?template=bug_report.yml): your phone, Android version and pump.
-- **Share a capture** from a pump that isn't supported yet, with the [New pump form](https://github.com/OpenByte-source/OpenPump-App/issues/new?template=new_pump.yml).
+- **Tell us about a pump** that isn't supported yet, with the [New pump form](https://github.com/OpenByte-source/OpenPump-App/issues/new?template=new_pump.yml).
 - **Fix wording** that reads badly, or pick up a `good first issue`.
 
 The details are in [CONTRIBUTING.md](CONTRIBUTING.md). Everyone taking part agrees to the [Code of Conduct](CODE_OF_CONDUCT.md).
@@ -301,11 +301,8 @@ The reasoning behind each is in [`ARCHITECTURE.md`](ARCHITECTURE.md) and [`docs/
 <summary>Own a pump that isn't supported? Here's how it gets added</summary>
 
 One protocol is implemented end to end. If yours isn't an Epic Hydro PE Pump, open a *New pump* issue
-with the model, the name it advertises over Bluetooth, the pump's packets from a snoop log of
-its own app driving it through start, change pressure and stop (an extract with the addresses
-replaced, never the raw log), and a note of what it sends back. Protocol
-notes are wire facts only — never anyone's app, never decompiled code, never text copied
-out of one.
+with the model, the name it advertises over Bluetooth, and whether you can help test on the
+bench with a rigid cylinder.
 
 One honest warning: a pump that can't report its own pressure can't confirm a vent, so
 support for it would be limited, or declined.
@@ -323,7 +320,7 @@ This is what a finished write-up looks like. It's the whole of the ZD21 one (the
 | Habits worth knowing | a stop vented at about 4.68 kPa/s the one time it was measured; the pump coasts during a long hold, at a rate not yet measured; once started it keeps cycling on its own, which is why a dropped link is treated as dangerous |
 
 Full version: [`docs/protocols/zd21.md`](docs/protocols/zd21.md), marked verified against a
-real device. The steps for a new one: [`docs/adding-a-pump.md`](docs/adding-a-pump.md).
+real device. How a new one gets added: [`docs/adding-a-pump.md`](docs/adding-a-pump.md).
 
 The whole of it — Bluetooth, every command, the preset table, telemetry, how routines, ramps,
 long holds and live edits become commands, and how OpenPump stops and confirms a vent — is in
@@ -358,7 +355,6 @@ way.
 
 **Who this is and isn't.** An independent project. Not affiliated with, endorsed by or
 connected to any pump manufacturer — model names appear only to say what it works with.
-The protocol notes here were written from traffic on the wire, nothing else.
 
 The training plan applies publicly available PE guidance mechanically; where the app decides
 something the guidance doesn't say, [the trainer guide](docs/trainer-guide.md) marks it as the

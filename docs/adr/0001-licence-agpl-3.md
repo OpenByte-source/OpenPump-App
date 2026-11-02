@@ -3,7 +3,7 @@
 Date: 2026-09-22 · Status: accepted
 
 ## Context
-OpenPump controls hardware, is built on reverse-engineered interoperability, and handles intimate data. Improvements made in forks should come back to users.
+OpenPump controls hardware and handles intimate data. Improvements made in forks should come back to users.
 
 ## Decision
 License the project under the GNU Affero General Public License v3.0.

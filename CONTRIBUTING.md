@@ -1,7 +1,7 @@
 # Contributing to OpenPump
 
 Thank you for helping. You do not need to be a programmer: bug reports, translations,
-phone/pump compatibility reports, design ideas and protocol captures are all
+phone/pump compatibility reports, design ideas and offers to test a new pump are all
 contributions.
 
 ## Ways to help
@@ -9,7 +9,7 @@ contributions.
 | You are… | You can… |
 |---|---|
 | A user | Report a bug with the bug form (say which phone, Android version and pump). Suggest an idea, or vote on one, in Discussions › Ideas. |
-| Owner of another pump | Capture how its own app talks to it and open a *New pump* issue. |
+| Owner of another pump | Open a *New pump* issue with its model and the name it advertises, and say whether you can help test. |
 | A designer | Propose screens as sketches or mockups in an issue. |
 | A developer (by hand or with AI) | Pick an issue labelled `good first issue`, then send a pull request. |
 
@@ -46,8 +46,8 @@ contributions.
 
 ## Adding support for another pump
 
-Read [docs/adding-a-pump.md](docs/adding-a-pump.md). Protocol documentation contains
-**facts observed on the wire only** — never code or text copied from a manufacturer's app.
+Read [docs/adding-a-pump.md](docs/adding-a-pump.md). Contribute only code and text you have
+the right to license under the AGPL-3.0.
 
 ## Code of conduct
 
