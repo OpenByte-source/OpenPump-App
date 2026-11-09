@@ -117,7 +117,12 @@ final class GrowthTrackManager {
         sync(model, listener, network, request);
         return request;
     }
-    private void sync(Model model, Listener listener, final android.net.Network network, SyncRequest request) {
+    /** The screens showing the sync state, told on the main thread when any pass finishes -
+     *  the background job's too (GrowthTrackWatch, the live GrowthTrack test of 9 Nov 2026). */
+    final GrowthTrackWatch watch = new GrowthTrackWatch();
+    private final Runnable passFinished = new Runnable() { @Override public void run() { watch.passFinished(); } };
+
+    private void sync(Model model, final Listener listener, final android.net.Network network, SyncRequest request) {
         GrowthTrackOutbox.AsRunLookup lookup = new GrowthTrackOutbox.AsRunLookup() {
             @Override public AsRun asRun(Model.Sess s) { return Store.loadAsRun(context, s.ts); }
         };
@@ -135,7 +140,12 @@ final class GrowthTrackManager {
             if (!state.connected && !state.needsReconnect) return null;
             http.useNetwork(network); ready.prepareAutomaticSync();
             ready.sync(box); return null;
-        } }, listener, request);
+        } }, new Listener() { @Override public void done(Object result, String error) {
+            // The caller first (a job's jobFinished must come before its next one is
+            // scheduled), then whatever is on screen re-reads what this pass changed.
+            if (listener != null) listener.done(result, error);
+            main.post(passFinished);
+        } }, request);
     }
     /** History > Delete: a waiting session is withdrawn before it can be sent (bug 6). The
      *  listener gets GrowthTrackClient#withdraw's answer (an Integer). */

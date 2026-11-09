@@ -55,7 +55,7 @@ import java.util.TimeZone;
  * recent apps (Ui.dress, invariant 253), and a dialog never outlives the screen going under
  * its lock.
  */
-public final class GrowthTrackActivity extends Activity {
+public final class GrowthTrackActivity extends Activity implements GrowthTrackWatch.Watcher {
     static final String EXTRA_PAGE = "org.openpump.GT_PAGE";
     static final String EXTRA_AFTER_SIGN_IN = "org.openpump.GT_AFTER_SIGN_IN";
     /** Where the screen was opened from (GrowthTrackReturn#key); the sign-in's return carries none. */
@@ -224,11 +224,23 @@ public final class GrowthTrackActivity extends Activity {
         model = manager.model();
         applyLook();
         if (doorShut(null)) { finish(); return; }
+        // A pass this screen did not start - the background job's - redraws it too (bug 6 of
+        // the live GrowthTrack test): told only while it is in front.
+        manager.watch.watch(this);
         if (locked()) { lockScreen(); return; }
         refresh();
     }
 
-    @Override protected void onPause() { super.onPause(); resumed = false; }
+    @Override protected void onPause() { super.onPause(); resumed = false; manager.watch.unwatch(this); }
+
+    /** A sync pass finished: the status card and the list read the connection again, once.
+     *  Not while this screen's own step is under way (it refreshes when that ends), and never
+     *  over the lock. */
+    @Override public void syncChanged() {
+        if (!resumed || busy || isFinishing() || isDestroyed()) return;
+        if (doorShut(null)) { finish(); return; }
+        refresh();
+    }
 
     @Override protected void onStop() {
         super.onStop();
