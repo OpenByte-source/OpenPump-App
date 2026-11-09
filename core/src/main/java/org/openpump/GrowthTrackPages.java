@@ -16,6 +16,10 @@ public final class GrowthTrackPages {
     private GrowthTrackPages() { }
 
     public static final int FINISH = 0, CONNECT = 1, HOME = 2, LIST = 3;
+    /** The sign-in return's landing pages (GrowthTrackReturn#landing): "You’re connected",
+     *  or why not with "Try again". Shown once, on the return, and kept as they are until
+     *  the person leaves them. */
+    public static final int CONNECTED = 4, NOT_CONNECTED = 5;
 
     /** The saved form of a page (instance state, the opening intent). */
     public static String key(int page) {
@@ -23,6 +27,8 @@ public final class GrowthTrackPages {
             case CONNECT: return "connect";
             case LIST: return "list";
             case HOME: return "home";
+            case CONNECTED: return "connected";
+            case NOT_CONNECTED: return "not-connected";
             default: return "";
         }
     }
@@ -32,6 +38,8 @@ public final class GrowthTrackPages {
         if ("connect".equals(key)) return CONNECT;
         if ("list".equals(key)) return LIST;
         if ("home".equals(key)) return HOME;
+        if ("connected".equals(key)) return CONNECTED;
+        if ("not-connected".equals(key)) return NOT_CONNECTED;
         return 0;
     }
 
@@ -41,13 +49,16 @@ public final class GrowthTrackPages {
 
     /** The page for this connection: asked-for `wanted` when it still fits, else connect or home. */
     public static int pageFor(int wanted, GrowthTrackClient.Snapshot s, boolean changingAccount) {
+        if (wanted == CONNECTED || wanted == NOT_CONNECTED) return wanted;
         if (wanted == CONNECT) return linked(s) && !changingAccount ? HOME : CONNECT;
         if (!linked(s)) return CONNECT;
         return wanted == LIST ? LIST : HOME;
     }
 
-    /** Back: the page the screen was opened on leaves; the list returns to the screen, and
-     *  the connect page opened by "Change account" returns to it too. */
+    /** Back: the page the screen was opened on leaves - back to where it was opened from,
+     *  in that screen's own task (GrowthTrackReturn) - and so does a landing page and the
+     *  screen opened from one; the list returns to the screen, and the connect page opened by
+     *  "Change account" returns to it too. */
     public static int back(int page, int entry, boolean changingAccount) {
         if (page == entry) return FINISH;
         if (page == LIST) return HOME;

@@ -181,7 +181,11 @@ public final class GrowthTrackClient {
         state.remove("pending");
         put("message", state.optJSONObject("tokens") != null ? "Connection unchanged." : "Connection cancelled. No sessions were sent."); save();
     }
-    public synchronized void callback(String uri) throws IOException {
+    /** What a sign-in's return came to (callback's answer): the approval was stored, the
+     *  person declined it in the browser (access_denied), or GrowthTrack answered with another
+     *  error. A return that could not complete throws instead, with its words. */
+    public static final int APPROVED = 1, DECLINED = 2, NOT_APPROVED = 3;
+    public synchronized int callback(String uri) throws IOException {
         JSONObject pj = state.optJSONObject("pending");
         GrowthTrackProtocol.Pending pending = null;
         GrowthTrackProtocol.Callback callback;
@@ -204,7 +208,7 @@ public final class GrowthTrackClient {
             put("message", "access_denied".equals(callback.error)
                 ? (hadTokens ? "GrowthTrack approval was declined. Your existing connection is unchanged." : "GrowthTrack approval was declined. No sessions were sent.")
                 : (hadTokens ? "GrowthTrack could not approve this. Your existing connection is unchanged." : "GrowthTrack could not approve this connection. Connect again."));
-            save(); return;
+            save(); return "access_denied".equals(callback.error) ? DECLINED : NOT_APPROVED;
         }
         put("exchanging", true); save();
         Map<String, String> form = new LinkedHashMap<String, String>();
@@ -248,6 +252,7 @@ public final class GrowthTrackClient {
             JSONObject earlier = obj("earlier");
             if (earlier.optString(conn, "").isEmpty() && !choice.isEmpty()) earlier.put(conn, choice);
             put("message", "Connected to the GrowthTrack account you approved in the browser."); save();
+            return APPROVED;
         } catch (JSONException e) {
             put("exchanging", false); put("message", failed); save(); throw new Problem(failed);
         } catch (IOException e) {
