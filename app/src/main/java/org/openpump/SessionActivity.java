@@ -1285,7 +1285,12 @@ public class SessionActivity extends Activity
                     break;
                 }
                 Store.save(SessionActivity.this, model);
-                Ui.snack(SessionActivity.this, rootFrame, "Counted toward this week");
+                // Said WITH STOP's Resume offer when one is waiting or up, so neither message
+                // replaces the other (ResumeOffer#note); alone otherwise, as before.
+                String counted = "Counted toward this week";
+                int how = resumeOffer.note(counted, android.os.SystemClock.uptimeMillis());
+                if (how == ResumeOffer.AGAIN) resumeOffer.again().run();
+                else if (how == ResumeOffer.ALONE) Ui.snack(SessionActivity.this, rootFrame, counted);
             }
             // Answered either way \u2014 the question is asked once per run, not until it
             // gets the answer the app was hoping for.
@@ -40183,7 +40188,12 @@ public class SessionActivity extends Activity
         private final String message; private final View.OnClickListener tap;
         ResumeSnack(String m, View.OnClickListener t) { message = m; tap = t; }
         @Override public void run() {
-            Ui.snack(SessionActivity.this, rootFrame, message, "Resume", tap, Snack.HOLD_MS_ACTIONABLE);
+            // "Counted toward this week" answered at the same moment rides in the same message
+            // (ResumeOffer#note): one message at a time, and Resume keeps its full time.
+            Ui.snack(SessionActivity.this, rootFrame,
+                ResumeOffer.withNote(resumeOffer.takeNote(), message),
+                "Resume", tap, Snack.HOLD_MS_ACTIONABLE);
+            resumeOffer.shown(this, android.os.SystemClock.uptimeMillis(), Snack.HOLD_MS_ACTIONABLE);
         }
     }
 
@@ -40201,6 +40211,7 @@ public class SessionActivity extends Activity
             r = rr; spot = at; choice = c;
         }
         @Override public void onClick(View v) {
+            resumeOffer.spent();                       // the offer is done with
             if (running) return;                       // something already started again
             if (!link.isReady()) { toast("Not connected to the pump"); return; }
             log("=== RESUME after STOP: " + r.name + " from preset " + spot.legacyIdx + " ===");
