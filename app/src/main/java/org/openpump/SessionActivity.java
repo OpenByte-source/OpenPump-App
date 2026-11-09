@@ -23865,7 +23865,7 @@ public class SessionActivity extends Activity
      * session.endRun() stops the clock. Idempotent on the recording: close() on nothing
      * open is a no-op, and fileSession itself runs once per session.
      */
-    private void asRunFile(Model.Sess rec, long elapsedMs) {
+    private void asRunFile(Model.Sess rec, long elapsedMs, Model.Sess earlier, RunParts parts) {
         asRunForgetPending();
         if (asRunKey == 0) {
             // No run was recorded for THIS session (an abort during the seal check, before
@@ -23887,15 +23887,25 @@ public class SessionActivity extends Activity
         try {
             asRun.close(elapsedMs);
             asRun.ts = rec.ts;
-            rec.hasAsRun = !asRun.rows.isEmpty();
+            // A RESUMED SESSION FILES BOTH PARTS (RunParts#recording, the live GrowthTrack test
+            // of 9 Nov 2026): the first part's recording is under the same key as this one, and
+            // this part's alone used to replace it. `asRun` stays this part's own - the cycles
+            // below are counted from it and the earlier parts' added by RunParts.
+            AsRun earlierRun = earlier == null || !earlier.hasAsRun ? null
+                : Store.loadAsRun(this, earlier.ts);
+            AsRun filed = RunParts.recording(parts, earlierRun, asRun);
+            filed.ts = rec.ts;
+            rec.hasAsRun = !filed.rows.isEmpty();
             // Whether the run differs from its plan — decided ONCE, here, and persisted, so
             // the History list can label its rows (AsRun.historyLabel) without loading and
             // re-deriving every recording on every render.
-            rec.differs = rec.hasAsRun && AsRun.differs(AsRun.blocks(asRun, model));
-            rec.asRunSnapshot = rec.manual ? null : asRun.snap;
+            rec.differs = rec.hasAsRun && AsRun.differs(AsRun.blocks(filed, model));
+            rec.asRunSnapshot = rec.manual ? null : filed.snap;
             if (asRunKey != rec.ts) Store.deleteAsRun(this, asRunKey);
             asRunKey = 0;
-            if (rec.hasAsRun) Store.saveAsRun(this, rec.ts, asRun);
+            // The earlier part's own key, when it was not this session's start.
+            if (earlierRun != null && earlier.ts != rec.ts) Store.deleteAsRun(this, earlier.ts);
+            if (rec.hasAsRun) Store.saveAsRun(this, rec.ts, filed);
             // ONE CUTOFF FOR BOTH HALVES OF A RECORDING. The rows go from asrun.json
             // and the routine snapshot goes from the Sess in model.json at the same
             // moment - see Model#trimAsRunSnapshots for why the second one matters more.
@@ -28147,7 +28157,7 @@ public class SessionActivity extends Activity
         // t10 O8 - a reduced day of the return, asked before this session spends its step
         // below (Deload#onFiled): its length reading stays out of the low streak.
         rec.returnDay = !manualSession && Deload.reducedOn(model, rec.ts);
-        asRunFile(rec, elMs);
+        asRunFile(rec, elMs, earlier, parts);
         // Counted over the recording asRunFile has just closed - the same recording, at the
         // same moment, the summary's cycles row used to count it from.
         rec.cyclesDone = deliveredCycles();

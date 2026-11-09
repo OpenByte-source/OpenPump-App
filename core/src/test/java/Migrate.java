@@ -23,6 +23,12 @@ public class Migrate {
         if (gtOldRow.cyclePart != -1 || gtOldRow.toJson().has("cyclePart")) throw new AssertionError("Old stitch boundary must remain unknown");
         gtOldRow.cyclePart = 1;
         if (org.openpump.AsRun.Row.fromJson(gtOldRow.toJson()).cyclePart != 1) throw new AssertionError("Frozen stitch boundary must round-trip");
+        // A resumed session keeps both parts (9 Nov 2026): a row written before reads as part 0,
+        // a one-part row is written exactly as before, and a later part round-trips.
+        if (gtOldRow.part != 0 || gtOldRow.toJson().has("part")) throw new AssertionError("An old as-run row must read as one part");
+        gtOldRow.part = 1;
+        if (org.openpump.AsRun.Row.fromJson(gtOldRow.toJson()).part != 1) throw new AssertionError("A resumed part's number must round-trip");
+        gtOldRow.part = 0;
         Model gtFresh = Model.seed();
         if (gtFresh.growthTrackOfferSeen || !Model.fromJson("{\"sets\":[],\"routines\":[]}").growthTrackOfferSeen) throw new AssertionError("Optional invitation migration must never nag upgrades");
         org.openpump.GrowthTrackOnboarding.presented(gtFresh);

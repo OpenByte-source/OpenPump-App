@@ -31,8 +31,16 @@ final class GrowthTrackTiming {
         List<Model.Preset> planned = Model.planFromSnapshot(snap);
         long carryHold = 0, carryWork = 0;
         AsRun.Row previous = null, carryRow = null;
+        int inPart = run.rows.isEmpty() ? 0 : run.rows.get(0).part;
         for (AsRun.Row row : run.rows) {
             if (row.kind == AsRun.SKIPPED) continue;
+            // A STOP BETWEEN PARTS (AsRun#join) is a gap like a Hold: a hold the STOP cut is
+            // sent as far as it got, and the part after Resume starts its own.
+            if (row.part != inPart) {
+                if (carryHold > 0) out.add(new Span(carryRow, carryWork, carryHold, WORK));
+                carryHold = 0; carryWork = 0; carryRow = null; previous = null;
+                inPart = row.part;
+            }
             // A Hold or a Bluetooth dropout (bug 15) is a gap, like a rest: it ends any stitch
             // in progress (that hold is sent as far as it got) and is itself never work.
             if (row.span() > 0 && (row.kind == AsRun.HOLD || row.kind == AsRun.LOST || row.kind == AsRun.VENT)) {

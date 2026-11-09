@@ -125,6 +125,19 @@ public final class RunParts {
         if (prior.cycles >= 0) rec.cyclesDone = prior.cycles + Math.max(0, rec.cyclesDone);
     }
 
+    /**
+     * WHAT THE ONE SESSION FILES AS ITS RECORDING (the live GrowthTrack test, 9 Nov 2026): the
+     * earlier part's recording, filed under the session's start, joined with this part's
+     * (AsRun#join) - they are filed under the same key, and this part's alone used to replace
+     * the first's. `earlierFiled` is the recording of the record {@link #dropEarlier} took out,
+     * or null when there is none (a process that died filed nothing to join); then this part's
+     * is filed as it always was.
+     */
+    public static AsRun recording(RunParts prior, AsRun earlierFiled, AsRun part) {
+        if (prior == null || earlierFiled == null || earlierFiled.rows.isEmpty()) return part;
+        return AsRun.join(earlierFiled, part, prior.playedMs);
+    }
+
     /** Takes the earlier parts' filed record out of the log, so the one session replaces it
      *  rather than counting beside it; returns it, or null when there is none. */
     public static Model.Sess dropEarlier(List<Model.Sess> log, RunParts prior) {
