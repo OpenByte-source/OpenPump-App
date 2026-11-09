@@ -18816,6 +18816,25 @@ public class SessionActivity extends Activity
      * (assessTs/assessKpaList/assessNoReading, a few lines below in onSample()) for
      * exactly this reason: its telemetry is not the routine's.
      */
+    /**
+     * THE SESSION'S PEAK IS THE ROUTINE'S OWN (RunPeak): a start check running mid-run (after a
+     * step done by hand) and a before-pull are not the routine's, and the pressure they leave
+     * on the cuff counts only up to what the step playing asks for until the cuff has come
+     * down to it. The after-pull of the tissue response test runs inside the session and counts
+     * against what it commands, as it always has. Reads state only; commands nothing.
+     */
+    private void notePeakFrame(long now, double kpa, boolean noReading) {
+        if (!session.isRunTracking()) return;
+        if (guidedStarting || sealChecking) { session.peakCarriedIn(); return; }
+        if (assessing || assessVenting) {
+            if (!assessAfterPhase) { session.peakCarriedIn(); return; }
+            session.noteRoutinePeak(kpa, noReading, assessing ? assessCommandedKpa : 0.0);
+            return;
+        }
+        if (liveIdxNow(now) < 0) return;
+        session.noteRoutinePeak(kpa, noReading, commandedNowKpa(now));
+    }
+
     private void recordHoldFrame(long now, double kpa, boolean noReading) {
         if (!session.isRunTracking() || assessing || plan.isEmpty() || presetDurMs.length == 0)
             return;
@@ -27875,7 +27894,9 @@ public class SessionActivity extends Activity
         long elMs = session.elapsedMs(now, LINK_TIMEOUT_MS);
         long el = elMs / 1000;
         int presetsDone = ranAtAll ? Math.max(0, Math.min(planIdx + 1, plan.size())) : 0;
-        Double peak = ranAtAll ? session.observedPeakKpa() : null;
+        // The routine's own peak (RunPeak): the start check's pull left on the cuff when the
+        // first step began is not part of it (the live GrowthTrack test, 9 Nov 2026).
+        Double peak = ranAtAll ? session.routinePeakKpa() : null;
         double dose = ranAtAll ? session.deliveredDoseKpaS() : 0;
         int noReads = ranAtAll ? session.noReadingSampleCount() : 0;
         // Task 5 (T14+): computed ONCE, here, from the run's own recording — the raw
@@ -27901,8 +27922,10 @@ public class SessionActivity extends Activity
         // started" apart from "the routine ran and no telemetry arrived" - two completely
         // different claims it used to print with one sentence (the second one, always).
         // Filed on the record below, so a summary reopened from History gives this reason.
+        // A run whose only readings were a start check's (stopped there after a step done by
+        // hand) never reached a pressure of its own: the routine's pressure never started.
         int noPeakWhy = peak != null ? Summary.NO_PEAK_UNKNOWN
-                      : !ranAtAll ? Summary.NO_PEAK_NEVER_RAN
+                      : !ranAtAll || session.observedPeakKpa() != null ? Summary.NO_PEAK_NEVER_RAN
                       : !session.sawSampleThisRun() ? Summary.NO_PEAK_NO_READINGS
                       : Summary.NO_PEAK_NO_MEASUREMENT;
         // THE PLANNED DURATION IS NO LONGER HELD HERE. It is filed on the record below
@@ -27927,7 +27950,11 @@ public class SessionActivity extends Activity
         // not the deeper of them. Gated on ranAtAll for the same reason the after-pull
         // term is: with no tracked run there is no observed peak to compare against and
         // nothing was carried into anything.
-        int carriedInKpa = assessBeforeArmedKpa > 0 ? assessBeforeArmedKpa : sealCommandedKpa;
+        // THE LIVE GROWTHTRACK TEST (9 Nov 2026): the observed side no longer carries that
+        // residual - the session's peak is the routine's own (RunPeak) - so the commanded side
+        // does not either, and the summary has nothing carried in to name. 0, as on a session
+        // nothing was carried into; sessions filed before keep what they were filed with.
+        int carriedInKpa = 0;
         int commandedPeakKpa = Summary.commandedPeakKpa(plan, presetsDone - 1, model.ceilKpa,
                                                          ranAtAll ? assessAfterArmedKpa : 0,
                                                          ranAtAll ? carriedInKpa : 0);
@@ -28007,7 +28034,7 @@ public class SessionActivity extends Activity
         rec.cmdPeakKpa = Double.valueOf(commandedPeakKpa);
         rec.afterPullKpa = ranAtAll ? assessAfterArmedKpa : 0;
         rec.carriedInKpa = ranAtAll ? carriedInKpa : 0;
-        rec.carriedFromPull = assessBeforeArmedKpa > 0;
+        rec.carriedFromPull = carriedInKpa > 0 && assessBeforeArmedKpa > 0;
         rec.noReadSamples = noReads;
         rec.noPeakWhy = noPeakWhy;
         rec.holdEfficiencyPct = holdEff;       // null = "—" (never tracked, or under 60 s)
@@ -31949,6 +31976,9 @@ public class SessionActivity extends Activity
         // runTracking gate that keeps the seal check's and an assessment's telemetry out
         // of preset 0's hold phase.
         recordHoldFrame(now, s.kpa, s.noReading);
+        // THE SESSION'S PEAK, from the routine's own steps only (RunPeak, the live GrowthTrack
+        // test of 9 Nov 2026): never the start check's pull still on the cuff.
+        if (running) notePeakFrame(now, s.kpa, s.noReading);
         // THE PRESSURE TRACE takes its samples HERE, where they actually arrive, and not
         // from the redraw loop. Sampling a 4 Hz feed at 25 fps would put the same reading
         // in the buffer six times and stretch the shape of a pull across a time axis that
@@ -39818,7 +39848,7 @@ public class SessionActivity extends Activity
             }
             parts = RunParts.sofar(runPrior, partStart,
                 ran ? session.elapsedMs(now, LINK_TIMEOUT_MS) : 0L, net, gross,
-                ran ? session.deliveredDoseKpaS() : 0.0, ran ? session.observedPeakKpa() : null,
+                ran ? session.deliveredDoseKpaS() : 0.0, ran ? session.routinePeakKpa() : null,
                 ran ? deliveredCycles() : -1);
         } catch (RuntimeException e) {
             log("run snapshot: the figures so far could not be counted: " + e);

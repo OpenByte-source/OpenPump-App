@@ -865,6 +865,7 @@ public final class Session {
         runTracking = true;
         observedPeak = 0;
         sawRealSample = false;
+        routinePeak.reset();
         doseKpaS = 0;
         segmentOpen = false;
         segAt = 0;
@@ -1010,6 +1011,31 @@ public final class Session {
      *  card headed "Delivered"). */
     public Double observedPeakKpa() {
         return sawRealSample ? Double.valueOf(observedPeak) : null;
+    }
+
+    /** The routine's own readings, for the session's peak (RunPeak). */
+    private final RunPeak routinePeak = new RunPeak();
+
+    /** One reading while a routine step plays, `stepKpa` what the step asks for: the
+     *  session's peak counts only the routine's own pressure (RunPeak). Outside a run, nothing. */
+    public void noteRoutinePeak(double kpa, boolean noReading, double stepKpa) {
+        if (runTracking) routinePeak.note(kpa, noReading, stepKpa);
+    }
+
+    /** A start check is on the cuff mid-run: its pull is not the routine's (RunPeak). */
+    public void peakCarriedIn() {
+        if (runTracking) routinePeak.carriedIn();
+    }
+
+    /**
+     * THE SESSION'S PEAK (the live GrowthTrack test, 9 Nov 2026): the deepest reading of the
+     * routine's own steps, never the start check's pull still on the cuff when the first step
+     * began (RunPeak). Null when none counted. What the summary shows as "Peak reached", what
+     * is filed, and what GrowthTrack is sent. {@link #observedPeakKpa} stays every reading the
+     * run saw, for what has always read it.
+     */
+    public Double routinePeakKpa() {
+        return routinePeak.peakKpa();
     }
 
     /** The dose actually delivered, in kPa·s above DOSE_FLOOR_KPA — integrated over
