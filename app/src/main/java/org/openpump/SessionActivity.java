@@ -28122,7 +28122,12 @@ public class SessionActivity extends Activity
             double[] tup = session.netGrossTupSec(gFloor, model.tupCountTolKpa(gFloor));
             // Counted, this is the line its net was measured from (CountTowardTrainingTap).
             tupCountFromKpa = gFloor - model.tupCountTolKpa(gFloor);
-            if (tup[0] > 0) {
+            // A first part the person COUNTED, now resumed: the one session keeps that count,
+            // this part's net added to it once, and the question is not asked again for this
+            // part alone (RunParts#carryCount).
+            if (RunParts.carryCount(earlier, parts, rec, tup[0])) {
+                log("counted first part carried into the resumed session");
+            } else if (tup[0] > 0) {
                 pendingCountSessId = rec.id;
                 pendingCountNetSec = tup[0];
                 // Why it waits, for the question's one line: a single set, a feeder, or a

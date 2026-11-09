@@ -150,6 +150,35 @@ public final class RunParts {
         return null;
     }
 
+    /**
+     * A FIRST PART THE PERSON COUNTED, THEN RESUMED (the live GrowthTrack test's follow-up,
+     * 9 Nov 2026). STOP on a routine the plan did not write asks "Count this toward training?",
+     * and since the Resume offer waits for that answer (ResumeOffer), the answer now always
+     * comes first. Counted, the part's record carries the track and its net time
+     * (Model.Sess#countedTrack); the resumed session replaced that record without either and
+     * asked again for the resumed part alone, so the earlier part's counted time was lost.
+     *
+     * Here the one session keeps the count: the earlier part's track, and its counted net plus
+     * `partNetSec` - this part's, measured against the same line the question used - as one
+     * figure, added once ({@link #foldFigures} adds the earlier part's through `prior`; the
+     * earlier record is gone from the log by then, {@link #dropEarlier}). Returns true when it
+     * carried a count: the question is not asked again. False, changing nothing, when the
+     * earlier part was not counted (or there is none).
+     */
+    public static boolean carryCount(Model.Sess earlier, RunParts prior, Model.Sess rec,
+                                     double partNetSec) {
+        if (earlier == null || rec == null || earlier.countedTrack == Model.TRAINER_TRACK_NONE)
+            return false;
+        rec.countedTrack = earlier.countedTrack;
+        double before = earlier.netTupSec == null ? 0.0 : Math.max(0.0, earlier.netTupSec.doubleValue());
+        // The earlier parts' counted net, added once by foldFigures - whether or not `prior`
+        // was taken before the answer (STOP takes it first, so it reads no net).
+        if (prior != null) prior.netSec = before;
+        rec.netTupSec = Double.valueOf(Math.max(0.0, partNetSec)
+            + (prior == null ? before : 0.0));
+        return true;
+    }
+
     /** The before-test, when only the earlier part ran it (it runs before the first set). */
     public static void carryBefore(Model.Sess earlier, Model.Sess rec) {
         if (earlier == null || rec == null) return;
