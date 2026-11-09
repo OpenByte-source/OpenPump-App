@@ -35,6 +35,15 @@ Findings without a JVM test (the browser opening only the first time, practice r
 | `WiringCheck` 252 (new) | no GrowthTrack screen opens or stays during a live run; the sign-in return finishes at once over a run and parses no model |
 | `WiringCheck` 253 (new) | every GrowthTrack dialog goes through `Ui.dress` (secure flag) and is taken down when the screen stops |
 
+## The way back after the browser (9 November 2026, the owner's pick A)
+
+| Check | What it holds |
+|---|---|
+| `GrowthTrackReturnTest`, 10 tests | the origin (setup or Settings) kept across the browser and a process death, and the way-back button's words; the return lands on "You’re connected" only when the client stored the approval, otherwise on why not in the refusal's own words; a landing page stays until the person leaves it, and Back from it (or from the screen opened from it) leaves; where "Try again" goes; "What happens now" from the switches, a plan the person does not train left out; the account shown only when GrowthTrack gave one; setup's row: connected with or without the account, why the last sign-in did not connect, or the invitation; the client's answer to a return (approved, declined, another error) with the fake transport |
+| `WiringCheck` 252 (f, new) | Back leaves through `leave()`, never `super.onBackPressed()`; `leave()` brings the one screen to the front before it finishes; that asks the door first and uses `RunService.appIntent(this)`; no GrowthTrack file names `SessionActivity.class` |
+
+Not yet checked on a device: the whole round-trip with a real sign-in, from setup and from Settings (the owner's test with the developer): the landing page in both outcomes, its way back landing on setup at Ready or on Settings with the row up to date, hardware and gesture Back on the landing page, and Recents afterwards (one app task, no GrowthTrack task left behind).
+
 On the emulator (19 October 2026, a side-by-side debug build with a local fake transport and airplane mode on; nothing signed in anywhere): every new screen in light and dark and at font scale 1.3; Connect opened the browser on three taps out of three; a return arriving during a live (simulated) run left the run screen in front and started no GrowthTrack screen; a refused return was said on the screen; the connected states (waiting, sent, sending off) and the list; Back from the connect page opened in setup returned to setup; the lock card after leaving, one card however often Unlock is tapped, and no dead end without a screen lock; an open Disconnect dialog gone when the screen came back under its lock; the screen stayed portrait with rotation forced.
 
 Seen there and not fixed: Recents on that emulator shows the app's real icon over both the main task and the GrowthTrack task under a disguise (the task's name is the disguise's); it is the same for the main screen, so it is the launcher's behaviour, not the GrowthTrack screen's.
@@ -60,6 +69,7 @@ The site's GrowthTrack section, gallery and screenshots were removed. The Data s
 ## Not yet checked on a device
 
 - A live sign-in against a GrowthTrack test account, and a real upload. (Never against a real person's account, and never during a run.)
+- The way back after the browser, from setup and from Settings, in both outcomes (see above).
 - The retry job through airplane mode, network changes, Doze, reboot, force-stop and a stopped job.
 - Android Keystore and `AtomicFile` behaviour on a real phone: missing or invalidated key, full disk, tampered file.
 - The labels and set timings against real recordings from the pump.

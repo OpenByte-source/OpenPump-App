@@ -6,7 +6,7 @@ The connection was contributed by Karl in pull request #1 (his two commits stay 
 
 ## What the person sees
 
-**Setup (Ready step).** Under a small "Optional" label below the battery card there is one quiet divider row: the GrowthTrack mark, "GrowthTrack", "Keep your sessions in your own account too", and a chevron. The whole row opens the connect page. There is no Skip button, it never blocks Done, and it is shown once. The offer counts as seen when the person acts on it or leaves the step, not when it is drawn.
+**Setup (Ready step).** Under a small "Optional" label below the battery card there is one quiet divider row: the GrowthTrack mark, "GrowthTrack", "Keep your sessions in your own account too", and a chevron. The whole row opens the connect page. There is no Skip button, it never blocks Done, and it is shown once. The offer counts as seen when the person acts on it or leaves the step, not when it is drawn. Once a sign-in has gone through, the row's line reads "✓ Connected · sam@example.com" (or "✓ Connected" when GrowthTrack's answer names no account); after a sign-in that did not connect it says why, for example "Not connected · sign-in was cancelled". Tapping it again opens the GrowthTrack screen.
 
 **Settings.** Its own "Connected apps" group, after App lock, findable in Jump to and in Settings search. One row, "GrowthTrack", with a status line in one of three states:
 
@@ -23,6 +23,17 @@ The connection was contributed by Karl in pull request #1 (his two commits stay 
 A dashed box says "Never sent: measurements, photos, notes, practice runs." The button is "Sign in to GrowthTrack". The earlier-sessions question is asked once per account.
 
 **GrowthTrack screen.** A status card at the top: the GrowthTrack mark, "Sending to GrowthTrack", the account (email or name when the sign-in gives one, otherwise nothing), the master switch, and one status line ("Last sent today 18:42 · nothing waiting", a waiting count, or an error in plain words). Results and errors live inside this card; there is no collapsed "Connection update" and no stacked notes. Below it, "Which sessions" (the same switches; a plan switch is hidden for a track the person does not train; the type switches dim when the master switch is off), then "Sent and waiting sessions ›", a list of each session as Sent, Waiting, or Not sent with the reason. At the bottom, a quiet "Change account" and a red "Disconnect". Master off means nothing sends, and the account stays connected.
+
+**After the browser.** The GrowthTrack screen runs in a task of its own, and the sign-in's return brings that task back. So the screen records where it was opened from (setup's Ready step or Settings) when it opens, and keeps that across the browser round-trip and a process death (instance state, plus one stored word). After a sign-in this phone started, the return lands once on one of two pages:
+
+- **It connected:** a tick, "You’re connected", the account when GrowthTrack's answer gives one (otherwise no line), a "What happens now" card (which sessions go, from the stored switches, for example "Your finished girth plan and own-routine sessions go to this account.", then "Change this any time in Settings › Connected apps."), a primary button named for where the screen was opened from ("Back to setup" or "Back to Settings"), and a quiet "See connection details" that shows the usual GrowthTrack screen.
+- **It did not:** "Not connected" (or "Sign-in cancelled" when the person declined in the browser), the refusal's own words (for example "GrowthTrack approval was declined. No sessions were sent."), "Try again" and the same way-back button. Try again opens the connect page again, goes straight to the browser when the connection only needs a new sign-in, or opens "Change account" when an existing connection is still in place.
+
+Every way out of the GrowthTrack screen (the way-back button, Back on the page it was opened on or on a landing page, the lock card's back) brings the app's one screen to the front in its own task first, as it was (setup at Ready, or Settings), and never the home screen or the browser. It uses the launcher's own intent (`RunService.appIntent`), so it never creates a second session screen. While a run is live nothing GrowthTrack comes up, as before. The Settings row is read again when Settings comes back to the front.
+
+Which page the return lands on is decided from what the client says the return came to (`GrowthTrackClient.callback` answers approved, declined, or another GrowthTrack error; a failure throws with its words), never from the wording. If the screen could not see the outcome (the return was answered with no screen, because a run was live or the local check was slow), it opens as it normally would and its status card says the result.
+
+Known limit: setup's step lives for the life of the app's screen only. If Android ends the whole app while the browser is up, "Back to setup" brings the app back to the start of setup, not to Ready, and "Back to Settings" to where the app opens. The button's words still name where the person came from.
 
 **Session summary.** No GrowthTrack button. Status lives on the GrowthTrack screen.
 
@@ -94,7 +105,7 @@ The release APK holds `INTERNET` and `ACCESS_NETWORK_STATE` for this connection 
 
 ## Where the code lives
 
-`core/…/GrowthTrack*.java` holds the pure logic (protocol, client, session mapping, timing, onboarding) with JUnit tests that use a fake transport and never reach GrowthTrack. `app/…/GrowthTrack*.java` holds the screens, the browser callback, HTTP, encrypted storage, the manager and the retry job. `SessionActivity` only stamps the connection marker when filing and hands off; no HTTP runs on the pump or UI thread.
+`core/…/GrowthTrack*.java` holds the pure logic (protocol, client, session mapping, timing, onboarding, and `GrowthTrackReturn`: where the way back goes, the landing page, "What happens now" and setup's row) with JUnit tests that use a fake transport and never reach GrowthTrack. `app/…/GrowthTrack*.java` holds the screens, the browser callback, HTTP, encrypted storage, the manager and the retry job. `SessionActivity` only stamps the connection marker when filing and hands off; no HTTP runs on the pump or UI thread.
 
 ## Still to check on a device
 
