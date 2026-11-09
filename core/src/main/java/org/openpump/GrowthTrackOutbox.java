@@ -119,6 +119,20 @@ public final class GrowthTrackOutbox {
         return settings.refusal(s, run, m) == null ? connectionId : "";
     }
 
+    /**
+     * FILING: the marker ({@link #markerFor}) and, when it is empty, why
+     * (GrowthTrackSettings#held), both on the record as it is filed - the reason "Sent and
+     * waiting sessions" gives for it, whatever the switches are by then.
+     */
+    public static void file(Model.Sess s, String connectionId, Model m, AsRun run) {
+        if (s == null) return;
+        s.growthTrackConnectionId = markerFor(s, connectionId, m, run);
+        if (!s.growthTrackConnectionId.isEmpty() || s.sim) { s.gtHeldWhy = GrowthTrackSettings.HELD_NONE; return; }
+        if (connectionId == null || connectionId.isEmpty()) { s.gtHeldWhy = GrowthTrackSettings.HELD_NOT_CONNECTED; return; }
+        GrowthTrackSettings settings = m == null || m.gtSend == null ? new GrowthTrackSettings() : m.gtSend;
+        s.gtHeldWhy = settings.held(s, run, m);
+    }
+
     /** "Already on this phone": M earlier real sessions, N of them sendable under the current
      *  switches. Earlier = filed before this connection, with no account's marker (a session
      *  marked for another account is never offered: it is that account's). */
@@ -169,7 +183,13 @@ public final class GrowthTrackOutbox {
         boolean queued = known != null && known.queued;
         if (receipt.startsWith("Received") && !queued) return new Status(Status.SENT, "Sent");
         String marker = s.growthTrackConnectionId == null ? "" : s.growthTrackConnectionId;
-        if (marker.isEmpty()) return new Status(Status.NOT_SENT, "Not sent: filed while not connected or switched off");
+        if (marker.isEmpty()) {
+            // Why it was filed unmarked, as the switches were then (the live GrowthTrack test of
+            // 9 Nov 2026); a record filed before the reason was kept says what it always said.
+            String why = GrowthTrackSettings.filedWhy(s.gtHeldWhy);
+            return new Status(Status.NOT_SENT, why != null ? "Not sent: " + why
+                : "Not sent: filed while not connected or switched off");
+        }
         if (snap == null || !marker.equals(snap.connectionId)) return new Status(Status.NOT_SENT, "Not sent: belongs to an earlier connection");
         GrowthTrackSettings settings = m == null || m.gtSend == null ? new GrowthTrackSettings() : m.gtSend;
         String held = settings.refusal(s, null, m);

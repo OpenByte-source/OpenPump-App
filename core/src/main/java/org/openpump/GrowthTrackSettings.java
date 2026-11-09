@@ -63,13 +63,53 @@ public final class GrowthTrackSettings {
     public String refusal(Model.Sess s, AsRun run, Model m) {
         if (s == null) return "No session";
         if (s.sim) return "Practice runs are never sent";
-        if (!on) return "Sending to GrowthTrack is switched off";
-        if (!s.completed && !stoppedEarly) return "Stopped early, and sessions stopped early are switched off";
+        switch (held(s, run, m)) {
+            case HELD_OFF: return "Sending to GrowthTrack is switched off";
+            case HELD_STOPPED: return "Stopped early, and sessions stopped early are switched off";
+            case HELD_GIRTH: return "Girth plan sessions are switched off";
+            case HELD_LENGTH: return "Length plan sessions are switched off";
+            case HELD_MANUAL: return "Manual runs are switched off";
+            case HELD_OWN: return "Your own routines are switched off";
+            default: return null;
+        }
+    }
+
+    /**
+     * WHY A SESSION WAS FILED UNMARKED (the live GrowthTrack test, 9 Nov 2026): kept on the
+     * record (Model.Sess#gtHeldWhy), because a switch turned back on later does not send it, and
+     * "Sent and waiting sessions" must say which switch it was. The first is the phone not being
+     * connected; the rest are {@link #refusal}'s switches. 0: none, or a record filed before
+     * the reason was kept.
+     */
+    public static final int HELD_NONE = 0, HELD_NOT_CONNECTED = 1, HELD_OFF = 2, HELD_STOPPED = 3,
+        HELD_GIRTH = 4, HELD_LENGTH = 5, HELD_OWN = 6, HELD_MANUAL = 7;
+
+    /** Which switch holds this (real) session back under these settings, or HELD_NONE. */
+    public int held(Model.Sess s, AsRun run, Model m) {
+        if (s == null || s.sim) return HELD_NONE;
+        if (!on) return HELD_OFF;
+        if (!s.completed && !stoppedEarly) return HELD_STOPPED;
         switch (kindOf(s, run, m)) {
-            case KIND_GIRTH_PLAN: return girthPlan ? null : "Girth plan sessions are switched off";
-            case KIND_LENGTH_PLAN: return lengthPlan ? null : "Length plan sessions are switched off";
-            case KIND_MANUAL: return manualRuns ? null : "Manual runs are switched off";
-            default: return ownRoutines ? null : "Your own routines are switched off";
+            case KIND_GIRTH_PLAN: return girthPlan ? HELD_NONE : HELD_GIRTH;
+            case KIND_LENGTH_PLAN: return lengthPlan ? HELD_NONE : HELD_LENGTH;
+            case KIND_MANUAL: return manualRuns ? HELD_NONE : HELD_MANUAL;
+            default: return ownRoutines ? HELD_NONE : HELD_OWN;
+        }
+    }
+
+    /** "Not sent: ..." for a session filed unmarked, in the words of the switch as the
+     *  GrowthTrack screen labels it, and as it was when the session was filed. Null for
+     *  HELD_NONE (an old record: the caller keeps its general line). */
+    public static String filedWhy(int held) {
+        switch (held) {
+            case HELD_NOT_CONNECTED: return "filed while not connected";
+            case HELD_OFF: return "sending to GrowthTrack was switched off";
+            case HELD_STOPPED: return "stopped early, and “Include sessions stopped early” was off";
+            case HELD_GIRTH: return "“Girth plan” was off";
+            case HELD_LENGTH: return "“Length plan” was off";
+            case HELD_OWN: return "“My own routines” was off";
+            case HELD_MANUAL: return "“Manual runs” was off";
+            default: return null;
         }
     }
 

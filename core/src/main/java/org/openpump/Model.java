@@ -4982,6 +4982,11 @@ public final class Model {
          *  session replaces the part already sent instead of sitting beside it on GrowthTrack.
          *  "" - the record's own id. MIGRATION: "" on every record written before it. */
         public String syncId = "";
+        /** WHY THIS RECORD WAS FILED UNMARKED (GrowthTrackSettings#held): not connected, or the
+         *  switch that was off. 0: marked, a practice run, or a record filed before the reason
+         *  was kept (the list then says what it always said). MIGRATION: 0 on every record
+         *  written before it; written only when above 0. */
+        public int gtHeldWhy;
         public long durSec;             // the SAME elapsed the summary displayed
         public boolean completed;       // false = stopped early (an attempt)
         /** True when this was a MANUAL run (Task 18) — an ephemeral cycle, not a routine.
@@ -5462,6 +5467,7 @@ public final class Model {
             if (recordedEndMs > 0) o.put("recordedEndMs", String.valueOf(recordedEndMs));
             if (!growthTrackConnectionId.isEmpty()) o.put("growthTrackConnectionId", growthTrackConnectionId);
             if (syncId != null && !syncId.isEmpty()) o.put("gtSyncId", syncId);
+            if (gtHeldWhy > 0) o.put("gtWhy", gtHeldWhy);
             o.put("done", completed);
             o.put("man", manual);
             o.put("tag", tag == null ? "" : tag);
@@ -5582,6 +5588,7 @@ public final class Model {
             s.recordedEndMs = parseLong(o.optString("recordedEndMs", "0"));
             s.growthTrackConnectionId = o.optString("growthTrackConnectionId", "");
             s.syncId = o.optString("gtSyncId", "");
+            s.gtHeldWhy = Math.max(0, o.optInt("gtWhy", 0));
             s.durSec = parseLong(o.optString("dur", "0"));
             s.completed = o.optBoolean("done");
             // Absent (false) on every session filed before Task 18 — a routine run, which is

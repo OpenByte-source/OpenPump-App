@@ -63,6 +63,13 @@ public class Migrate {
             throw new AssertionError("A record Karl's branch wrote must load, with no sync id");
         gtKarl.syncId = "sess1699999000000";
         if (!"sess1699999000000".equals(Model.Sess.fromJson(gtKarl.toJson()).syncId)) throw new AssertionError("The sync id must round-trip");
+        // Why a record was filed unmarked (9 Nov 2026): 0 on every record written before it, not
+        // written for 0, and the switch round-trips.
+        if (gtKarl.gtHeldWhy != 0 || gtKarl.toJson().has("gtWhy")) throw new AssertionError("An old record has no kept reason");
+        gtKarl.gtHeldWhy = org.openpump.GrowthTrackSettings.HELD_MANUAL;
+        if (Model.Sess.fromJson(gtKarl.toJson()).gtHeldWhy != org.openpump.GrowthTrackSettings.HELD_MANUAL)
+            throw new AssertionError("The reason a record was filed unmarked must round-trip");
+        gtKarl.gtHeldWhy = 0;
         Model.AsRunSnapshot gtNoRole = Model.AsRunSnapshot.fromJson(new org.json.JSONObject("{\"rid\":\"r\",\"stages\":[{\"name\":\"Warm-up\"}]}"));
         if (gtNoRole.stages.get(0).role != Model.AsRunSnapshot.ROLE_UNKNOWN
                 || gtNoRole.toJson().getJSONArray("stages").getJSONObject(0).has("role"))

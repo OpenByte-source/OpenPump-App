@@ -28268,8 +28268,9 @@ public class SessionActivity extends Activity
         manualSource = null;
         model.adhoc.clear();
         GrowthTrackManager sync = GrowthTrackManager.get(this);
-        // Never a practice run, and never one its GrowthTrack switch was off for.
-        rec.growthTrackConnectionId = GrowthTrackOutbox.markerFor(rec, sync.connectionId(), model, null);
+        // Never a practice run, and never one its GrowthTrack switch was off for - and when it
+        // is not marked, why, for "Sent and waiting sessions" (GrowthTrackOutbox#file).
+        GrowthTrackOutbox.file(rec, sync.connectionId(), model, null);
         Store.save(this, model);
         sync.startSync(model, null);
 
