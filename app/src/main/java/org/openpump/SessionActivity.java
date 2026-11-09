@@ -1246,7 +1246,8 @@ public class SessionActivity extends Activity
 
     private final class AskCountRunnable implements Runnable {
         @Override public void run() {
-            if (isFinishing() || pendingCountSessId == null) return;
+            // Not put after all: STOP's Resume offer, kept for it, is shown now (ResumeOffer).
+            if (isFinishing() || pendingCountSessId == null) { resumeAfterQuestion(); return; }
             SessionActivity a = SessionActivity.this;
             LinearLayout col = Ui.col(a);
             col.setPadding(Ui.dp(a, 20), Ui.dp(a, 22), Ui.dp(a, 20), Ui.dp(a, Look.S1));
@@ -1263,6 +1264,8 @@ public class SessionActivity extends Activity
             // and the card below keeps the question.
             countAskDialog = Ui.dialog(a).setView(col).show();
             Ui.dress(a, countAskDialog);
+            // Answered or dismissed, STOP's kept Resume offer comes up after it (ResumeOffer).
+            countAskDialog.setOnDismissListener(new QuestionGone());
         }
     }
 
@@ -40151,9 +40154,38 @@ public class SessionActivity extends Activity
             at.prior.resumes++;
         }
         // polish RN-16: short, so it does not cover the summary, and held long enough for its
-        // action to be tapped.
-        Ui.snack(this, rootFrame, "Stopped and vented at step " + (idx + 1) + ".",
-            "Resume", new ResumeAfterStopTap(countsOf(r), at, shaped), Snack.HOLD_MS_ACTIONABLE);
+        // action to be tapped. THE LIVE GROWTHTRACK TEST (9 Nov 2026): not under "Count this
+        // toward training?" - while that question is coming or up the offer waits, and is shown
+        // with its full time once the question has gone (ResumeOffer). Otherwise at once.
+        Runnable show = new ResumeSnack("Stopped and vented at step " + (idx + 1) + ".",
+            new ResumeAfterStopTap(countsOf(r), at, shaped));
+        Runnable now = resumeOffer.offer(show, (countAskShown && pendingCountSessId != null)
+            || (countAskDialog != null && countAskDialog.isShowing()));
+        if (now != null) now.run();
+    }
+
+    /** STOP's way back, kept while the training question is up (ResumeOffer). */
+    final ResumeOffer<Runnable> resumeOffer = new ResumeOffer<Runnable>();
+
+    /** The question has gone, or is not put after all: STOP's kept offer, now. */
+    void resumeAfterQuestion() {
+        Runnable kept = resumeOffer.questionGone();
+        if (kept != null && !isFinishing()) kept.run();
+    }
+
+    private final class ResumeSnack implements Runnable {
+        private final String message; private final View.OnClickListener tap;
+        ResumeSnack(String m, View.OnClickListener t) { message = m; tap = t; }
+        @Override public void run() {
+            Ui.snack(SessionActivity.this, rootFrame, message, "Resume", tap, Snack.HOLD_MS_ACTIONABLE);
+        }
+    }
+
+    private final class QuestionGone implements DialogInterface.OnDismissListener {
+        @Override public void onDismiss(DialogInterface d) {
+            if (countAskDialog == d) countAskDialog = null;   // gone, however it went
+            resumeAfterQuestion();
+        }
     }
 
     private final class ResumeAfterStopTap implements View.OnClickListener {
