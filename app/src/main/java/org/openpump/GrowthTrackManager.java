@@ -177,7 +177,7 @@ final class GrowthTrackManager {
         blocked = true; connectedGrant = ""; cancel(); JobScheduler scheduler = jobs(); if (scheduler != null) scheduler.cancel(SYNC_JOB);
         worker.execute(new Runnable() { @Override public void run() {
             String error = null;
-            try { store.erase(); client = null; lastSnapshot = null; adoptFor = null; settled = null; blocked = false; }
+            try { store.erase(); client = null; lastSnapshot = null; adoptFor = null; settled = null; lastSignIn = null; blocked = false; }
             catch (IOException e) { error = e.getMessage(); } // Keep requests blocked until reset succeeds.
             if (listener != null) listener.done(null, error);
         } });
@@ -201,18 +201,48 @@ final class GrowthTrackManager {
         } }, listener, null);
     }
 
-    /** The sign-in return's code, exchanged on the worker; the listener may be null. Its
-     *  refusal (a return that did not match, an expired request) is kept for the GrowthTrack
-     *  screen, which reads it next (takeReturnNote) - the return itself shows nothing. */
+    /**
+     * The sign-in return's code, exchanged on the worker; the listener may be null. What it
+     * came to (GrowthTrackReturn.Outcome: connected, cancelled in the browser, or refused with
+     * the refusal's own words) is kept for the GrowthTrack screen, which the return brings up
+     * and which reads it next (takeReturn), and for setup's row (signInOutcome) - the return
+     * itself shows nothing. A network failure is said in the words the client saved for it.
+     */
     void exchange(final String uri, final Listener listener) {
         dispatch(new Work() { @Override public Object run(GrowthTrackClient ready) throws Exception {
-            ready.callback(uri); return null;
+            int answer;
+            try { answer = ready.callback(uri); }
+            catch (GrowthTrackClient.Problem e) { throw e; }
+            catch (IOException e) {
+                String said = ready.snapshot().message;
+                throw new GrowthTrackClient.Problem(said == null || said.trim().isEmpty()
+                    ? "Could not complete the connection. Connect again." : said);
+            }
+            return GrowthTrackReturn.Outcome.of(answer, ready.snapshot().message);
         } }, new Listener() { @Override public void done(Object result, String error) {
-            returnNote = error;
+            GrowthTrackReturn.Outcome o = result instanceof GrowthTrackReturn.Outcome
+                ? (GrowthTrackReturn.Outcome) result : GrowthTrackReturn.Outcome.refused(error);
+            returned = o; lastSignIn = o;
             if (listener != null) listener.done(result, error);
         } }, null);
     }
-    private volatile String returnNote;
-    /** The last sign-in return's refusal, once; null when it went through. */
-    String takeReturnNote() { String n = returnNote; returnNote = null; return n; }
+    private volatile GrowthTrackReturn.Outcome returned, lastSignIn;
+    /** The last sign-in return's outcome, once; null when there was none since it was read. */
+    GrowthTrackReturn.Outcome takeReturn() { GrowthTrackReturn.Outcome o = returned; returned = null; return o; }
+    /** How the latest sign-in this process saw ended, for setup's row; null before one, or
+     *  once a new one has started. */
+    GrowthTrackReturn.Outcome signInOutcome() { return lastSignIn; }
+    /** MAIN THREAD. A new sign-in starts: the last one's word is no longer the row's. */
+    void signInStarted() { returned = null; lastSignIn = null; }
+
+    /** "Cancel sign-in", or no browser to sign in with: the waiting request is dropped, and
+     *  setup's row says why - cancelled, or `why` when the app had to stop it. */
+    void cancelSignIn(final String why, Listener listener) {
+        dispatch(new Work() { @Override public Object run(GrowthTrackClient ready) throws Exception {
+            ready.cancelAuthorization();
+            lastSignIn = why == null ? GrowthTrackReturn.Outcome.cancelled(ready.snapshot().message)
+                : GrowthTrackReturn.Outcome.refused(why);
+            return null;
+        } }, listener, null);
+    }
 }

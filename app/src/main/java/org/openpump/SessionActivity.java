@@ -39428,6 +39428,8 @@ public class SessionActivity extends Activity
         if (setupPopup != null && setupPopup.isShowing()) refreshSetupPopup();
         // The first-run setup's battery row, back from the same system screen.
         if (currentScreen == Nav.SCR_SETUP && setupScreen != null) setupScreen.onResume();
+        // Settings' GrowthTrack row, back from the GrowthTrack screen: read again in place.
+        if (currentScreen == Nav.SCR_SETTINGS && settingsScreen != null) settingsScreen.onResume();
         // H1 - a hold the previous screen ended as it was destroyed, said once.
         showHoldEndedWithScreen();
         // (the second re-review) the vent watch's give-up is now in front of the person.

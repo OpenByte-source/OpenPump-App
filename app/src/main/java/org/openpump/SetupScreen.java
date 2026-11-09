@@ -136,9 +136,11 @@ final class SetupScreen {
                 if (!before.contains(said.get(i))) a.body.announceForAccessibility(said.get(i));
     }
 
-    /** Back from a system screen: the battery row is the one thing that can have changed. */
+    /** Back from a system screen: the battery row is the one thing that can have changed -
+     *  and, back from GrowthTrack, the GrowthTrack row (read again in place). */
     void onResume() {
-        if (w().step == STEP_READY && a.isBatteryExempt() != w().drawnExempt) show();
+        if (w().step == STEP_READY && a.isBatteryExempt() != w().drawnExempt) { show(); return; }
+        if (w().step == STEP_READY) readGrowthTrackRow();
     }
 
     /** The setup's Back - the footer's and the phone's: a step back, or, from the welcome,
@@ -967,6 +969,7 @@ final class SetupScreen {
         // OWNER DECISION 1: the GrowthTrack invitation, made quiet - under a small "Optional"
         // label below the battery card, ONE divider row (a hairline, no box): the mark, the
         // name, one line, a chevron, the whole row the target. No Skip; it never blocks Done.
+        gtRow = null; gtLine = null;
         if (w.growthTrackVisible) growthTrackRow();
 
         TextView sl = Ui.microLabel(a, null, SetupText.SUMMARY_TITLE, Ui.DIM);
@@ -1009,12 +1012,48 @@ final class SetupScreen {
         TextView name = text("GrowthTrack", Look.SP_BODY, Ui.TEXT);
         name.setTypeface(Typeface.DEFAULT_BOLD);
         words.addView(name);
-        words.addView(text("Keep your sessions in your own account too", Look.SP_CAPTION, Ui.DIM));
+        TextView line = text(GrowthTrackReturn.SETUP_INVITE, Look.SP_CAPTION, Ui.DIM);
+        words.addView(line);
         row.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(Ui.iconView(a, R.drawable.ic_chevron_right, Ui.DIM, 20));
-        Ui.group(row, "GrowthTrack, optional: keep your sessions in your own account too");
         row.setOnClickListener(new GrowthTrackChoice());
         page.addView(row, full());
+        gtRow = row; gtLine = line;
+        GrowthTrackManager gt = GrowthTrackManager.get(a);
+        paintGrowthTrackRow(gt.cached());
+        readGrowthTrackRow();
+    }
+
+    /** Setup's GrowthTrack row as drawn, so the way back from GrowthTrack updates it in place. */
+    private LinearLayout gtRow;
+    private TextView gtLine;
+
+    /** THE ROW SAYS THE STATE (the owner's pick A): "✓ Connected · <account>" once connected,
+     *  why the last sign-in did not connect, or the invitation's own line
+     *  (GrowthTrackReturn#setupRow). */
+    private void paintGrowthTrackRow(GrowthTrackClient.Snapshot snap) {
+        if (gtRow == null || gtLine == null) return;
+        GrowthTrackReturn.Row state = GrowthTrackReturn.setupRow(snap, GrowthTrackManager.get(a).signInOutcome());
+        gtLine.setText(state.text);
+        gtLine.setTextColor(state.connected ? Ui.ACCENT : Ui.DIM);
+        Ui.group(gtRow, "GrowthTrack, optional: " + state.text);
+    }
+
+    /** The connection read on the worker (the encrypted store only), then the row painted. */
+    private void readGrowthTrackRow() {
+        if (gtRow == null) return;
+        final LinearLayout row = gtRow;
+        GrowthTrackManager.get(a).run(new GrowthTrackManager.Work() {
+            @Override public Object run(GrowthTrackClient client) { return client.snapshot(); }
+        }, new GrowthTrackManager.Listener() {
+            @Override public void done(final Object result, String error) {
+                a.runOnUiThread(new Runnable() { @Override public void run() {
+                    if (row != gtRow || !row.isAttachedToWindow()) return;
+                    paintGrowthTrackRow(result instanceof GrowthTrackClient.Snapshot
+                        ? (GrowthTrackClient.Snapshot) result : GrowthTrackManager.get(a).cached());
+                } });
+            }
+        });
     }
 
     /** The invitation counts as seen: tapped, or the Ready step left. Saved unless a run is
@@ -1029,7 +1068,7 @@ final class SetupScreen {
     private final class GrowthTrackChoice implements View.OnClickListener {
         @Override public void onClick(View view) {
             growthTrackOfferSeen(GrowthTrackOnboarding.TAPPED);
-            GrowthTrackActivity.open(a, GrowthTrackPages.CONNECT);
+            GrowthTrackActivity.open(a, GrowthTrackPages.CONNECT, GrowthTrackReturn.FROM_SETUP);
         }
     }
 

@@ -29,7 +29,18 @@ import java.util.TimeZone;
  *  - the GROWTHTRACK page: the status card (the mark, "Sending to GrowthTrack", the account,
  *    the master switch, the status line, and the latest result or error in plain words), then
  *    "Which sessions", "Sent and waiting sessions", and a quiet Change account / red Disconnect;
- *  - the LIST of sent and waiting sessions.
+ *  - the LIST of sent and waiting sessions;
+ *  - after a sign-in this phone started, ONE LANDING PAGE (the owner's pick A, 9 Nov 2026):
+ *    "You’re connected" with what happens now, or why not with "Try again".
+ *
+ * THE WAY BACK. The screen runs in a task of its own, and the sign-in's return brings that
+ * task back after the browser - so leaving it by finishing alone closed it onto whatever lay
+ * under it, the home screen or the browser. It records where it was opened from (setup's Ready
+ * step or Settings; GrowthTrackReturn) when it opens, keeps that across the browser and a
+ * process death, and every way out - Back on the page it opened on, a landing page's button,
+ * the lock card's back - brings the one screen to the front in its own task first
+ * (RunService#appIntent: brought back as it is, never remade, so never a second
+ * SessionActivity; WiringCheck invariants 108 and 252).
  *
  * WHAT IT MAY TOUCH. It never owns a pump link, never starts or stops anything on the pump,
  * and is never open while a run is live or anything is unsafe: every way in and every launch
@@ -47,6 +58,11 @@ import java.util.TimeZone;
 public final class GrowthTrackActivity extends Activity {
     static final String EXTRA_PAGE = "org.openpump.GT_PAGE";
     static final String EXTRA_AFTER_SIGN_IN = "org.openpump.GT_AFTER_SIGN_IN";
+    /** Where the screen was opened from (GrowthTrackReturn#key); the sign-in's return carries none. */
+    static final String EXTRA_FROM = "org.openpump.GT_FROM";
+    /** The origin, stored as well as kept in the instance state: the process can go while the
+     *  browser is up, and the return then makes a new screen. Not personal: one word. */
+    private static final String PREFS = "growthtrack_screen", PREF_FROM = "from";
     private static final int REQ_UNLOCK = 721, REQ_UNLOCK_HOST = 722;
     private static final TimeZone ZONE = TimeZone.getDefault();
 
@@ -64,6 +80,12 @@ public final class GrowthTrackActivity extends Activity {
     /** A local word for the person (no browser, ...), shown with the latest result. */
     private String localNote = "";
     private boolean busy, afterSignIn, resumed, readOnce;
+    /** Where this screen was opened from (GrowthTrackReturn.FROM_*): the way-back button's
+     *  words. Every way out brings the one screen back whichever it is. */
+    private int origin = GrowthTrackReturn.FROM_NONE;
+    /** The landing page's outcome (GrowthTrackReturn.Outcome kind and words), 0 when none. */
+    private int landKind;
+    private String landNote = "";
     /** This screen started something of its own (the browser, the lock prompt): its onStop is
      *  not the person leaving, so the lock stays as it is. */
     private boolean ownLaunch;
@@ -83,20 +105,22 @@ public final class GrowthTrackActivity extends Activity {
         return shut;
     }
 
-    /** From the one screen: Settings' row, setup's row. `page` 0 decides from the connection. */
-    static void open(SessionActivity owner, int page) {
+    /** From the one screen: Settings' row, setup's row. `page` 0 decides from the connection;
+     *  `from` is where the way back goes (GrowthTrackReturn.FROM_SETUP / FROM_SETTINGS). */
+    static void open(SessionActivity owner, int page, int from) {
         if (doorShut(owner)) return;
         Intent intent = new Intent(owner, GrowthTrackActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra(EXTRA_PAGE, GrowthTrackPages.key(page));
+        intent.putExtra(EXTRA_FROM, GrowthTrackReturn.key(from));
         owner.startActivity(intent);
         // This app's own screen, not the person leaving: the areas they unlocked stay open.
         owner.ownLaunchPending = true;
     }
 
     static final class OpenTap implements View.OnClickListener {
-        private final SessionActivity owner; private final int page;
-        OpenTap(SessionActivity owner, int page) { this.owner = owner; this.page = page; }
-        @Override public void onClick(View v) { open(owner, page); }
+        private final SessionActivity owner; private final int page, from;
+        OpenTap(SessionActivity owner, int page, int from) { this.owner = owner; this.page = page; this.from = from; }
+        @Override public void onClick(View v) { open(owner, page, from); }
     }
 
     /** The GrowthTrack mark: "GT" on a lime-tinted square, `sizeDp` across. */
@@ -142,6 +166,11 @@ public final class GrowthTrackActivity extends Activity {
             changing = saved.getBoolean("changing", false);
             String pick = saved.getString("earlier");
             if (pick != null) earlierPick = pick;
+            origin = GrowthTrackReturn.origin(GrowthTrackReturn.FROM_NONE,
+                GrowthTrackReturn.fromKey(saved.getString("from")), storedOrigin());
+            landKind = saved.getInt("landKind", 0);
+            String note = saved.getString("landNote");
+            landNote = note == null ? "" : note;
         } else {
             arrive(getIntent());
         }
@@ -160,13 +189,33 @@ public final class GrowthTrackActivity extends Activity {
         afterSignIn = intent != null && intent.getBooleanExtra(EXTRA_AFTER_SIGN_IN, false);
         int wanted = GrowthTrackPages.fromKey(intent == null ? null : intent.getStringExtra(EXTRA_PAGE));
         page = wanted; entry = 0; changing = false; localNote = "";
+        landKind = 0; landNote = "";
+        // Where it was opened from: an opening names it (and it is stored for a return that
+        // comes to a new screen); the sign-in's return names none and keeps the screen's own.
+        int opened = GrowthTrackReturn.fromKey(intent == null ? null : intent.getStringExtra(EXTRA_FROM));
+        origin = GrowthTrackReturn.origin(opened, origin, storedOrigin());
+        if (opened != GrowthTrackReturn.FROM_NONE) storeOrigin(opened);
         if (afterSignIn) busy = true;
+    }
+
+    private int storedOrigin() {
+        try {
+            return GrowthTrackReturn.fromKey(getSharedPreferences(PREFS, MODE_PRIVATE).getString(PREF_FROM, ""));
+        } catch (RuntimeException e) { return GrowthTrackReturn.FROM_NONE; }
+    }
+
+    private void storeOrigin(int from) {
+        try {
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(PREF_FROM, GrowthTrackReturn.key(from)).apply();
+        } catch (RuntimeException ignored) { }
     }
 
     @Override protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         out.putInt("page", page); out.putInt("entry", entry);
         out.putBoolean("changing", changing); out.putString("earlier", earlierPick);
+        out.putString("from", GrowthTrackReturn.key(origin));
+        out.putInt("landKind", landKind); out.putString("landNote", landNote);
     }
 
     @Override protected void onResume() {
@@ -236,7 +285,7 @@ public final class GrowthTrackActivity extends Activity {
     /** One lock card, drawn fresh each time - never a pile of notes. */
     private void lockScreen() {
         body.removeAllViews();
-        Ui.header(this, body, Incognito.shownName(Incognito.identity(model)), new Tap(Action.FINISH));
+        Ui.header(this, body, Incognito.shownName(Incognito.identity(model)), new Tap(Action.LEAVE));
         Ui.note(this, body, "Unlock to open this page.");
         Ui.big(this, body, "Unlock", Ui.ACCENT).setOnClickListener(new Tap(Action.UNLOCK));
     }
@@ -325,11 +374,19 @@ public final class GrowthTrackActivity extends Activity {
                         snapshot = v.snapshot; states.clear(); states.putAll(v.states);
                         boolean linked = snapshot.connected || snapshot.needsReconnect;
                         if (afterSignIn) {
-                            // The sign-in's return: the exchange ran first on the serial worker,
-                            // and a refusal of it is said here, in plain words.
+                            // The sign-in's return: the exchange ran first on the serial worker.
+                            // It lands, once, on "You’re connected" or on why not, in plain
+                            // words (the owner's pick A); an outcome not known (answered with
+                            // no screen) shows the screen as it is, its card saying the result.
                             afterSignIn = false; busy = false;
-                            String refused = manager.takeReturnNote();
-                            if (refused != null) localNote = refused;
+                            GrowthTrackReturn.Outcome o = manager.takeReturn();
+                            int land = GrowthTrackReturn.landing(o);
+                            if (land != 0) {
+                                page = land; entry = land;
+                                landKind = o.kind; landNote = o.note;
+                                body.announceForAccessibility(land == GrowthTrackPages.CONNECTED ? "You’re connected"
+                                    : GrowthTrackReturn.failedTitle(o));
+                            }
                             if (snapshot.connected) { changing = false; manager.startSync(model, new Completed(Result.DONE)); }
                         } else if (wasLinked && !linked) changing = false;
                     } else if (error != null) localNote = error;
@@ -379,7 +436,9 @@ public final class GrowthTrackActivity extends Activity {
             Ui.note(this, body, busy ? "Finishing your sign-in…" : "Reading the connection…");
             return;
         }
-        if (page == GrowthTrackPages.LIST) listPage();
+        if (page == GrowthTrackPages.CONNECTED) connectedPage();
+        else if (page == GrowthTrackPages.NOT_CONNECTED) notConnectedPage();
+        else if (page == GrowthTrackPages.LIST) listPage();
         else if (page == GrowthTrackPages.HOME) homePage();
         else connectPage();
     }
@@ -570,6 +629,72 @@ public final class GrowthTrackActivity extends Activity {
         body.addView(actions);
     }
 
+    /**
+     * THE LANDING, "YOU’RE CONNECTED" (the owner's pick A): once, after a sign-in this phone
+     * started went through. The tick, the account when GrowthTrack gave one, what happens now
+     * (from the one stored setting), the way back named for where the screen was opened from,
+     * and a quiet way to the GrowthTrack screen itself.
+     */
+    private void connectedPage() {
+        Ui.header(this, body, "GrowthTrack", new Tap(Action.BACK));
+        LinearLayout hero = Ui.col(this);
+        hero.setGravity(Gravity.CENTER_HORIZONTAL);
+        hero.setPadding(0, Ui.dp(this, Look.S4), 0, Ui.dp(this, Look.S4));
+        android.widget.ImageView tick = Ui.iconView(this, R.drawable.ic_check, Ui.ACCENT, 56);
+        int inset = Ui.dp(this, 14);
+        tick.setPadding(inset, inset, inset, inset);
+        tick.setBackground(Ui.roundRect(this, Look.ACCENT_DIM, 28));
+        hero.addView(tick);
+        TextView title = new TextView(this);
+        title.setText("You’re connected");
+        title.setTextColor(Ui.TEXT);
+        title.setTextSize(Look.SP_TITLE);
+        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, Ui.dp(this, Look.S3), 0, 0);
+        if (android.os.Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
+        hero.addView(title);
+        String account = GrowthTrackReturn.account(snapshot);
+        if (account != null) caption(hero, account, Ui.DIM).setGravity(Gravity.CENTER);
+        body.addView(hero, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout now = Ui.cardGroup(this, body, null, null);
+        Ui.microLabel(this, now, "What happens now", Ui.DIM);
+        TextView goes = new TextView(this);
+        goes.setText(GrowthTrackReturn.whatGoes(send(),
+            GrowthTrackSettings.showsPlanSwitch(model, GrowthTrackSettings.KIND_GIRTH_PLAN),
+            GrowthTrackSettings.showsPlanSwitch(model, GrowthTrackSettings.KIND_LENGTH_PLAN),
+            snapshot == null ? "" : snapshot.earlierChoice));
+        goes.setTextColor(Ui.TEXT);
+        goes.setTextSize(Look.SP_BODY);
+        goes.setPadding(0, Ui.dp(this, Look.S1), 0, 0);
+        now.addView(goes);
+        Ui.note(this, now, GrowthTrackReturn.CHANGE_IT);
+
+        Ui.big(this, body, GrowthTrackReturn.backLabel(origin), Ui.ACCENT).setOnClickListener(new Tap(Action.LEAVE));
+        LinearLayout quiet = new LinearLayout(this);
+        quiet.setGravity(Gravity.CENTER);
+        quiet.addView(Ui.textLink(this, "See connection details", true, new Tap(Action.DETAILS)));
+        body.addView(quiet, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    }
+
+    /** THE LANDING WHEN IT DID NOT CONNECT: why, in the refusal's own plain words, "Try again",
+     *  and the same way back. */
+    private void notConnectedPage() {
+        GrowthTrackReturn.Outcome o = landKind == GrowthTrackReturn.Outcome.CANCELLED
+            ? GrowthTrackReturn.Outcome.cancelled(landNote) : GrowthTrackReturn.Outcome.refused(landNote);
+        Ui.header(this, body, "GrowthTrack", new Tap(Action.BACK));
+        Ui.head(this, body, GrowthTrackReturn.failedTitle(o));
+        TextView why = new TextView(this);
+        why.setText(GrowthTrackReturn.failedWords(o));
+        why.setTextColor(Ui.TEXT);
+        why.setTextSize(Look.SP_BODY);
+        body.addView(why);
+        Button again = Ui.big(this, body, "Try again", Ui.ACCENT);
+        again.setOnClickListener(new Tap(Action.TRY_AGAIN));
+        Ui.secondary(this, body, GrowthTrackReturn.backLabel(origin)).setOnClickListener(new Tap(Action.LEAVE));
+    }
+
     /** "Sent and waiting sessions": each session as Sent, Waiting, or Not sent and why. */
     private void listPage() {
         Ui.header(this, body, "Sent and waiting sessions", new Tap(Action.BACK));
@@ -611,7 +736,8 @@ public final class GrowthTrackActivity extends Activity {
 
     /* ======================================================================= actions */
 
-    private enum Action { UNLOCK, FINISH, BACK, SIGN_IN, SIGN_IN_AGAIN, CANCEL_SIGN_IN, SEND_NOW, LIST, CHANGE_ACCOUNT, DISCONNECT, RESET }
+    private enum Action { UNLOCK, LEAVE, BACK, SIGN_IN, SIGN_IN_AGAIN, CANCEL_SIGN_IN, SEND_NOW, LIST, CHANGE_ACCOUNT, DISCONNECT, RESET,
+        DETAILS, TRY_AGAIN }
 
     private final class Tap implements View.OnClickListener {
         final Action action; Tap(Action action) { this.action = action; }
@@ -652,18 +778,28 @@ public final class GrowthTrackActivity extends Activity {
     }
 
     private void act(Action action) {
-        if (busy && action != Action.BACK && action != Action.FINISH) return;
+        if (busy && action != Action.BACK && action != Action.LEAVE) return;
         switch (action) {
             case UNLOCK: askUnlock(); break;
-            case FINISH: finish(); break;
+            case LEAVE: leave(); break;
             case BACK: onBackPressed(); break;
+            case DETAILS: page = GrowthTrackPages.pageFor(GrowthTrackPages.HOME, snapshot, false); render(); break;
+            case TRY_AGAIN: {
+                int how = GrowthTrackReturn.tryAgain(snapshot);
+                landKind = 0; landNote = ""; localNote = "";
+                if (how == GrowthTrackReturn.TRY_SIGN_IN_AGAIN) { page = GrowthTrackPages.HOME; signIn(true); break; }
+                changing = how == GrowthTrackReturn.TRY_CHANGE_ACCOUNT;
+                page = GrowthTrackPages.CONNECT;
+                render();
+                break;
+            }
             case LIST: page = GrowthTrackPages.LIST; render(); break;
             case CHANGE_ACCOUNT: changing = true; page = GrowthTrackPages.CONNECT; localNote = ""; render(); break;
             case SIGN_IN: signIn(false); break;
             case SIGN_IN_AGAIN: signIn(true); break;
             case CANCEL_SIGN_IN:
                 busy = true; render();
-                manager.run(new CancelSignIn(), new Completed(Result.DONE)); break;
+                manager.cancelSignIn(null, new Completed(Result.DONE)); break;
             case SEND_NOW: busy = true; render(); manager.startSync(model, new Completed(Result.DONE)); break;
             case DISCONNECT: {
                 AlertDialog d = Ui.dialog(this).setTitle("Disconnect GrowthTrack?")
@@ -691,6 +827,7 @@ public final class GrowthTrackActivity extends Activity {
             Store.save(this, model);   // the switches as chosen on this page
         }
         busy = true; localNote = ""; render();
+        manager.signInStarted();
         manager.run(new Begin(again ? "" : choice, !again && changing), new Completed(Result.SIGN_IN));
     }
 
@@ -700,10 +837,6 @@ public final class GrowthTrackActivity extends Activity {
         @Override public Object run(GrowthTrackClient client) throws Exception {
             return change ? client.beginChangeAccount(choice) : client.begin(choice);
         }
-    }
-
-    private static final class CancelSignIn implements GrowthTrackManager.Work {
-        @Override public Object run(GrowthTrackClient client) throws Exception { client.cancelAuthorization(); return null; }
     }
 
     /** The browser step: the identity's own way back first (bug 10), then the browser. */
@@ -716,16 +849,45 @@ public final class GrowthTrackActivity extends Activity {
         } catch (android.content.ActivityNotFoundException e) {
             ownLaunch = false;
             localNote = "No browser is available on this phone. Turn one on to sign in.";
-            manager.run(new CancelSignIn(), null);
+            manager.cancelSignIn(localNote, null);
             render();
         }
     }
 
+    /** Back - the phone's and the header's. On the page the screen was opened on (a landing
+     *  page included) it leaves, the way the landing's button does. */
     @Override public void onBackPressed() {
         int to = GrowthTrackPages.back(page, entry, changing);
-        if (to == GrowthTrackPages.FINISH || busy && page == entry) { super.onBackPressed(); return; }
+        if (to == GrowthTrackPages.FINISH || busy && page == entry) { leave(); return; }
         if (page == GrowthTrackPages.CONNECT) changing = false;
         page = to; localNote = "";
         render();
+    }
+
+    /**
+     * LEAVING (the owner's pick A). This screen's task was brought back by the sign-in's
+     * return, so finishing alone would close it onto what lies under it - the browser or the
+     * home screen. The one screen comes to the front first, in its own task, as it is (setup at
+     * its Ready step, or Settings), then this screen goes.
+     */
+    private void leave() {
+        frontTheApp();
+        finish();
+    }
+
+    /** The one screen to the front: RunService#appIntent, the launcher's own intent - the task
+     *  brought back as it is, never remade, so never a second SessionActivity (invariant 108).
+     *  Not while a run is live: it is already the screen in front. This screen's own launch,
+     *  so the areas unlocked stay as they are (ownLaunch). */
+    private boolean frontTheApp() {
+        if (doorShut(null)) return false;
+        ownLaunch = true;
+        try {
+            startActivity(RunService.appIntent(this));
+            return true;
+        } catch (RuntimeException e) {
+            ownLaunch = false;
+            return false;
+        }
     }
 }

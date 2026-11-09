@@ -1993,14 +1993,30 @@ final class SettingsScreen {
         words.addView(status);
         row.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(Ui.iconView(a, R.drawable.ic_chevron_right, Ui.DIM, 20));
-        row.setOnClickListener(new GrowthTrackActivity.OpenTap(a, 0));
+        row.setOnClickListener(new GrowthTrackActivity.OpenTap(a, 0, GrowthTrackReturn.FROM_SETTINGS));
         parent.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT));
+        gtRow = row; gtStatus = status;
+        readGrowthTrackRow();
+    }
+
+    /** The GrowthTrack row as drawn, so coming back from the GrowthTrack screen brings it up to
+     *  date in place (onResume). */
+    private LinearLayout gtRow, gtStatus;
+
+    /** Back in front (from the GrowthTrack screen, among others): the GrowthTrack row is read
+     *  again, so it is fresh when the way back from a sign-in lands here. */
+    void onResume() {
+        if (gtRow != null && gtRow.isAttachedToWindow()) readGrowthTrackRow();
+    }
+
+    /** Painted from the last known connection, then from the worker's fresh read. */
+    private void readGrowthTrackRow() {
         GrowthTrackManager gt = GrowthTrackManager.get(a);
-        paintGrowthTrackRow(row, status, gt.cached());
+        paintGrowthTrackRow(gtRow, gtStatus, gt.cached());
         gt.run(new GrowthTrackManager.Work() {
             @Override public Object run(GrowthTrackClient client) { return client.snapshot(); }
-        }, new GrowthTrackRowRead(row, status));
+        }, new GrowthTrackRowRead(gtRow, gtStatus));
     }
 
     private void paintGrowthTrackRow(LinearLayout row, LinearLayout status, GrowthTrackClient.Snapshot snap) {
