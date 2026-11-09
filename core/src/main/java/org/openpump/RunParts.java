@@ -151,6 +151,20 @@ public final class RunParts {
     }
 
     /**
+     * THE EARLIER PARTS' ROWS A REJOINED RUN CARRIES (follow-up to the live GrowthTrack test,
+     * 9 Nov 2026): the killed part's own copy, read back from its provisional key - written on
+     * every note, and joined with every part before it once a rejoin has carried them - else
+     * the recording of the part that was filed (STOP, or a screen destroyed mid-run, which
+     * re-keys it), else null. The run joins them into what it persists and files
+     * ({@link #recording}), so a second kill keeps them too. Recording only.
+     */
+    public static AsRun priorRows(AsRun provisional, AsRun filed) {
+        if (provisional != null && !provisional.rows.isEmpty()) return provisional;
+        if (filed != null && !filed.rows.isEmpty()) return filed;
+        return null;
+    }
+
+    /**
      * A FIRST PART THE PERSON COUNTED, THEN RESUMED (the live GrowthTrack test's follow-up,
      * 9 Nov 2026). STOP on a routine the plan did not write asks "Count this toward training?",
      * and since the Resume offer waits for that answer (ResumeOffer), the answer now always

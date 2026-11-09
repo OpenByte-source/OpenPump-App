@@ -67,6 +67,10 @@ public final class RunRejoin {
         /** The run's earlier parts - what they played, and their filed record if any - so the
          *  rejoined run files as ONE session (RunParts); null for none known. */
         public RunParts prior;
+        /** Where the killed part's as-run rows were persisted while it ran: its provisional
+         *  asrun.json key, the start the snapshot keeps. In memory only (the snapshot already
+         *  holds it); 0 when the run was not killed (a Resume after STOP). Recording only. */
+        public long rowsKey;
 
         /** Whether this snapshot can be read in the run's own shape. */
         public boolean known() { return built > 0 && block >= 0; }

@@ -14225,6 +14225,7 @@ public class SessionActivity extends Activity
         skipCut.clear();         // FIX11 F4 - and what Skip cut out
         runTakenSrc.clear();     // rc9b - and the Skip button's
         runPrior = null;         // a fresh run has no earlier part (a rejoin sets it after)
+        runPriorRows = null;     // ...and no earlier rows
         comingChanged.clear();
         comingOrig.clear();
         setClock.reset();
@@ -23881,7 +23882,9 @@ public class SessionActivity extends Activity
     /** Writes the recording under its current key. Cheap: Store keeps the file parsed. */
     void asRunPersist() {
         if (asRunKey == 0 || asRun == null) return;
-        Store.saveAsRun(this, asRunKey, asRun);
+        // A rejoined run persists its earlier parts' rows with its own, so a kill now keeps them.
+        Store.saveAsRun(this, asRunKey, runPriorRows == null ? asRun
+            : RunParts.recording(runPrior, runPriorRows, asRun));
     }
 
     /**
@@ -23892,7 +23895,8 @@ public class SessionActivity extends Activity
      * session.endRun() stops the clock. Idempotent on the recording: close() on nothing
      * open is a no-op, and fileSession itself runs once per session.
      */
-    private void asRunFile(Model.Sess rec, long elapsedMs, Model.Sess earlier, RunParts parts) {
+    private void asRunFile(Model.Sess rec, long elapsedMs, Model.Sess earlier, RunParts parts,
+                           AsRun partsRows) {
         asRunForgetPending();
         if (asRunKey == 0) {
             // No run was recorded for THIS session (an abort during the seal check, before
@@ -23918,8 +23922,9 @@ public class SessionActivity extends Activity
             // of 9 Nov 2026): the first part's recording is under the same key as this one, and
             // this part's alone used to replace it. `asRun` stays this part's own - the cycles
             // below are counted from it and the earlier parts' added by RunParts.
-            AsRun earlierRun = earlier == null || !earlier.hasAsRun ? null
-                : Store.loadAsRun(this, earlier.ts);
+            // The rows the rejoin carried (a killed part's included); else the filed part's.
+            AsRun earlierRun = partsRows != null ? partsRows
+                : earlier == null || !earlier.hasAsRun ? null : Store.loadAsRun(this, earlier.ts);
             AsRun filed = RunParts.recording(parts, earlierRun, asRun);
             filed.ts = rec.ts;
             rec.hasAsRun = !filed.rows.isEmpty();
@@ -23931,7 +23936,7 @@ public class SessionActivity extends Activity
             if (asRunKey != rec.ts) Store.deleteAsRun(this, asRunKey);
             asRunKey = 0;
             // The earlier part's own key, when it was not this session's start.
-            if (earlierRun != null && earlier.ts != rec.ts) Store.deleteAsRun(this, earlier.ts);
+            if (earlier != null && earlier.hasAsRun && earlier.ts != rec.ts) Store.deleteAsRun(this, earlier.ts);
             if (rec.hasAsRun) Store.saveAsRun(this, rec.ts, filed);
             // ONE CUTOFF FOR BOTH HALVES OF A RECORDING. The rows go from asrun.json
             // and the routine snapshot goes from the Sess in model.json at the same
@@ -25612,6 +25617,10 @@ public class SessionActivity extends Activity
      *  the leftovers, option A): filed with this part as ONE session. Null for a run in one
      *  part; set by RejoinRunTap after startSession, taken by fileSession. */
     RunParts runPrior;
+    /** The earlier parts' as-run rows, carried by a rejoined or resumed run (RunParts#priorRows):
+     *  joined into everything this part persists and files. Null for a run in one part. Set by
+     *  RejoinRunTap after startSession, taken by fileSession. Recording only. */
+    AsRun runPriorRows;
     /** When the snapshot last kept the figures so far (tickRun's slow beat). */
     private long snapPartsAt;
     /** How often the tick re-writes them between step boundaries: a death loses at most this
@@ -27888,6 +27897,8 @@ public class SessionActivity extends Activity
         // resumed run carries its earlier parts here, and files them with this one.
         RunParts parts = runPrior;
         runPrior = null;
+        AsRun partsRows = runPriorRows;
+        runPriorRows = null;
 
         // ONE derivation of "how far did it get", used by the summary AND by the History
         // row — defect #11 in the do-not-reintroduce list, and defect #02's root cause.
@@ -28197,7 +28208,7 @@ public class SessionActivity extends Activity
         // t10 O8 - a reduced day of the return, asked before this session spends its step
         // below (Deload#onFiled): its length reading stays out of the low streak.
         rec.returnDay = !manualSession && Deload.reducedOn(model, rec.ts);
-        asRunFile(rec, elMs, earlier, parts);
+        asRunFile(rec, elMs, earlier, parts, partsRows);
         // Counted over the recording asRunFile has just closed - the same recording, at the
         // same moment, the summary's cycles row used to count it from.
         rec.cyclesDone = deliveredCycles();
@@ -39936,6 +39947,8 @@ public class SessionActivity extends Activity
             // RunParts - what the run had played (and filed); its rejoin counts once more.
             spot.prior = RunParts.fromCode(p.getString(KEY_SNAP_PARTS, ""));
             if (spot.prior != null) spot.prior.rejoins++;
+            // ...and where its rows were persisted while it ran (its provisional key).
+            spot.rowsKey = started;
         } catch (Exception e) { return false; }
         if (rid == null || idx < 0) return false;
         clearRunSnapshot();                       // offered once, whatever is chosen
@@ -40054,6 +40067,30 @@ public class SessionActivity extends Activity
             // played before - and its record, if it was filed - goes with this part to the
             // filing, which adds them together and replaces that record.
             runPrior = spot.prior;
+            /* RECORDING ONLY (follow-up to the live GrowthTrack test, 9 Nov 2026): the earlier
+             * parts' rows go with this part. After a kill nothing was filed and they are still
+             * where the run persisted them, under the key the snapshot names; after STOP (or a
+             * screen that filed) they are the filed record's. Persisted at once under this
+             * part's own key, joined with its rows, so a second kill keeps them; the killed
+             * part's old key then goes. Nothing here reaches the pump. */
+            runPriorRows = null;
+            if (runPrior != null) {
+                long key = spot.rowsKey > 0 && spot.rowsKey != asRunKey ? spot.rowsKey : 0L;
+                AsRun provisional = key > 0 ? Store.loadAsRun(SessionActivity.this, key) : null;
+                Model.Sess filedPart = null;
+                for (int i = 0; runPrior.sessId != null && runPrior.sessId.length() > 0
+                        && i < model.sessLog.all.size(); i++) {
+                    Model.Sess e = model.sessLog.all.get(i);
+                    if (e != null && runPrior.sessId.equals(e.id)) { filedPart = e; break; }
+                }
+                AsRun filedRows = filedPart == null || !filedPart.hasAsRun ? null
+                    : Store.loadAsRun(SessionActivity.this, filedPart.ts);
+                runPriorRows = RunParts.priorRows(provisional, filedRows);
+                if (runPriorRows != null) {
+                    asRunPersist();
+                    if (runPriorRows == provisional) Store.deleteAsRun(SessionActivity.this, key);
+                }
+            }
             /* rc9b (EMU9b N1) - THE RUN IN THE SHAPE IT HAD. The rebuild is the routine; the run
              * had been edited "this run only" - Coming steps' skips, the Skip button's - and the
              * index it was on is counted in THAT list. Read against the rebuild it named a step
