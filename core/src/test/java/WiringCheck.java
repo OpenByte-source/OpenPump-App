@@ -31650,6 +31650,14 @@ public final class WiringCheck {
      *       (no main-thread parse, nothing of the person's data);
      *   (e) nothing else starts a GrowthTrack screen: `GrowthTrackActivity.class` is named in an
      *       Intent only in GrowthTrackActivity.open (door first) and the return's show().
+     *   (f) (the owner's pick A, 9 Nov 2026) THE WAY BACK IS THE ONE SCREEN, BROUGHT BACK. The
+     *       screen's task is the one the sign-in's return brings up, so finishing alone closed
+     *       it onto the browser or the home screen. Back (onBackPressed) leaves through leave(),
+     *       never super.onBackPressed(); leave() brings the one screen to the front
+     *       (frontTheApp()) before it finishes; frontTheApp asks the door first and starts
+     *       RunService.appIntent(this) - the launcher's own intent, the task brought back as it
+     *       is and never remade - and the GrowthTrack files never name SessionActivity.class, so
+     *       no second session screen can be asked for (invariant 108).
      * ===================================================================================== */
     static void checkGrowthTrackDoor(String gt, String cb, Map<String, String> others,
                                      List<String> violations) {
@@ -31705,6 +31713,36 @@ public final class WiringCheck {
             violations.add("GrowthTrackCallbackActivity.java:" + lineOf(cb, data.start()) + ": invariant "
                 + "252 - the sign-in return names " + data.group(1) + " - it parses no model on the "
                 + "main thread and touches none of the person's data");
+        String back = body228(gt, "void\\s+onBackPressed\\s*\\(", "GrowthTrackActivity.java", "onBackPressed",
+            violations);
+        if (back != null && (back.indexOf("leave();") < 0 || back.indexOf("super.onBackPressed(") >= 0))
+            violations.add("GrowthTrackActivity.java: invariant 252 - Back finishes the screen without "
+                + "bringing the one screen back (onBackPressed must leave through leave(), never "
+                + "super.onBackPressed()) - it would land on the browser or the home screen");
+        String leave = body228(gt, "void\\s+leave\\s*\\(", "GrowthTrackActivity.java", "leave", violations);
+        if (leave != null) {
+            int front = leave.indexOf("frontTheApp();");
+            int fin = leave.indexOf("finish();");
+            if (front < 0 || fin < front)
+                violations.add("GrowthTrackActivity.java: invariant 252 - leave() finishes before it "
+                    + "brings the one screen to the front (frontTheApp();) - the way back lands on "
+                    + "whatever task lay under this one");
+        }
+        String front = body228(gt, "boolean\\s+frontTheApp\\s*\\(", "GrowthTrackActivity.java", "frontTheApp",
+            violations);
+        if (front != null) {
+            int d = front.indexOf("if(doorShut(null))returnfalse;");
+            int go = front.indexOf("startActivity(RunService.appIntent(this))");
+            if (d < 0 || go < d)
+                violations.add("GrowthTrackActivity.java: invariant 252 - frontTheApp does not ask the "
+                    + "door first and bring the one screen back through RunService.appIntent(this) - "
+                    + "the way back could remake the screen that owns the link");
+        }
+        Matcher named = Pattern.compile("SessionActivity\\s*\\.\\s*class").matcher(gt + "\n" + cb);
+        if (named.find())
+            violations.add("GrowthTrack screens: invariant 252 - SessionActivity.class is named in a "
+                + "GrowthTrack file - the one screen is brought back through RunService.appIntent, "
+                + "never asked for by a new intent of its own");
         String open = body228(gt, "static\\s+void\\s+open\\s*\\(", "GrowthTrackActivity.java", "open",
             violations);
         if (open != null && open.indexOf("if(doorShut(owner))return;") != 0)
@@ -31826,6 +31864,10 @@ public final class WiringCheck {
             + "  private final class Delivered implements Runnable { public void run() {\n"
             + "    if (doorShut(null)) { finish(); return; } } }\n"
             + "  private void ask() { AlertDialog d = Ui.dialog(this).setTitle(\"x\").show(); Ui.dress(this, d); }\n"
+            + "  @Override public void onBackPressed() { int to = back(); if (to == FINISH) { leave(); return; } render(); }\n"
+            + "  private void leave() { frontTheApp(); finish(); }\n"
+            + "  private boolean frontTheApp() { if (doorShut(null)) return false; ownLaunch = true;\n"
+            + "    try { startActivity(RunService.appIntent(this)); return true; } catch (RuntimeException e) { return false; } }\n"
             + "}\n";
         String cb =
               "public final class GrowthTrackCallbackActivity extends Activity {\n"
@@ -31870,6 +31912,16 @@ public final class WiringCheck {
               "a sign-in return that parses the model on the main thread" },
             { "252", "settings", "GrowthTrackActivity.open(a, 0);", "a.startActivity(new Intent(a, GrowthTrackActivity.class));",
               "a GrowthTrack screen started around the door" },
+            { "252", "gt", "if (to == FINISH) { leave(); return; }", "if (to == FINISH) { super.onBackPressed(); return; }",
+              "a Back that finishes onto the browser or the home screen" },
+            { "252", "gt", "private void leave() { frontTheApp(); finish(); }", "private void leave() { finish(); }",
+              "a way back that finishes without bringing the one screen back" },
+            { "252", "gt", "private void leave() { frontTheApp(); finish(); }", "private void leave() { finish(); frontTheApp(); }",
+              "a way back that finishes first" },
+            { "252", "gt", "if (doorShut(null)) return false; ownLaunch", "ownLaunch",
+              "a way back that brings the one screen up with the door unasked" },
+            { "252", "gt", "startActivity(RunService.appIntent(this))",
+              "startActivity(new Intent(this, SessionActivity.class))", "a way back that asks for a session screen of its own" },
             { "253", "gt", " Ui.dress(this, d); }", " }", "a GrowthTrack dialog shown undressed" },
             { "253", "gt", "AlertDialog d = Ui.dialog(this)", "AlertDialog d = new AlertDialog.Builder(this)",
               "a GrowthTrack dialog built around Ui.dialog" },
