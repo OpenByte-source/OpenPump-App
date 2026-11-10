@@ -278,7 +278,7 @@ public final class GrowthTrackClient {
         save();
     }
     public synchronized void disconnect() throws IOException {
-        cancelled = true; clearAuthority("Disconnected on this device. Remove OpenPump in GrowthTrack Connected apps to revoke its server approval.");
+        cancelled = true; clearAuthority("Disconnected on this device. Remove OpenPump in GrowthTrack's Connected apps and devices to revoke its server approval.");
         put("receipts", new JSONObject()); put("aliases", new JSONObject()); put("revisions", new JSONObject());
         state.remove("account"); state.remove("last_sent_at"); save();
     }

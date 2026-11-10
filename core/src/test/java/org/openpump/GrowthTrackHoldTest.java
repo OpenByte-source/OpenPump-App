@@ -277,6 +277,16 @@ class GrowthTrackHoldTest {
         assertEquals("Sent", GrowthTrackOutbox.statusOf(part, f.client.snapshot(), f.client.state("op_taken"), m).text, "accepted: updated");
     }
 
+    /* ------------------------------------------------------------------ GrowthTrack's own page's name */
+
+    @Test void disconnectNamesGrowthTracksPageAsItIsCalled() throws Exception {
+        String gt = body(src("GrowthTrackActivity.java"), "case DISCONNECT:");
+        assertTrue(gt.contains("Connected apps and devices"), "GrowthTrack's page is \"Connected apps and devices\"");
+        GrowthTrackIntegrationTest.Fixture f = new GrowthTrackIntegrationTest.Fixture();
+        f.client.disconnect();
+        assertTrue(f.client.snapshot().message.contains("Connected apps and devices"), f.client.snapshot().message);
+    }
+
     /* ------------------------------------------------------------------ docs */
 
     @Test void noDocStillPromisesAResumedSessionIsSentAgainAsAnUpdate() throws Exception {

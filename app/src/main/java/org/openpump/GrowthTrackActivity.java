@@ -820,7 +820,7 @@ public final class GrowthTrackActivity extends Activity implements GrowthTrackWa
                 AlertDialog d = Ui.dialog(this).setTitle("Disconnect GrowthTrack?")
                     .setMessage("OpenPump stops sending and forgets this account on this phone. Sessions already "
                         + "sent stay in your GrowthTrack account. To remove OpenPump's access there too, remove it "
-                        + "under Connected apps in GrowthTrack.")
+                        + "under Connected apps and devices in GrowthTrack.")
                     .setPositiveButton("Disconnect", new Decision(Action.RESET)).setNegativeButton("Cancel", null).show();
                 Ui.dress(this, d);
                 Ui.dangerPositive(d);
