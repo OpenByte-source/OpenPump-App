@@ -53,7 +53,7 @@ A session is sent when it is a real (not practice) finished session of a type th
 
 - **Never sent:** measurements, photos, notes, practice runs, and anything identifying the person beyond their own GrowthTrack account.
 - **Deleting a session** withdraws it from the queue. A session already received stays in GrowthTrack.
-- **STOP then Resume** keeps the original start time; the full session is sent under the same stable id, as an update of what was sent before, not as a fragment.
+- **STOP then Resume** keeps the original start time, and the session is sent once, whole. GrowthTrack keeps the first copy of a session it receives and does not change it later, so a session that can still be continued is not sent yet: while Resume is on offer after STOP, while a run lost mid-way can still be rejoined, and while a resumed or rejoined run is playing. "Sent and waiting sessions" says so ("Waiting · can still be resumed", "Waiting · can still be rejoined", "Waiting · sends when the run ends"). When that chance is over it goes on the next send. If GrowthTrack already holds an earlier copy of a session (sent by an earlier version), the session stays "Sent" and its row says the later changes stayed on this phone.
 - **Earlier sessions from 0.10.0** have no `recordedStartMs`/`recordedEndMs`. Their times come from the session's own recording (the as-run rows hold real timestamps); a session whose recording cannot give them is not counted or offered.
 - **Changing account** never sends the previous account's sessions to the new one. Reconnecting never wipes the queue, and starting a reconnect and then cancelling it leaves the working connection as it was.
 - **One stable connection id**, random and separate from the OAuth `state` value.

@@ -133,7 +133,7 @@ final class GrowthTrackManager {
         final String adopt = adoptFor;
         final boolean adopting = adopt != null && adopt.equals(connectionId()) && !RunService.isRunning();
         if (adopting && GrowthTrackOutbox.adoptEarlier(model, adopt, lookup) > 0) Store.save(context, model);
-        final GrowthTrackOutbox box = GrowthTrackOutbox.take(model, connectionId(), lookup, settled);
+        final GrowthTrackOutbox box = GrowthTrackOutbox.take(model, connectionId(), lookup, settled, holds(model));
         dispatch(new Work() { @Override public Object run(GrowthTrackClient ready) throws Exception {
             if (adopting) ready.earlierAdopted(adopt);
             GrowthTrackClient.Snapshot state = ready.snapshot();
@@ -146,6 +146,17 @@ final class GrowthTrackManager {
             if (listener != null) listener.done(result, error);
             main.post(passFinished);
         } }, request);
+    }
+    /**
+     * MAIN THREAD. WAIT UNTIL FINAL (GrowthTrackHold): the filed sessions a run can still
+     * continue, and why - the run screen's own word while it is alive (STOP's offer, the rejoin
+     * asked, a run playing now, its snapshot), else the run snapshot's alone. Every pass leaves
+     * them out, and "Sent and waiting sessions" says why they wait.
+     */
+    java.util.Map<String, Integer> holds(Model model) {
+        SessionActivity live = SessionActivity.liveForDataHandoff();
+        if (live != null) return live.gtHolds();
+        return GrowthTrackHold.of(null, null, null, SessionActivity.gtSnapshotHold(context, model));
     }
     /** History > Delete: a waiting session is withdrawn before it can be sent (bug 6). The
      *  listener gets GrowthTrackClient#withdraw's answer (an Integer). */

@@ -59,8 +59,41 @@ public final class ResumeOffer<T> {
         onScreenUntil = now + Math.max(0L, holdMs);
     }
 
-    /** Resume was tapped: the offer is done with. */
-    public void spent() { onScreen = null; }
+    /** Resume was tapped: the offer is done with (the run it resumes holds the part now). */
+    public void spent() { onScreen = null; holds = null; }
+
+    /* ---- WHAT IT HOLDS BACK FROM GROWTHTRACK (wait until final, 10 Nov 2026) ----
+     *
+     * GrowthTrack keeps the first copy of a session it is sent, so the part STOP filed is not
+     * sent while this offer can still bring it back (GrowthTrackHold): from its filing, before
+     * the sync that filing starts, through the question however long it is up, until the
+     * offer's time on screen is over. In memory only: with the screen gone no Resume can come. */
+
+    private String holds;
+
+    /** STOP's part, filed with a Resume to be offered for it: held from now. */
+    public void holding(String sessId) { holds = sessId; onScreen = null; }
+
+    /** The part the offer still holds, or null: none, Resume taken, or its time up. */
+    public String held(long now) {
+        if (holds == null) return null;
+        if (kept == null && onScreen != null && now >= onScreenUntil) return null;
+        return holds;
+    }
+
+    /** True once, when a part it held has become final by its time running out. */
+    public boolean ended(long now) {
+        if (holds == null || held(now) != null) return false;
+        holds = null;
+        return true;
+    }
+
+    /** No offer after all (or the Resume could not start): final now. True if it held one. */
+    public boolean release() {
+        boolean had = holds != null;
+        holds = null;
+        return had;
+    }
 
     /** A note for this moment. WITH_OFFER and AGAIN keep it for the offer's message
      *  ({@link #takeNote}); AGAIN asks the caller to show {@link #again} now. */

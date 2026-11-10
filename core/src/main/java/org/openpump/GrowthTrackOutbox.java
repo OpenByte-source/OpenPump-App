@@ -71,7 +71,8 @@ public final class GrowthTrackOutbox {
     public final boolean sendingOn;
     /** stableIds of every session on the phone (own id and the id it is sent under). */
     public final Set<String> live;
-    /** stableIds held back by a switch; their waiting payloads are withdrawn. */
+    /** stableIds held back by a switch, or until final (GrowthTrackHold); their waiting payloads
+     *  are withdrawn. */
     public final Set<String> heldBack;
     public final List<Item> items;
 
@@ -87,6 +88,13 @@ public final class GrowthTrackOutbox {
      * with a long history drafts only what is still open; null drafts everything marked.
      */
     public static GrowthTrackOutbox take(Model m, String connectionId, AsRunLookup lookup, Map<String, Integer> settled) {
+        return take(m, connectionId, lookup, settled, null);
+    }
+
+    /** ...leaving out what can still be continued (`holds`, GrowthTrackHold: session id -> why),
+     *  withdrawn from the queue too until it is final, then sent once, whole. Null holds nothing. */
+    public static GrowthTrackOutbox take(Model m, String connectionId, AsRunLookup lookup, Map<String, Integer> settled,
+                                         Map<String, Integer> holds) {
         Set<String> live = new HashSet<String>(), held = new HashSet<String>();
         List<Item> items = new ArrayList<Item>();
         GrowthTrackSettings settings = m == null || m.gtSend == null ? new GrowthTrackSettings() : m.gtSend;
@@ -101,6 +109,8 @@ public final class GrowthTrackOutbox {
             int revision = Math.max(0, s.resumes) + Math.max(0, s.rejoins);
             Integer done = settled == null ? null : settled.get(local);
             if (done != null && done >= revision) continue;
+            // WAIT UNTIL FINAL (GrowthTrackHold): GrowthTrack keeps the first copy it is sent.
+            if (holds != null && holds.containsKey(s.id)) { held.add(local); if (external != null) held.add(external); continue; }
             AsRun run = lookup == null ? null : lookup.asRun(s);
             if (settings.refusal(s, run, m) != null) { held.add(local); if (external != null) held.add(external); continue; }
             items.add(Item.of(s, run, m));
@@ -177,11 +187,17 @@ public final class GrowthTrackOutbox {
     }
     /** Pure: the record, the client's word on it (GrowthTrackClient#state) and the switches. */
     public static Status statusOf(Model.Sess s, GrowthTrackClient.Snapshot snap, GrowthTrackClient.SessionState known, Model m) {
+        return statusOf(s, snap, known, m, GrowthTrackHold.NONE);
+    }
+    /** ...and `hold`, why it waits while it can still be continued (GrowthTrackHold#kind). */
+    public static Status statusOf(Model.Sess s, GrowthTrackClient.Snapshot snap, GrowthTrackClient.SessionState known, Model m, int hold) {
         if (s == null) return new Status(Status.NOT_SENT, "Not sent");
         if (s.sim) return new Status(Status.NOT_SENT, "Not sent: practice run");
         String receipt = known == null ? "" : known.receipt;
         boolean queued = known != null && known.queued;
-        if (receipt.startsWith("Received") && !queued) return new Status(Status.SENT, "Sent");
+        if (receipt.startsWith("Received") && !queued)
+            return new Status(Status.SENT, GrowthTrackClient.RECEIVED_EARLIER.equals(receipt)
+                ? "Sent · later changes stayed on this phone" : "Sent");
         String marker = s.growthTrackConnectionId == null ? "" : s.growthTrackConnectionId;
         if (marker.isEmpty()) {
             // Why it was filed unmarked, as the switches were then (the live GrowthTrack test of
@@ -194,6 +210,8 @@ public final class GrowthTrackOutbox {
         GrowthTrackSettings settings = m == null || m.gtSend == null ? new GrowthTrackSettings() : m.gtSend;
         String held = settings.refusal(s, null, m);
         if (held != null && !queued) return new Status(Status.NOT_SENT, "Not sent: " + held);
+        String waits = GrowthTrackHold.words(hold);
+        if (waits != null) return new Status(Status.WAITING, waits);
         if (queued) return new Status(Status.WAITING, "Waiting");
         if (receipt.startsWith("Not synced: ")) return new Status(Status.NOT_SENT, "Not sent: " + receipt.substring("Not synced: ".length()));
         if (receipt.startsWith("Needs review")) return new Status(Status.NOT_SENT, "Not sent: " + receipt);

@@ -28331,6 +28331,9 @@ public class SessionActivity extends Activity
         // Never a practice run, and never one its GrowthTrack switch was off for - and when it
         // is not marked, why, for "Sent and waiting sessions" (GrowthTrackOutbox#file).
         GrowthTrackOutbox.file(rec, sync.connectionId(), model, null);
+        // WAIT UNTIL FINAL (GrowthTrackHold): STOP's part, with Resume about to be offered, is
+        // held before the sync below - GrowthTrack keeps the first copy it is sent.
+        if (stopResumable) resumeOffer.holding(rec.id);
         Store.save(this, model);
         sync.startSync(model, null);
 
@@ -40017,8 +40020,10 @@ public class SessionActivity extends Activity
         // counted in that shorter list.
         RunRejoin.stamp(fresh);
         RunRejoin.Rebuilt where = RunRejoin.apply(fresh, spot);
-        if (where.idx < 0 || where.idx >= where.size) return false;    // edited shorter
+        if (where.idx < 0 || where.idx >= where.size) { gtHoldEnded(); return false; }  // edited shorter: final
         long overdueSec = Math.max(0, (now - fire) / 1000L);
+        // Its filed part, if any, waits for the answer (GrowthTrackHold): the snapshot is gone.
+        rejoinAsked = spot.prior == null ? null : spot.prior.sessId;
         AlertDialog d = Ui.dialog(this)
             .setTitle("A run did not finish")
             .setMessage(A11y.collapse(r.name) + " was on step " + (where.idx + 1) + " of "
@@ -40033,6 +40038,7 @@ public class SessionActivity extends Activity
             .setCancelable(false)
             .show();
         Ui.dress(this, d);
+        d.setOnDismissListener(new RejoinAnswered());
         return true;
     }
 
@@ -40244,8 +40250,13 @@ public class SessionActivity extends Activity
                           && idx >= 0 && idx < plan.size() - 1;
         Model.Sess filedBefore = filedSession;
         stopBecause(RunStopReason.WHY_STOP);
-        finishSession(true);
-        if (!offerable || !link.isReady()) return;
+        // A flag for the filing only (GrowthTrackHold): the stop, its vent and its order are untouched.
+        stopResumable = offerable && link.isReady();
+        try { finishSession(true); } finally { stopResumable = false; }
+        if (!offerable || !link.isReady()) {
+            if (resumeOffer.release()) gtHoldEnded();    // no offer after all: final now
+            return;
+        }
         // ONE SESSION (RunParts): STOP has just filed this part. A Resume carries it - its
         // figures and its record, which the resumed run's filing replaces - so the two parts
         // file as one session and nothing is counted twice.
@@ -40267,6 +40278,56 @@ public class SessionActivity extends Activity
     /** STOP's way back, kept while the training question is up (ResumeOffer). */
     final ResumeOffer<Runnable> resumeOffer = new ResumeOffer<Runnable>();
 
+    /* ===================== WAIT UNTIL FINAL (GrowthTrackHold, 10 Nov 2026) ==============
+     *
+     * GrowthTrack keeps the first copy of a session it is sent, so a filed part this screen can
+     * still continue is not sent: STOP's part while Resume is on offer, a part the rejoin offer
+     * is asking about, and the earlier part of a run playing now. Each ends by itself, and when
+     * it does the next pass is started here, so a held session goes once, whole. Logging only:
+     * nothing here reaches the pump or waits for anything. */
+
+    /** STOP with a Resume to offer is filing: its part is held from the filing. */
+    private boolean stopResumable;
+    /** The filed part the rejoin offer is asking about while its dialog is up, or null. */
+    private String rejoinAsked;
+
+    /** MAIN THREAD. The filed sessions this screen can still continue, and why. */
+    java.util.Map<String, Integer> gtHolds() {
+        return GrowthTrackHold.of(running && runPrior != null ? runPrior.sessId : null,
+            resumeOffer.held(android.os.SystemClock.uptimeMillis()), rejoinAsked, gtSnapshotHold(this, model));
+    }
+
+    /** The filed part the run snapshot would bring back on a cold open, or null. */
+    static String gtSnapshotHold(android.content.Context c, Model m) {
+        try {
+            android.content.SharedPreferences p = c.getSharedPreferences(RUN_PREFS, MODE_PRIVATE);
+            return GrowthTrackHold.snapshot(m, p.getString(KEY_SNAP_ROUTINE, null), p.getInt(KEY_SNAP_IDX, -1),
+                p.getBoolean(KEY_SNAP_MANUAL, false), p.getLong(KEY_SNAP_STARTED, 0L),
+                p.getString(KEY_SNAP_PARTS, ""), System.currentTimeMillis(), SNAP_MAX_AGE_MS);
+        } catch (Exception e) { return null; }
+    }
+
+    /** A hold has ended: the part is final, and the next pass sends it. A run started meanwhile
+     *  sends it when it files. */
+    void gtHoldEnded() {
+        if (!running) GrowthTrackManager.get(this).startSync((GrowthTrackManager.Listener) null);
+    }
+
+    /** STOP's offer, its time up: its part is final. */
+    private final Runnable gtOfferEnds = new Runnable() {
+        @Override public void run() {
+            if (resumeOffer.ended(android.os.SystemClock.uptimeMillis())) gtHoldEnded();
+        }
+    };
+
+    /** The rejoin offer answered, whichever way: a part not rejoined is final. */
+    private final class RejoinAnswered implements DialogInterface.OnDismissListener {
+        @Override public void onDismiss(DialogInterface d) {
+            rejoinAsked = null;
+            gtHoldEnded();
+        }
+    }
+
     /** The question has gone, or is not put after all: STOP's kept offer, now. */
     void resumeAfterQuestion() {
         Runnable kept = resumeOffer.questionGone();
@@ -40283,6 +40344,9 @@ public class SessionActivity extends Activity
                 ResumeOffer.withNote(resumeOffer.takeNote(), message),
                 "Resume", tap, Snack.HOLD_MS_ACTIONABLE);
             resumeOffer.shown(this, android.os.SystemClock.uptimeMillis(), Snack.HOLD_MS_ACTIONABLE);
+            // Its time up (and the late-tap guard past), the part it holds is final (GrowthTrackHold).
+            ui.removeCallbacks(gtOfferEnds);
+            ui.postDelayed(gtOfferEnds, Snack.HOLD_MS_ACTIONABLE + Snack.LATE_TAP_GUARD_MS);
         }
     }
 
@@ -40302,12 +40366,13 @@ public class SessionActivity extends Activity
         @Override public void onClick(View v) {
             resumeOffer.spent();                       // the offer is done with
             if (running) return;                       // something already started again
-            if (!link.isReady()) { toast("Not connected to the pump"); return; }
+            if (!link.isReady()) { toast("Not connected to the pump"); gtHoldEnded(); return; }
             log("=== RESUME after STOP: " + r.name + " from preset " + spot.legacyIdx + " ===");
             // Through the SAME rejoin the unfinished-run offer uses. A resume is a rejoin
             // that happens to be seconds rather than hours later, and it must not become a
             // second way of restarting a routine that could drift from the first.
             new RejoinRunTap(r, spot, choice).onClick(null, 0);
+            gtHoldEnded();                             // refused, the part is final; run, it waits
         }
     }
 

@@ -83,7 +83,7 @@ public final class GrowthTrackWords {
         return new Line(DOT_ON, sent + " · nothing waiting");
     }
 
-    private static final Pattern RESULT = Pattern.compile("^(\\d+) accepted, (\\d+) already present, (\\d+) rejected\\.$");
+    private static final Pattern RESULT = Pattern.compile("^(\\d+) accepted, (\\d+) already present, (\\d+) rejected\\.(?: (\\d+) not updated\\.)?$");
     private static final Pattern WAITING = Pattern.compile("^\\d+ sessions? waiting$");
 
     /**
@@ -103,7 +103,11 @@ public final class GrowthTrackWords {
             int received = Integer.parseInt(r.group(1)) + Integer.parseInt(r.group(2));
             int refused = Integer.parseInt(r.group(3));
             String out = "Last send: " + received + (received == 1 ? " session" : " sessions") + " received";
-            return refused > 0 ? out + ", " + refused + " refused. See Sent and waiting sessions." : out + ".";
+            out = refused > 0 ? out + ", " + refused + " refused. See Sent and waiting sessions." : out + ".";
+            // GrowthTrack kept its earlier copy of a session sent again (GrowthTrackClient#RECEIVED_EARLIER).
+            int kept = r.group(4) == null ? 0 : Integer.parseInt(r.group(4));
+            return kept > 0 ? out + " Later changes to " + kept + (kept == 1 ? " session" : " sessions")
+                + " stayed on this phone." : out;
         }
         return m;
     }

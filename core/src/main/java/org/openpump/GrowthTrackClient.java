@@ -47,6 +47,9 @@ public final class GrowthTrackClient {
      *  account (connection). */
     public static final String EARLIER_NEW = "new", EARLIER_ALSO = "also";
     public static final int WITHDRAW_NOTHING = 0, WITHDRAWN = 1, WITHDRAW_ALREADY_SENT = 2;
+    /** The receipt of a session GrowthTrack holds an earlier copy of: an update of it was
+     *  answered "already present", so its later changes stayed on this phone. */
+    public static final String RECEIVED_EARLIER = "Received by GrowthTrack (an earlier copy; later changes stayed on this phone)";
     /** The longest any retry may wait: Retry-After is bounded to a day. */
     static final long MAX_DELAY_MS = 86_400_000L;
 
@@ -333,6 +336,9 @@ public final class GrowthTrackClient {
         }
         approved().put(item.payload);
         JSONObject m = new JSONObject(); jput(m, "rev", item.revision); if (item.localId != null) jput(m, "local", item.localId);
+        // An update of a session GrowthTrack already holds: it keeps its first copy and answers
+        // "already present" (applyResults), so whether this one was taken is read from that.
+        if (receipt.startsWith("Received")) jput(m, "update", true);
         jput(meta, id, m);
         jput(obj("revisions"), id, item.revision);
         put("approved_connection_id", conn);
@@ -588,6 +594,7 @@ public final class GrowthTrackClient {
         if ((long) accepted + duplicates + rejected.length() != batch.length()) throw new JSONException("Incomplete result counts");
         Set<String> finished = new HashSet<String>();
         JSONObject meta = obj("queue_meta");
+        int notUpdated = 0;
         for (String id : submitted) {
             String reason = reasons.get(id);
             if ("retry".equals(reason)) {
@@ -597,11 +604,21 @@ public final class GrowthTrackClient {
                 m.put("attempts", attempts); m.put("due", clock.now() + delay); m.put("delay", delay); meta.put(id, m);
                 continue;
             }
+            // AN UPDATE GROWTHTRACK DID NOT TAKE (wait until final, 10 Nov 2026): it keeps the
+            // first copy of a session and answers the same id again "already present", changing
+            // nothing. With any such answer in the batch, an update is not counted as taken: what
+            // GrowthTrack holds stays sent, and the later changes stayed on the phone.
+            JSONObject m = meta.optJSONObject(id);
+            if (reason == null && duplicates > 0 && m != null && m.optBoolean("update")) {
+                receiptPut(id, RECEIVED_EARLIER); finished.add(id); notUpdated++;
+                continue;
+            }
             receiptPut(id, reason == null ? "Received by GrowthTrack (sent or already present)" : reason); finished.add(id);
         }
         removeIds(finished);
         if (accepted + duplicates > 0) put("last_sent_at", clock.now());
-        put("message", accepted + " accepted, " + duplicates + " already present, " + rejected.length() + " rejected.");
+        put("message", accepted + " accepted, " + duplicates + " already present, " + rejected.length() + " rejected."
+            + (notUpdated > 0 ? " " + notUpdated + " not updated." : ""));
         put("attempts", 0); put("retry_at", 0); state.remove("retry_delay"); save();
     }
     private static int count(JSONObject o, String field) throws JSONException {

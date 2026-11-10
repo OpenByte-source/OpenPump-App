@@ -713,10 +713,13 @@ public final class GrowthTrackActivity extends Activity implements GrowthTrackWa
         long now = System.currentTimeMillis();
         int sent = 0, waiting = 0, not = 0, shown = 0;
         LinearLayout list = Ui.cardGroup(this, body, null, null);
+        // A session a run can still continue waits until it is final, and says why (GrowthTrackHold).
+        java.util.Map<String, Integer> holds = manager.holds(model);
         for (Model.Sess s : model.sessLog.all) {
             if (s == null) continue;
             String id = GrowthTrackOutbox.localId(s);
-            GrowthTrackOutbox.Status status = GrowthTrackOutbox.statusOf(s, snapshot, id == null ? null : states.get(id), model);
+            GrowthTrackOutbox.Status status = GrowthTrackOutbox.statusOf(s, snapshot, id == null ? null : states.get(id), model,
+                GrowthTrackHold.kind(holds, s));
             if (status.state == GrowthTrackOutbox.Status.SENT) sent++;
             else if (status.state == GrowthTrackOutbox.Status.WAITING) waiting++;
             else not++;
