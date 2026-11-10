@@ -28175,13 +28175,20 @@ public class SessionActivity extends Activity
                 rec.tupOwnPull = false;
                 tupCountFromKpa = countLine;
                 log("counted first part carried into the resumed session");
-            } else if (tup[0] > 0) {
+            } else {
+                // WHAT THE WHOLE SESSION IS WORTH COUNTED (follow-up, 9 Nov 2026): the earlier
+                // parts' figure, measured beside their own-pull time and carried, plus this
+                // part's - so a resumed session counted only now counts every part.
+                double worth = RunParts.wholeWorth(parts, tup[0]);
+                if (ownPull) rec.countWorthSec = Double.valueOf(worth);
+                if (worth > 0) {
                 pendingCountSessId = rec.id;
-                pendingCountNetSec = tup[0];
+                pendingCountNetSec = worth;
                 // Why it waits, for the question's one line: a single set, a feeder, or a
                 // routine the plan did not write - decided now, while the run is known.
                 pendingCountWhy = Say.uncountedWhy(manualSession,
                                                    r == null ? 0 : r.trainerTrack);
+                }
             }
         }
         // B3 - WHAT THIS ROUTINE PLANNED, in both counts the summary can compare by, copied
@@ -39894,7 +39901,7 @@ public class SessionActivity extends Activity
             long now = System.currentTimeMillis();
             boolean ran = session.isRunTracking();
             long partStart = session.runStartedAtOrZero();
-            Double net = null, gross = null;
+            Double net = null, gross = null, worth = null;
             if (ran && !manualSession) {
                 double floorKpa = model.scoringFloorKpa(runRoutine, partStart > 0 ? partStart : now);
                 if (!Double.isNaN(floorKpa)) {
@@ -39906,12 +39913,20 @@ public class SessionActivity extends Activity
                     double[] tup = session.ownPullTupSec(model.tupCountTolKpa(1.0));
                     net = Double.valueOf(tup[0]);
                     gross = Double.valueOf(tup[1]);
+                    // ...and what it would be worth counted, beside it (RunParts#wholeWorth).
+                    if (model.trainerEnrolled) {
+                        double gFloor = model.netFloorKpa(Plan.floorKpa(model.trainerGirth.level),
+                                                          partStart > 0 ? partStart : now);
+                        worth = Double.valueOf(
+                            session.netGrossTupSec(gFloor, model.tupCountTolKpa(gFloor))[0]);
+                    }
                 }
             }
             parts = RunParts.sofar(runPrior, partStart,
                 ran ? session.elapsedMs(now, LINK_TIMEOUT_MS) : 0L, net, gross,
                 ran ? session.deliveredDoseKpaS() : 0.0, ran ? session.routinePeakKpa() : null,
                 ran ? deliveredCycles() : -1);
+            RunParts.addWorth(parts, runPrior, worth);
         } catch (RuntimeException e) {
             log("run snapshot: the figures so far could not be counted: " + e);
         }

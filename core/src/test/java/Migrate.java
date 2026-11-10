@@ -77,6 +77,16 @@ public class Migrate {
         gtKarl.tupOwnPull = true;
         if (!Model.Sess.fromJson(gtKarl.toJson()).tupOwnPull) throw new AssertionError("An own-pull time must round-trip");
         gtKarl.tupOwnPull = false;
+        // What a session would be worth counted (9 Nov 2026): absent on every record written
+        // before it and not written for those; kept when known. A "p2" run snapshot (before
+        // it was carried) reads with nothing measured.
+        if (gtKarl.countWorthSec != null || gtKarl.toJson().has("worth")) throw new AssertionError("An old record has no worth measured");
+        gtKarl.countWorthSec = Double.valueOf(42.0);
+        if (Model.Sess.fromJson(gtKarl.toJson()).countWorthSec == null) throw new AssertionError("The worth must round-trip");
+        gtKarl.countWorthSec = null;
+        org.openpump.RunParts gtP2 = org.openpump.RunParts.fromCode("p2;1000;2000;;;0.000;;-1;0;1;sessA;sessA");
+        if (gtP2 == null || !"sessA".equals(gtP2.syncId) || !Double.isNaN(gtP2.worthSec))
+            throw new AssertionError("A p2 run snapshot must still read, with no worth");
         Model.AsRunSnapshot gtNoRole = Model.AsRunSnapshot.fromJson(new org.json.JSONObject("{\"rid\":\"r\",\"stages\":[{\"name\":\"Warm-up\"}]}"));
         if (gtNoRole.stages.get(0).role != Model.AsRunSnapshot.ROLE_UNKNOWN
                 || gtNoRole.toJson().getJSONArray("stages").getJSONObject(0).has("role"))

@@ -48,8 +48,14 @@ public final class RunParts {
      *  one session is sent as an update of that part, never as a second session beside it.
      *  "" when no part was filed. Data only. */
     public String syncId = "";
+    /** What the earlier parts would be worth COUNTED toward training: their net against the
+     *  girth line the question measures by (SessionActivity's F3b figure), measured beside
+     *  their own-pull time so a session counted only at its end counts whole ({@link
+     *  #wholeWorth}). NaN when not measured (a plan session, nothing enrolled, an older
+     *  snapshot or record). Recording only. */
+    public double worthSec = Double.NaN;
 
-    private static final String V = "p2", V1 = "p1";
+    private static final String V = "p3", V2 = "p2", V1 = "p1";
 
     public RunParts copy() {
         RunParts p = new RunParts();
@@ -57,6 +63,7 @@ public final class RunParts {
         p.netSec = netSec; p.grossSec = grossSec;
         p.doseKpaS = doseKpaS; p.peakKpa = peakKpa; p.cycles = cycles;
         p.rejoins = rejoins; p.resumes = resumes; p.sessId = sessId; p.syncId = syncId;
+        p.worthSec = worthSec;
         return p;
     }
 
@@ -91,6 +98,7 @@ public final class RunParts {
         p.resumes = s.resumes;
         p.sessId = s.id == null ? "" : s.id;
         p.syncId = s.syncId != null && !s.syncId.isEmpty() ? s.syncId : p.sessId;
+        p.worthSec = s.countWorthSec == null ? Double.NaN : s.countWorthSec.doubleValue();
         return p;
     }
 
@@ -165,6 +173,24 @@ public final class RunParts {
     }
 
     /**
+     * WHAT THE WHOLE SESSION IS WORTH COUNTED (follow-up, 9 Nov 2026): the earlier parts'
+     * worth (`prior`, measured beside their own-pull time) plus this part's. Counting a
+     * session stopped and resumed only at its end used to count this part alone - the earlier
+     * parts had been timed against their own pull, and the plan's figure for them was never
+     * kept. Recording only.
+     */
+    public static double wholeWorth(RunParts prior, double partWorthSec) {
+        double before = prior == null || Double.isNaN(prior.worthSec) ? 0.0 : Math.max(0.0, prior.worthSec);
+        return before + Math.max(0.0, partWorthSec);
+    }
+
+    /** The snapshot's figures so far, with this part's worth added (see {@link #wholeWorth}). */
+    public static void addWorth(RunParts sofar, RunParts prior, Double partWorthSec) {
+        if (sofar == null || partWorthSec == null) return;
+        sofar.worthSec = wholeWorth(prior, partWorthSec.doubleValue());
+    }
+
+    /**
      * A FIRST PART THE PERSON COUNTED, THEN RESUMED (the live GrowthTrack test's follow-up,
      * 9 Nov 2026). STOP on a routine the plan did not write asks "Count this toward training?",
      * and since the Resume offer waits for that answer (ResumeOffer), the answer now always
@@ -219,15 +245,18 @@ public final class RunParts {
         return V + ";" + startTs + ";" + playedMs + ";" + num(netSec) + ";" + num(grossSec)
             + ";" + num(doseKpaS) + ";" + num(peakKpa) + ";" + cycles + ";" + rejoins + ";"
             + resumes + ";" + (sessId == null ? "" : sessId.replace(";", ""))
-            + ";" + (syncId == null ? "" : syncId.replace(";", ""));
+            + ";" + (syncId == null ? "" : syncId.replace(";", ""))
+            + ";" + num(worthSec);
     }
 
     /** Read back; null for a snapshot that holds none (written before it) or an odd one. */
     public static RunParts fromCode(String c) {
         if (c == null) return null;
         String[] f = c.split(";", -1);
-        // MIGRATION: "p1" (11 fields) was written before syncId existed; it reads as "".
-        if (!((f.length == 12 && V.equals(f[0])) || (f.length == 11 && V1.equals(f[0])))) return null;
+        // MIGRATION: "p1" (11 fields) was written before syncId existed; it reads as "". "p2"
+        // (12) before the earlier parts' worth was kept; it reads as not measured.
+        if (!((f.length == 13 && V.equals(f[0])) || (f.length == 12 && V2.equals(f[0]))
+                || (f.length == 11 && V1.equals(f[0])))) return null;
         try {
             RunParts p = new RunParts();
             p.startTs = Math.max(0L, Long.parseLong(f[1]));
@@ -241,7 +270,8 @@ public final class RunParts {
             p.rejoins = Math.max(0, Integer.parseInt(f[8]));
             p.resumes = Math.max(0, Integer.parseInt(f[9]));
             p.sessId = f[10];
-            p.syncId = f.length == 12 ? f[11] : "";
+            p.syncId = f.length >= 12 ? f[11] : "";
+            p.worthSec = f.length == 13 ? dbl(f[12]) : Double.NaN;
             return p;
         } catch (NumberFormatException e) {
             return null;

@@ -4994,6 +4994,12 @@ public final class Model {
          *  (Summary#planNetSec). MIGRATION: false on every record written before it, which
          *  is what those records are (only plan sessions had one); written only when true. */
         public boolean tupOwnPull;
+        /** WHAT THIS SESSION WOULD BE WORTH COUNTED toward training, s: its net against the
+         *  girth line "Count this toward training?" measures by, kept beside its own-pull
+         *  time (tupOwnPull) for the whole session, so a resumed session counted only at its
+         *  end counts every part (RunParts#wholeWorth). Null when not measured.
+         *  MIGRATION: null on every record written before it; written only when known. */
+        public Double countWorthSec;
         public long durSec;             // the SAME elapsed the summary displayed
         public boolean completed;       // false = stopped early (an attempt)
         /** True when this was a MANUAL run (Task 18) — an ephemeral cycle, not a routine.
@@ -5476,6 +5482,7 @@ public final class Model {
             if (syncId != null && !syncId.isEmpty()) o.put("gtSyncId", syncId);
             if (gtHeldWhy > 0) o.put("gtWhy", gtHeldWhy);
             if (tupOwnPull) o.put("tupOwn", true);
+            if (countWorthSec != null) o.put("worth", String.valueOf(countWorthSec.doubleValue()));
             o.put("done", completed);
             o.put("man", manual);
             o.put("tag", tag == null ? "" : tag);
@@ -5598,6 +5605,7 @@ public final class Model {
             s.syncId = o.optString("gtSyncId", "");
             s.gtHeldWhy = Math.max(0, o.optInt("gtWhy", 0));
             s.tupOwnPull = o.optBoolean("tupOwn", false);
+            s.countWorthSec = parseNullableDouble(o.optString("worth", ""));
             s.durSec = parseLong(o.optString("dur", "0"));
             s.completed = o.optBoolean("done");
             // Absent (false) on every session filed before Task 18 — a routine run, which is
