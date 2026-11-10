@@ -39889,6 +39889,11 @@ public class SessionActivity extends Activity
      *  record, if any), so a rejoin files ONE session. Absent on a snapshot written before
      *  it: the rejoin files its own part, as it always did. */
     private static final String KEY_SNAP_PARTS = "parts";
+    /** When the snapshot was last written (wall clock), and whether the pump was simulated: a
+     *  run not rejoined is filed from it (DeclinedRun) and ends there. Absent on a snapshot
+     *  written before them: the end is its start plus the time played, the pump the one now. */
+    private static final String KEY_SNAP_AT = "at";
+    private static final String KEY_SNAP_SIM = "sim";
 
     /** How stale a snapshot may be and still be worth offering. Past this the pump has
      *  almost certainly been dealt with by hand, and asking would be noise. */
@@ -39948,6 +39953,8 @@ public class SessionActivity extends Activity
                 .putString(KEY_SNAP_SKIPPED, at.skippedCsv())
                 .putString(KEY_SNAP_TAKEN, at.takenCsv())
                 .putString(KEY_SNAP_PARTS, parts == null ? "" : parts.code())
+                .putLong(KEY_SNAP_AT, System.currentTimeMillis())
+                .putBoolean(KEY_SNAP_SIM, link != null && link.isSimulated())
                 .apply();
         } catch (Exception ignored) { }
     }
@@ -39988,6 +39995,8 @@ public class SessionActivity extends Activity
         boolean man;
         String shapeCode;
         RunRejoin.Spot spot;
+        long lastAt;
+        Boolean sim;
         try {
             android.content.SharedPreferences p = getSharedPreferences(RUN_PREFS, MODE_PRIVATE);
             shapeCode = p.getString(KEY_SNAP_SHAPE, "");
@@ -39999,9 +40008,11 @@ public class SessionActivity extends Activity
             spot = RunRejoin.Spot.read(idx, p.getInt(KEY_SNAP_SRC, -1), p.getInt(KEY_SNAP_AHEAD, 0),
                 p.getInt(KEY_SNAP_BLOCK, -1), p.getInt(KEY_SNAP_BUILT, -1),
                 p.getString(KEY_SNAP_SKIPPED, ""), p.getString(KEY_SNAP_TAKEN, ""));
-            // RunParts - what the run had played (and filed); its rejoin counts once more.
+            // RunParts - what the run had played (and filed); its rejoin counts once more
+            // (below, once a part not rejoined has been filed from it).
             spot.prior = RunParts.fromCode(p.getString(KEY_SNAP_PARTS, ""));
-            if (spot.prior != null) spot.prior.rejoins++;
+            lastAt = p.getLong(KEY_SNAP_AT, 0L);
+            sim = p.contains(KEY_SNAP_SIM) ? Boolean.valueOf(p.getBoolean(KEY_SNAP_SIM, false)) : null;
             // ...and where its rows were persisted while it ran (its provisional key).
             spot.rowsKey = started;
         } catch (Exception e) { return false; }
@@ -40014,7 +40025,8 @@ public class SessionActivity extends Activity
         if (started <= 0 || now - started > SNAP_MAX_AGE_MS) return false;
         // 0.10 - the run as it was built that day, counted the same way the rejoin builds it.
         final RunShape.Choice shaped = RunShape.Choice.fromCode(shapeCode);
-        java.util.List<Model.Preset> fresh = model.plan(RunShape.build(model, r, shaped).routine);
+        RunShape.Built built = RunShape.build(model, r, shaped);
+        java.util.List<Model.Preset> fresh = model.plan(built.routine);
         // rc9b (EMU9b N1) - counted in the plan the rejoin will play: the rebuild, put back in
         // the shape the run had (its skips), and the step found by what it is, not by an index
         // counted in that shorter list.
@@ -40022,6 +40034,10 @@ public class SessionActivity extends Activity
         RunRejoin.Rebuilt where = RunRejoin.apply(fresh, spot);
         if (where.idx < 0 || where.idx >= where.size) { gtHoldEnded(); return false; }  // edited shorter: final
         long overdueSec = Math.max(0, (now - fire) / 1000L);
+        // The part played is kept, whatever the answer (DeclinedRun): filed now, once, as a
+        // session stopped early - a rejoin replaces it with the one session.
+        fileDeclinedPart(r, spot, lastAt, sim, built.code(), where.idx + 1, where.size, now);
+        if (spot.prior != null) spot.prior.rejoins++;
         // Its filed part, if any, waits for the answer (GrowthTrackHold): the snapshot is gone.
         rejoinAsked = spot.prior == null ? null : spot.prior.sessId;
         AlertDialog d = Ui.dialog(this)
@@ -40040,6 +40056,53 @@ public class SessionActivity extends Activity
         Ui.dress(this, d);
         d.setOnDismissListener(new RejoinAnswered());
         return true;
+    }
+
+    /**
+     * A RUN NOT REJOINED IS KEPT (run 4 of the live GrowthTrack test, check 4; the owner's
+     * decision): what the snapshot holds is filed as a session stopped early (DeclinedRun) -
+     * not counted, the routine's done count and the measurement cadence untouched, as for a
+     * STOP nobody counted. Filed when the offer is put, so "Neither", "Stop the pump", an
+     * answer tapped twice or never tapped (the app closed again) all leave exactly one record;
+     * a rejoin carries it (spot.prior learns it) and replaces it with the one session. Nothing
+     * when the snapshot played nothing, or a record already holds it (a screen destroyed
+     * mid-run filed it). Bookkeeping only: the offer, and the stop it may lead to, wait for
+     * nothing here.
+     */
+    private void fileDeclinedPart(Model.Routine r, RunRejoin.Spot spot, long lastAt, Boolean sim,
+                                  String shape, int presetsDone, int presetsPlanned, long now) {
+        RunParts sofar = spot.prior;
+        if (sofar == null) return;
+        try {
+            Model.Sess covered = DeclinedRun.covering(model.sessLog.all, sofar);
+            if (covered != null) { DeclinedRun.learn(sofar, covered); return; }
+            Model.Sess earlier = DeclinedRun.earlier(model.sessLog.all, sofar);
+            AsRun provisional = spot.rowsKey > 0 ? Store.loadAsRun(this, spot.rowsKey) : null;
+            AsRun filedRows = earlier == null || !earlier.hasAsRun ? null : Store.loadAsRun(this, earlier.ts);
+            AsRun rows = DeclinedRun.closed(RunParts.priorRows(provisional, filedRows), sofar.playedMs);
+            Model.Sess rec = DeclinedRun.record(model, r, sofar, earlier, rows, lastAt, now,
+                sim != null ? sim.booleanValue() : link != null && link.isSimulated(),
+                shape, presetsDone, presetsPlanned);
+            if (rec == null) return;
+            RunParts.dropEarlier(model.sessLog.all, sofar);
+            rows.ts = rec.ts;
+            Store.saveAsRun(this, rec.ts, rows);
+            if (spot.rowsKey > 0 && spot.rowsKey != rec.ts) Store.deleteAsRun(this, spot.rowsKey);
+            if (earlier != null && earlier.hasAsRun && earlier.ts != rec.ts) Store.deleteAsRun(this, earlier.ts);
+            spot.rowsKey = 0L;                   // its rows are the record's now
+            model.sessLog.file(rec);
+            DeclinedRun.learn(sofar, rec);
+            Deload.onFiled(model, rec.ts, r.trainerTrack, false, true);
+            GrowthTrackManager sync = GrowthTrackManager.get(this);
+            GrowthTrackOutbox.file(rec, sync.connectionId(), model, rows);
+            // Held while the offer asks about it (GrowthTrackHold); final once answered.
+            rejoinAsked = rec.id;
+            Store.save(this, model);
+            sync.startSync(model, null);
+            log("run not rejoined: filed as stopped early after " + Model.Fmt.t(rec.durSec));
+        } catch (RuntimeException e) {
+            log("run not rejoined: its part could not be filed: " + e);
+        }
     }
 
     /**

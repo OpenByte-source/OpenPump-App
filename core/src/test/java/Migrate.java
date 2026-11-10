@@ -87,7 +87,20 @@ public class Migrate {
         org.openpump.RunParts gtP2 = org.openpump.RunParts.fromCode("p2;1000;2000;;;0.000;;-1;0;1;sessA;sessA");
         if (gtP2 == null || !"sessA".equals(gtP2.syncId) || !Double.isNaN(gtP2.worthSec))
             throw new AssertionError("A p2 run snapshot must still read, with no worth");
-        Model.AsRunSnapshot gtNoRole = Model.AsRunSnapshot.fromJson(new org.json.JSONObject("{\"rid\":\"r\",\"stages\":[{\"name\":\"Warm-up\"}]}"));
+        // A run not rejoined is filed from its snapshot (DeclinedRun, 10 Nov 2026). One written
+        // before the snapshot kept its write time ("at" absent, read as 0) ends at its start
+        // plus the time played; a "p2" one reads as an own routine's with no worth measured.
+        Model gtDm = new Model();
+        Model.Routine gtDr = new Model.Routine(); gtDr.id = "r"; gtDr.name = "Old run"; gtDm.routines.add(gtDr);
+        org.openpump.AsRun gtDrows = new org.openpump.AsRun(); gtDrows.rows.add(new org.openpump.AsRun.Row());
+        gtDrows.rows.get(0).t0 = 900; gtDrows.rows.get(0).t1 = -1;
+        Model.Sess gtDecl = org.openpump.DeclinedRun.record(gtDm, gtDr,
+            org.openpump.RunParts.fromCode("p2;1700000000000;61500;;;0.000;;-1;0;0;;"), null,
+            org.openpump.DeclinedRun.closed(gtDrows, 61500L), 0L, 1700000300000L, false, "", 1, 1);
+        if (gtDecl == null || gtDecl.durSec != 61 || gtDecl.recordedEndMs != 1700000061500L
+                || gtDecl.completed || gtDecl.countWorthSec != null)
+            throw new AssertionError("A run snapshot written before its write time must still file");
+        Model.AsRunSnapshot gtNoRole =Model.AsRunSnapshot.fromJson(new org.json.JSONObject("{\"rid\":\"r\",\"stages\":[{\"name\":\"Warm-up\"}]}"));
         if (gtNoRole.stages.get(0).role != Model.AsRunSnapshot.ROLE_UNKNOWN
                 || gtNoRole.toJson().getJSONArray("stages").getJSONObject(0).has("role"))
             throw new AssertionError("An old stage snapshot's role must stay unknown");
