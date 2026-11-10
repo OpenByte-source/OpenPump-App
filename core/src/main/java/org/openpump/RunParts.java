@@ -102,11 +102,22 @@ public final class RunParts {
         return p;
     }
 
-    /** The session filing now starts when the first part did and lasts them all. Called
-     *  where the record's start and duration are stamped, before anything keys on its ts. */
+    /** {@link #foldTime(RunParts, Model.Sess, long)} for a part timed in whole seconds. */
     public static void foldTime(RunParts prior, Model.Sess rec) {
+        foldTime(prior, rec, rec == null ? 0L : rec.durSec * 1000L);
+    }
+
+    /** The session filing now starts when the first part did and lasts them all. Called
+     *  where the record's start and duration are stamped, before anything keys on its ts;
+     *  `partMs` is this part's own elapsed, the ms its durSec counts in whole seconds. */
+    public static void foldTime(RunParts prior, Model.Sess rec, long partMs) {
         if (prior == null || rec == null) return;
-        rec.durSec += prior.playedMs / 1000L;
+        // ONE CLOCK WITH THE RECORDING (run 4 of the live GrowthTrack test, 10 Nov 2026): the
+        // parts' ms are added first and then counted in whole seconds - the recording moves
+        // this part's rows by the earlier parts' ms (#recording). Truncated part by part, a
+        // rejoin filed 61.973 + 180.9 s as 241 s against rows to 242.866 s, and GrowthTrack's
+        // draft refused it. A part read from its record is whole seconds already.
+        rec.durSec = (prior.playedMs + Math.max(0L, partMs)) / 1000L;
         rec.ts = prior.startTs > 0 ? prior.startTs : rec.ts - prior.playedMs;
         rec.rejoins = prior.rejoins;
         rec.resumes = prior.resumes;

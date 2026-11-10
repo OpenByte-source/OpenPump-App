@@ -28026,7 +28026,7 @@ public class SessionActivity extends Activity
         rec.durSec = el;                       // the SAME value the summary displays
         // ...and with the earlier parts, the session lasts them all and starts when the first
         // did - before anything below keys on rec.ts (the as-run, the traces, the day).
-        RunParts.foldTime(parts, rec);
+        RunParts.foldTime(parts, rec, elMs);
         // Data-only wall-clock facts: do not reinterpret old history's end/start key. A
         // resumed or rejoined session already has its FIRST part's start (RunParts#foldTime),
         // and it ends now like any other (GrowthTrack bug 5).
