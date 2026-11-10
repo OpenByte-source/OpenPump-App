@@ -70,6 +70,13 @@ public class Migrate {
         if (Model.Sess.fromJson(gtKarl.toJson()).gtHeldWhy != org.openpump.GrowthTrackSettings.HELD_MANUAL)
             throw new AssertionError("The reason a record was filed unmarked must round-trip");
         gtKarl.gtHeldWhy = 0;
+        // How a record's net was counted (the owner's pick B, 9 Nov 2026): every record written
+        // before it reads as a plan-counted one (only plan sessions had a net), nothing new is
+        // written for those, and an own-pull time round-trips.
+        if (gtKarl.tupOwnPull || gtKarl.toJson().has("tupOwn")) throw new AssertionError("An old record's net is the plan's");
+        gtKarl.tupOwnPull = true;
+        if (!Model.Sess.fromJson(gtKarl.toJson()).tupOwnPull) throw new AssertionError("An own-pull time must round-trip");
+        gtKarl.tupOwnPull = false;
         Model.AsRunSnapshot gtNoRole = Model.AsRunSnapshot.fromJson(new org.json.JSONObject("{\"rid\":\"r\",\"stages\":[{\"name\":\"Warm-up\"}]}"));
         if (gtNoRole.stages.get(0).role != Model.AsRunSnapshot.ROLE_UNKNOWN
                 || gtNoRole.toJson().getJSONArray("stages").getJSONObject(0).has("role"))

@@ -887,6 +887,7 @@ public final class Session {
         // a process the mask began with the first run's marks and no longer lined up with
         // the frames, so the net kept or dropped the wrong seconds (SecondRunNetTest).
         holdFatigueStage.clear();
+        holdStartCheck.clear();
     }
 
     /**
@@ -1400,6 +1401,65 @@ public final class Session {
     }
 
     /**
+     * TIME UNDER TENSION FOR A SESSION THE PLAN DID NOT WRITE (the owner's pick B, 9 Nov 2026):
+     * the time the measured pressure was held at or beyond each step's OWN commanded pull - an
+     * own or seed routine, a manual run - where a plan session is counted against its track's
+     * floor ({@link #netGrossTupSec}). The same pass in every other respect, so the two are
+     * judged alike:
+     *  - the same tolerance, the counting threshold (Model#tupCountPct) taken off the line it
+     *    is counted from - here the step's pull: `tolFrac` is that fraction (tupCountTolKpa(1));
+     *  - the same frames left out: no reading, the drop half of a cycle, and a stage that is
+     *    not work (Stage#outOfNet: warm-up, cool-down, traction, by hand, fatigue, retention);
+     *  - time-weighted the same way, a frame's gap counted when the frame itself counts.
+     * And, because the line moves with the step: a frame commanding no pull (a rest, a step
+     * done by hand) counts nothing, the line follows a live change (the caller records what
+     * the pump was commanded at that frame), and a start check mid-run counts nothing
+     * ({@link #noteStartCheckFrame}), as for the session's peak (RunPeak). Gross is the plan's
+     * gross. {netSec, grossSec}.
+     */
+    public double[] ownPullTupSec(double tolFrac) {
+        double[] r = ownPullTupMs(toLongArr(holdTs), toDoubleArr(holdMeasuredKpa),
+            toBoolArr(holdNoReading), toDoubleArr(holdCommandedKpa),
+            orDrop(toBoolArr(holdFatigueStage), toBoolArr(holdDropPhase)),
+            toBoolArr(holdStartCheck), tolFrac);
+        return new double[]{ r[0] / 1000.0, r[1] / 1000.0 };
+    }
+
+    /** {netMs, grossMs}: {@link #tupMs}'s pass with the line at each frame's own commanded
+     *  pull less `tolFrac` of it, and never for a frame commanding none or a start check's. */
+    static double[] ownPullTupMs(long[] tsMs, double[] measuredKpa, boolean[] noReading,
+                                  double[] commandedKpa, boolean[] excluded, boolean[] startCheck,
+                                  double tolFrac) {
+        double net = 0.0, gross = 0.0;
+        if (tsMs == null || tsMs.length < 2) return new double[]{ 0.0, 0.0 };
+        double frac = Double.isNaN(tolFrac) || tolFrac < 0.0 ? 0.0 : tolFrac;
+        for (int i = 1; i < tsMs.length; i++) {
+            long gap = tsMs[i] - tsMs[i - 1];
+            if (gap <= 0) continue;
+            boolean nr = noReading != null && i < noReading.length && noReading[i];
+            if (nr) continue;
+            gross += gap;
+            if (excluded != null && i < excluded.length && excluded[i]) continue;
+            if (startCheck != null && i < startCheck.length && startCheck[i]) continue;
+            double line = commandedKpa != null && i < commandedKpa.length ? commandedKpa[i] : 0.0;
+            if (!(line > 0.0)) continue;               // nothing commanded: no pull to hold
+            if (measuredKpa[i] >= line - Math.abs(line) * frac) net += gap;
+        }
+        return new double[]{ net, gross };
+    }
+
+    /** The frames a start check put on the cuff mid-run: never time under tension of the
+     *  routine's own ({@link #ownPullTupSec}). Recorded beside the hold frames, read by
+     *  nothing else - the plan's net is unchanged. */
+    private final List<Boolean> holdStartCheck = new ArrayList<Boolean>();
+
+    /** Marks the frame just recorded by noteHoldFrame as a start check's. */
+    public void noteStartCheckFrame() {
+        if (!runTracking || holdStartCheck.isEmpty()) return;
+        holdStartCheck.set(holdStartCheck.size() - 1, Boolean.TRUE);
+    }
+
+    /**
      * D2 - SEALED TIME AS THE TWO-HOUR STOP COUNTS IT (Plan#GROSS_CAP_SEC), in seconds.
      *
      * Gross as {@link #tupMs} counts it - every frame's gap where there is a real reading -
@@ -1551,6 +1611,7 @@ public final class Session {
         holdFatigueStage.add(Boolean.valueOf(fatigueStage));
         holdDropPhase.add(Boolean.valueOf(dropPhase));
         holdCommanding.add(Boolean.valueOf(commanding));
+        holdStartCheck.add(Boolean.FALSE);
     }
 
     /** The whole session's T14+ figure, computed ONCE at finishSession from this run's

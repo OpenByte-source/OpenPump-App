@@ -4987,6 +4987,13 @@ public final class Model {
          *  was kept (the list then says what it always said). MIGRATION: 0 on every record
          *  written before it; written only when above 0. */
         public int gtHeldWhy;
+        /** HOW netTupSec WAS COUNTED: true when against each step's own commanded pull - a
+         *  routine the plan did not write, or a manual run (Session#ownPullTupSec, the owner's
+         *  pick B, 9 Nov 2026) - false when against a plan track's floor, or counted toward
+         *  training. Such a time is the session's own: it never reads as the plan's
+         *  (Summary#planNetSec). MIGRATION: false on every record written before it, which
+         *  is what those records are (only plan sessions had one); written only when true. */
+        public boolean tupOwnPull;
         public long durSec;             // the SAME elapsed the summary displayed
         public boolean completed;       // false = stopped early (an attempt)
         /** True when this was a MANUAL run (Task 18) — an ephemeral cycle, not a routine.
@@ -5468,6 +5475,7 @@ public final class Model {
             if (!growthTrackConnectionId.isEmpty()) o.put("growthTrackConnectionId", growthTrackConnectionId);
             if (syncId != null && !syncId.isEmpty()) o.put("gtSyncId", syncId);
             if (gtHeldWhy > 0) o.put("gtWhy", gtHeldWhy);
+            if (tupOwnPull) o.put("tupOwn", true);
             o.put("done", completed);
             o.put("man", manual);
             o.put("tag", tag == null ? "" : tag);
@@ -5589,6 +5597,7 @@ public final class Model {
             s.growthTrackConnectionId = o.optString("growthTrackConnectionId", "");
             s.syncId = o.optString("gtSyncId", "");
             s.gtHeldWhy = Math.max(0, o.optInt("gtWhy", 0));
+            s.tupOwnPull = o.optBoolean("tupOwn", false);
             s.durSec = parseLong(o.optString("dur", "0"));
             s.completed = o.optBoolean("done");
             // Absent (false) on every session filed before Task 18 — a routine run, which is

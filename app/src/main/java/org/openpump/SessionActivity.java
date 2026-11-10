@@ -1084,6 +1084,9 @@ public class SessionActivity extends Activity
      */
     private String pendingCountSessId;
     private double pendingCountNetSec;
+    /** What a session timed against its own pull would plan under pressure once counted - its
+     *  routine against the line its counted net is measured from (Sess#tupOwnPull). */
+    Double pendingCountPlannedSec;
     /** Why this run is waiting to be counted - Say#UNCOUNTED_*, decided when it is filed. */
     private int pendingCountWhy;
     /** Whether the ask has already been PUT to the user for this session. The inline card
@@ -1282,6 +1285,9 @@ public class SessionActivity extends Activity
                     // computed while the Session still existed. Re-integrating now is
                     // impossible: the session is closed.
                     e.netTupSec = Double.valueOf(pendingCountNetSec);
+                    // Counted, it is the plan's figure now, planned against the same line.
+                    e.tupOwnPull = false;
+                    if (pendingCountPlannedSec != null) e.plannedTupSec = pendingCountPlannedSec;
                     break;
                 }
                 Store.save(SessionActivity.this, model);
@@ -6261,7 +6267,8 @@ public class SessionActivity extends Activity
             TrainingWeek.PlanWeek pw = TrainerTab.planWeekNow(model, System.currentTimeMillis());
             countedRow(g, "This week", Say.planWeekShort(pw),
                        pw.qualifies ? Ui.ACCENT : Ui.TEXT, false, false);
-            Double net = filedSession.netTupSec;
+            // The plan's figure only: an own routine's time moves nothing toward a level.
+            Double net = Summary.planNetSec(filedSession);
             // polish AS-3: whole minutes under ten - "0 min", never "0.0 min".
             double netMin = net == null ? 0.0 : net.doubleValue() / 60.0;
             countedRow(g, "Toward the next level",
@@ -18895,6 +18902,8 @@ public class SessionActivity extends Activity
         // pump has been told to hold is a sensor the app cannot see past, not a vented cuff.
         session.noteHoldFrame(now, kpa, noReading, commanded, phase, cur.stageIdx,
                               fatigueStage, dropPhase, commandingPressure(idx));
+        // A start check mid-run is not the routine's own time under tension (as for its peak).
+        if (guidedStarting || sealChecking) session.noteStartCheckFrame();
     }
 
     /**
@@ -28097,6 +28106,19 @@ public class SessionActivity extends Activity
                 grossTup = Double.valueOf(tup[1]);
             }
         }
+        // OWN PULL (the owner's pick B, 9 Nov 2026): a routine the plan did not write - own or
+        // seed - and a manual run are timed against each step's OWN commanded pull, with the
+        // plan's own tolerance and exclusions (Session#ownPullTupSec). A plan session keeps
+        // its floor, and one with no floor (a feeder) stays unscored, as before. Marked on the
+        // record, so it never reads as the plan's (Summary#planNetSec).
+        boolean ownPull = false;
+        if (ranAtAll && netTup == null
+                && (r == null || r.trainerTrack == Model.TRAINER_TRACK_NONE)) {
+            double[] tup = session.ownPullTupSec(model.tupCountTolKpa(1.0));
+            netTup = Double.valueOf(tup[0]);
+            grossTup = Double.valueOf(tup[1]);
+            ownPull = true;
+        }
         // PASS H - the local day, decided now, while the phone is still in the timezone the
         // session happened in.
         /* A PLAN CHANGE STOPS BEING NEWS ONCE THE NEW SHAPE HAS RUN. After this the chip
@@ -28115,6 +28137,7 @@ public class SessionActivity extends Activity
                 if (runRoutine.stages.get(i).traction) { tractionAskSessId = rec.id; break; }
         rec.netTupSec = netTup;
         rec.grossTupSec = grossTup;
+        rec.tupOwnPull = ownPull;
 
         /* F3b - WHAT THIS RUN WOULD BE WORTH IF THE PERSON COUNTED IT.
          *
@@ -28130,18 +28153,27 @@ public class SessionActivity extends Activity
          * screen that asks the question is on display. */
         pendingCountSessId = null;
         pendingCountNetSec = 0;
+        pendingCountPlannedSec = null;
         countAskShown = false;
-        if (ranAtAll && netTup == null && model.trainerEnrolled) {
+        // Not scored by the plan: its own-pull time (above) is the session's, never the plan's.
+        if (ranAtAll && (netTup == null || ownPull) && model.trainerEnrolled) {
             // rec.ts for the same reason as the scored path above: what this run WOULD be
             // worth has to be measured against the floor it was actually run under.
             double gFloor = model.netFloorKpa(Plan.floorKpa(model.trainerGirth.level), rec.ts);
             double[] tup = session.netGrossTupSec(gFloor, model.tupCountTolKpa(gFloor));
-            // Counted, this is the line its net was measured from (CountTowardTrainingTap).
-            tupCountFromKpa = gFloor - model.tupCountTolKpa(gFloor);
+            // Counted, this is the line its net was measured from (CountTowardTrainingTap). A
+            // session timed against its own pull keeps its own plan (every hold) until then.
+            double countLine = gFloor - model.tupCountTolKpa(gFloor);
+            if (!ownPull) tupCountFromKpa = countLine;
+            else pendingCountPlannedSec = Double.valueOf(
+                PlannedTime.underPressureSec(model, runRoutine, countLine));
             // A first part the person COUNTED, now resumed: the one session keeps that count,
             // this part's net added to it once, and the question is not asked again for this
             // part alone (RunParts#carryCount).
             if (RunParts.carryCount(earlier, parts, rec, tup[0])) {
+                // Counted: the plan's figure, against the plan's line.
+                rec.tupOwnPull = false;
+                tupCountFromKpa = countLine;
                 log("counted first part carried into the resumed session");
             } else if (tup[0] > 0) {
                 pendingCountSessId = rec.id;
@@ -39867,6 +39899,11 @@ public class SessionActivity extends Activity
                 double floorKpa = model.scoringFloorKpa(runRoutine, partStart > 0 ? partStart : now);
                 if (!Double.isNaN(floorKpa)) {
                     double[] tup = session.netGrossTupSec(floorKpa, model.tupCountTolKpa(floorKpa));
+                    net = Double.valueOf(tup[0]);
+                    gross = Double.valueOf(tup[1]);
+                } else if (runRoutine.trainerTrack == Model.TRAINER_TRACK_NONE) {
+                    // Counted as fileSession counts it: against each step's own pull.
+                    double[] tup = session.ownPullTupSec(model.tupCountTolKpa(1.0));
                     net = Double.valueOf(tup[0]);
                     gross = Double.valueOf(tup[1]);
                 }

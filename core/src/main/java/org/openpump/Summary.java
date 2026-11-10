@@ -261,6 +261,15 @@ public final class Summary {
      *  asked of one session, so the summary's "Streak" row can never say "Not counted" for a
      *  session the streak counted: a routine session that finished, or one stopped early
      *  after at least {@link #TRAINED_MIN_SEC} of real pressure. A manual run never does. */
+    /**
+     * THE PLAN'S NET TIME FOR A SESSION, or null: a plan session's, or one counted toward
+     * training - never the time a routine the plan did not write was held at its own pull
+     * (Sess#tupOwnPull), which is the session's own and moves nothing in the plan.
+     */
+    public static Double planNetSec(Model.Sess s) {
+        return s == null || s.tupOwnPull ? null : s.netTupSec;
+    }
+
     public static boolean countsForStreak(Model.Sess e) {
         return e != null && !e.manual && trainedDay(e);
     }
