@@ -39986,7 +39986,9 @@ public class SessionActivity extends Activity
      *
      * A MANUAL run is recorded but never offered: its routine is ephemeral and rebuilt from
      * values that no longer exist, so there is nothing to rejoin. It is cleared instead, and
-     * the kill dialogs still say what happened.
+     * the kill dialogs still say what happened. Its part is kept all the same (DeclinedRun),
+     * as is that of a run whose routine was deleted or edited shorter, or whose snapshot is
+     * too old to offer: filed as a session stopped early, as a declined rejoin files it.
      */
     private boolean offerRunSnapshot() {
         String rid;
@@ -40018,13 +40020,17 @@ public class SessionActivity extends Activity
         } catch (Exception e) { return false; }
         if (rid == null || idx < 0) return false;
         clearRunSnapshot();                       // offered once, whatever is chosen
-        if (man) return false;
-        final Model.Routine r = model.routine(rid);
-        if (r == null) return false;              // the routine was deleted meanwhile
+        final Model.Routine r = man ? null : model.routine(rid);  // null: manual, or deleted meanwhile
         long now = System.currentTimeMillis();
-        if (started <= 0 || now - started > SNAP_MAX_AGE_MS) return false;
         // 0.10 - the run as it was built that day, counted the same way the rejoin builds it.
         final RunShape.Choice shaped = RunShape.Choice.fromCode(shapeCode);
+        if (r == null || started <= 0 || now - started > SNAP_MAX_AGE_MS) {
+            // Not offered; its part is kept all the same, once (the snapshot is gone).
+            fileDeclinedPart(DeclinedRun.unoffered(model, rid, man), spot, lastAt, sim,
+                r == null ? "" : RunShape.build(model, r, shaped).code(),
+                idx + 1, Math.max(idx + 1, spot.built), now, false);
+            return false;
+        }
         RunShape.Built built = RunShape.build(model, r, shaped);
         java.util.List<Model.Preset> fresh = model.plan(built.routine);
         // rc9b (EMU9b N1) - counted in the plan the rejoin will play: the rebuild, put back in
@@ -40032,11 +40038,14 @@ public class SessionActivity extends Activity
         // counted in that shorter list.
         RunRejoin.stamp(fresh);
         RunRejoin.Rebuilt where = RunRejoin.apply(fresh, spot);
-        if (where.idx < 0 || where.idx >= where.size) { gtHoldEnded(); return false; }  // edited shorter: final
+        if (where.idx < 0 || where.idx >= where.size) {      // edited shorter: kept, and final
+            fileDeclinedPart(r, spot, lastAt, sim, built.code(), idx + 1, Math.max(idx + 1, spot.built), now, false);
+            gtHoldEnded(); return false;
+        }
         long overdueSec = Math.max(0, (now - fire) / 1000L);
         // The part played is kept, whatever the answer (DeclinedRun): filed now, once, as a
         // session stopped early - a rejoin replaces it with the one session.
-        fileDeclinedPart(r, spot, lastAt, sim, built.code(), where.idx + 1, where.size, now);
+        fileDeclinedPart(r, spot, lastAt, sim, built.code(), where.idx + 1, where.size, now, true);
         if (spot.prior != null) spot.prior.rejoins++;
         // Its filed part, if any, waits for the answer (GrowthTrackHold): the snapshot is gone.
         rejoinAsked = spot.prior == null ? null : spot.prior.sessId;
@@ -40067,10 +40076,11 @@ public class SessionActivity extends Activity
      * a rejoin carries it (spot.prior learns it) and replaces it with the one session. Nothing
      * when the snapshot played nothing, or a record already holds it (a screen destroyed
      * mid-run filed it). Bookkeeping only: the offer, and the stop it may lead to, wait for
-     * nothing here.
+     * nothing here. `offered` false: no offer is put (offerRunSnapshot), so nothing holds it.
      */
     private void fileDeclinedPart(Model.Routine r, RunRejoin.Spot spot, long lastAt, Boolean sim,
-                                  String shape, int presetsDone, int presetsPlanned, long now) {
+                                  String shape, int presetsDone, int presetsPlanned, long now,
+                                  boolean offered) {
         RunParts sofar = spot.prior;
         if (sofar == null) return;
         try {
@@ -40092,11 +40102,11 @@ public class SessionActivity extends Activity
             spot.rowsKey = 0L;                   // its rows are the record's now
             model.sessLog.file(rec);
             DeclinedRun.learn(sofar, rec);
-            Deload.onFiled(model, rec.ts, r.trainerTrack, false, true);
+            Deload.onFiled(model, rec.ts, r.trainerTrack, rec.manual, true);
             GrowthTrackManager sync = GrowthTrackManager.get(this);
             GrowthTrackOutbox.file(rec, sync.connectionId(), model, rows);
             // Held while the offer asks about it (GrowthTrackHold); final once answered.
-            rejoinAsked = rec.id;
+            if (offered) rejoinAsked = rec.id;
             Store.save(this, model);
             sync.startSync(model, null);
             log("run not rejoined: filed as stopped early after " + Model.Fmt.t(rec.durSec));
