@@ -71,6 +71,9 @@ public final class AsRun {
         /** Position of the set within its stage (Preset#pos) and position of the preset
          *  within the set's ladder (Preset#ordinal). */
         public int pos, ordinal;
+        /** Frozen stitch boundary: -1 on old recordings, 0 a complete preset, 1 a
+         * continuation chunk. Data only; never changes how a preset is driven. */
+        public int cyclePart = -1;
         public int up, upReq, lo, uhWire, uhReq, lh, sp;
         /** False when the pump never acknowledged the write this row records (§2) — the
          *  card then says "the pump didn't confirm this change". */
@@ -86,6 +89,24 @@ public final class AsRun {
          *  it has delivered its time, so the extra is how the set was timed, not a change to
          *  it. {@link AsRun#blocks} takes it out of every length a save could write. */
         public long clockHeldMs;
+        /** WHICH PART OF THE SESSION this row was recorded in: 0 the first, 1 the part after
+         *  the first STOP and Resume, and so on ({@link AsRun#join}). A resumed run starts its
+         *  step again, so the same set occurrence can appear in two parts; {@link AsRun#blocks}
+         *  keeps them apart, and the end of each part is that part's stop, not a change.
+         *  MIGRATION: absent on every row written before it - 0, a run in one part, which is
+         *  what those rows are. Written only when above 0. */
+        public int part;
+
+        /** A copy of this row, so a joined recording never shares rows with a live one. */
+        public Row copy() {
+            Row r = new Row();
+            r.kind = kind; r.t0 = t0; r.t1 = t1; r.stageIdx = stageIdx; r.setId = setId;
+            r.pos = pos; r.ordinal = ordinal; r.cyclePart = cyclePart;
+            r.up = up; r.upReq = upReq; r.lo = lo; r.uhWire = uhWire; r.uhReq = uhReq;
+            r.lh = lh; r.sp = sp; r.confirmed = confirmed; r.extendMs = extendMs;
+            r.clockHeldMs = clockHeldMs; r.part = part;
+            return r;
+        }
 
         /** Delivered span of this row in ms — 0 while it is open. */
         public long span() { return t1 < t0 ? 0L : t1 - t0; }
@@ -113,12 +134,14 @@ public final class AsRun {
             // shim has no optLong, and one reader for both JVMs is the point of the shim.
             o.put("t0", String.valueOf(t0)); o.put("t1", String.valueOf(t1));
             o.put("st", stageIdx); o.put("pos", pos); o.put("ord", ordinal);
+            if (cyclePart >= 0) o.put("cyclePart", cyclePart);
             o.put("sid", setId == null ? "" : setId);
             o.put("up", up); o.put("upr", upReq); o.put("lo", lo);
             o.put("uhw", uhWire); o.put("uhr", uhReq); o.put("lh", lh); o.put("sp", sp);
             o.put("conf", confirmed);
             o.put("ext", String.valueOf(extendMs));
             o.put("clk", String.valueOf(clockHeldMs));
+            if (part > 0) o.put("part", part);
             return o;
         }
 
@@ -128,6 +151,8 @@ public final class AsRun {
             r.t0 = parseLong(o.optString("t0", "0"), 0L);
             r.t1 = parseLong(o.optString("t1", "-1"), -1L);
             r.stageIdx = o.optInt("st", 0); r.pos = o.optInt("pos", 0); r.ordinal = o.optInt("ord", 0);
+            int part = o.optInt("cyclePart", -1);
+            r.cyclePart = part == 0 || part == 1 ? part : -1;
             r.setId = o.optString("sid", "");
             r.up = o.optInt("up", 0);
             // upReq absent (a row written before it existed) → what went on the wire: no
@@ -142,6 +167,8 @@ public final class AsRun {
             // MIGRATION (C7): absent on every row written before the clock was recorded -
             // nothing held, which is how those rows have always been read.
             r.clockHeldMs = parseLong(o.optString("clk", "0"), 0L);
+            // MIGRATION: absent before a resumed session kept both parts - one part.
+            r.part = Math.max(0, o.optInt("part", 0));
             return r;
         }
     }
@@ -248,9 +275,11 @@ public final class AsRun {
      */
     public Row open(int kind, long t0, Model.Preset p,
                     int up, int upReq, int lo, int uhWire, int uhReq, int lh, int sp) {
-        return open(kind, t0, p == null ? 0 : p.stageIdx, p == null ? 0 : p.pos,
+        Row row = open(kind, t0, p == null ? 0 : p.stageIdx, p == null ? 0 : p.pos,
                     p == null ? "" : p.setId, p == null ? 0 : p.ordinal,
                     up, upReq, lo, uhWire, uhReq, lh, sp);
+        if (p != null && row.hasValues()) row.cyclePart = p.cyclePart ? 1 : 0;
+        return row;
     }
 
     /** {@link #open(int, long, Model.Preset, int, int, int, int, int, int, int)} with the
@@ -372,6 +401,52 @@ public final class AsRun {
         return a;
     }
 
+    /**
+     * A SESSION STOPPED AND RESUMED IS ONE RECORDING (the live GrowthTrack test, 9 Nov 2026).
+     *
+     * STOP files the first part, its recording under the session's start; Resume files the one
+     * session under that SAME start (RunParts#foldTime), and the resumed part's recording was
+     * written over the first part's. The summary, History and GrowthTrack then had only the
+     * time after Resume: a session filed at 545 s whose sets came to 452 s.
+     *
+     * So the two are joined: the earlier part's rows as they were recorded, then the part that
+     * played after it, each of its rows moved along the session's elapsed clock by `offsetMs` -
+     * the time the earlier parts played (RunParts#playedMs), which is where the session's clock
+     * stood when this part began. Each part keeps its number ({@link Row#part}), so a step
+     * played again after Resume is never read as one longer step. An earlier row is closed at
+     * `offsetMs` at the latest: the filed duration counts whole seconds, and a row reaching past
+     * it would overlap the next part by the leftover milliseconds.
+     *
+     * Bookkeeping only - nothing here reaches the pump. The live recording is copied, never
+     * changed. Either side may be null or empty; the result is the other one.
+     */
+    public static AsRun join(AsRun earlier, AsRun later, long offsetMs) {
+        if (earlier == null || earlier.rows.isEmpty()) return later;
+        if (later == null) return earlier;
+        AsRun out = new AsRun(later.routineId, later.routineName,
+            later.snap != null ? later.snap : earlier.snap, later.manual,
+            later.ceilKpa > 0 ? later.ceilKpa : earlier.ceilKpa);
+        out.ts = later.ts != 0L ? later.ts : earlier.ts;
+        out.manualSet = later.manualSet != null ? later.manualSet : earlier.manualSet;
+        long off = Math.max(0L, offsetMs);
+        int next = 0;
+        for (int i = 0; i < earlier.rows.size(); i++) {
+            Row c = earlier.rows.get(i).copy();
+            if (c.t0 > off) c.t0 = off;
+            if (c.t1 < 0L || c.t1 > off) c.t1 = Math.max(c.t0, off);
+            out.rows.add(c);
+            next = Math.max(next, c.part + 1);
+        }
+        for (int i = 0; i < later.rows.size(); i++) {
+            Row c = later.rows.get(i).copy();
+            c.t0 += off;
+            if (c.t1 >= 0L) c.t1 += off;
+            c.part += next;
+            out.rows.add(c);
+        }
+        return out;
+    }
+
     /* ==================================================================== §3 blocks */
 
     public static final int FIXED = 0, RAMP = 1;
@@ -473,9 +548,13 @@ public final class AsRun {
 
     /** Rows of one set OCCURRENCE — (stageIdx, pos, setId) — in order, pauses attached. */
     private static final class Group {
-        int stageIdx, pos; String setId = "";
+        int stageIdx, pos, part; String setId = "";
         final List<Row> rows = new ArrayList<Row>();
-        boolean same(Row r) { return stageIdx == r.stageIdx && pos == r.pos && eq(setId, r.setId); }
+        /** The same occurrence: same set in the same place, AND the same part of the session
+         *  (a step played again after Resume is a second occurrence, not a longer one). */
+        boolean same(Row r) {
+            return stageIdx == r.stageIdx && pos == r.pos && eq(setId, r.setId) && part == r.part;
+        }
     }
 
     /** A run of rows that will become one block while a group is being split. */
@@ -504,6 +583,12 @@ public final class AsRun {
      * The planned set is the Model's current set by id (Task 5's snapshot answers whether
      * the routine was edited since); for a manual run it is {@link AsRun#manualSet}.
      */
+    /** The final value row of part `part`, or null. */
+    private static Row partEnd(List<Row> ends, int part) {
+        for (int i = 0; i < ends.size(); i++) if (ends.get(i).part == part) return ends.get(i);
+        return null;
+    }
+
     public static List<Block> blocks(AsRun run, Model m) {
         List<Block> out = new ArrayList<Block>();
         if (run == null || m == null) return out;
@@ -515,6 +600,7 @@ public final class AsRun {
                 if (cur == null || !cur.same(r)) {
                     cur = new Group();
                     cur.stageIdx = r.stageIdx; cur.pos = r.pos; cur.setId = r.setId == null ? "" : r.setId;
+                    cur.part = r.part;
                     groups.add(cur);
                 }
                 cur.rows.add(r);
@@ -523,14 +609,18 @@ public final class AsRun {
             }
         }
         // The final value row of the whole run: the preset it belongs to is the one the run
-        // ended on, and a cut there is "stopped early", not a change.
-        Row runEnd = null;
-        for (int i = run.rows.size() - 1; i >= 0 && runEnd == null; i--)
-            if (run.rows.get(i).hasValues()) runEnd = run.rows.get(i);
+        // ended on, and a cut there is "stopped early", not a change. A run stopped and resumed
+        // ended once per part (join): each part's own final value row is its end.
+        List<Row> partEnds = new ArrayList<Row>();
+        for (int i = run.rows.size() - 1; i >= 0; i--) {
+            Row r = run.rows.get(i);
+            if (r.hasValues() && partEnd(partEnds, r.part) == null) partEnds.add(r);
+        }
 
         for (int gi = 0; gi < groups.size(); gi++) {
             Group g = groups.get(gi);
-            boolean lastGroup = gi == groups.size() - 1;
+            boolean lastGroup = gi == groups.size() - 1 || groups.get(gi + 1).part != g.part;
+            Row runEnd = partEnd(partEnds, g.part);
             // The PLAN is the run's own, not the Library's today: the snapshot's values under
             // the ceiling that was in force at run start. Only a recording without one falls
             // back to the live set.

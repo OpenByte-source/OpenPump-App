@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Optional GrowthTrack connection authorizes automatic same-account session sync. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- Legacy (<= API 30) -->
     <uses-permission android:name="android.permission.BLUETOOTH"
         android:maxSdkVersion="30" />
@@ -161,7 +165,8 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
-        android:allowBackup="false">
+        android:allowBackup="false"
+        android:usesCleartextTraffic="false">
         <!-- A rotation DESTROYS an Activity by default, and a destroyed Activity is an
              exit from a live run: the pump session ends, and (fix round 1) has to be
              filed as an abort from onDestroy because nothing else can. Two layers stop
@@ -235,6 +240,11 @@
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|fontScale|density|locale|layoutDirection"
             android:theme="@style/AppSplashTheme"
             android:label="OpenPump" />
+
+        <!-- The optional GrowthTrack connection's retry job (network-constrained, no UI, no
+             pump access). Only the system can bind it (BIND_JOB_SERVICE). -->
+        <service android:name=".GrowthTrackSyncService"
+            android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true" />
 
         <!-- THE LAUNCHER ENTRIES (incognito, 0.10, the owner's decision): the home-screen icon
              and name are "OpenPump" or one of three disguises - "Fitness log", "Habits",
@@ -493,5 +503,85 @@
             android:authorities="org.openpump.export"
             android:exported="false"
             android:grantUriPermissions="true" />
+        <!-- THE OPTIONAL GROWTHTRACK CONNECTION'S SCREENS. Data transfer has its own task and
+             never creates a second pump owner: it opens only while no run is live and nothing is
+             unsafe (GrowthTrackActivity#doorShut, WiringCheck invariant 252), and goes when one
+             starts. Portrait and configChanges like the one screen: a turn of the phone or a
+             dark-theme switch never drops its page or a sign-in in flight. -->
+        <activity android:name=".GrowthTrackActivity" android:exported="false"
+            android:launchMode="singleTask" android:taskAffinity="org.openpump.growthtrack"
+            android:excludeFromRecents="true"
+            android:screenOrientation="sensorPortrait"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|fontScale|density|locale|layoutDirection" />
+        <!-- THE SIGN-IN'S WAY BACK (bugs 9 and 10). Draws nothing and finishes at once: it never
+             covers a live run, answers nothing when no sign-in is waiting, and parses no model
+             on the main thread. Not exported itself - the browser reaches it through ONE of the
+             return entries below, each wearing an identity's name and icon (the browser asks
+             "Continue to <name>?"), exactly one enabled (Incognito#RETURNS,
+             IncognitoShell#applyReturn, OneScreenManifestTest); the real one as installed. -->
+        <activity android:name=".GrowthTrackCallbackActivity" android:exported="false"
+            android:taskAffinity="org.openpump.growthtrack.callback"
+            android:excludeFromRecents="true" android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity-alias
+            android:name=".GrowthTrackReturnOpenPump"
+            android:targetActivity=".GrowthTrackCallbackActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:label="OpenPump"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gt-openpump" android:host="oauth" android:path="/callback" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".GrowthTrackReturnFitnessLog"
+            android:targetActivity=".GrowthTrackCallbackActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:label="Fitness log"
+            android:icon="@mipmap/ic_fitness"
+            android:roundIcon="@mipmap/ic_fitness_round">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gt-openpump" android:host="oauth" android:path="/callback" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".GrowthTrackReturnHabits"
+            android:targetActivity=".GrowthTrackCallbackActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:label="Habits"
+            android:icon="@mipmap/ic_habits"
+            android:roundIcon="@mipmap/ic_habits_round">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gt-openpump" android:host="oauth" android:path="/callback" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".GrowthTrackReturnNotes"
+            android:targetActivity=".GrowthTrackCallbackActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:label="Notes"
+            android:icon="@mipmap/ic_notes"
+            android:roundIcon="@mipmap/ic_notes_round">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gt-openpump" android:host="oauth" android:path="/callback" />
+            </intent-filter>
+        </activity-alias>
     </application>
 </manifest>

@@ -44,15 +44,26 @@ public final class RunParts {
     public int rejoins, resumes;
     /** The earlier parts' record, already filed, that the one session replaces; "" none. */
     public String sessId = "";
+    /** The id GrowthTrack knows the session by: the FIRST filed part's (Sess#syncId), so the
+     *  one session is sent as an update of that part, never as a second session beside it.
+     *  "" when no part was filed. Data only. */
+    public String syncId = "";
+    /** What the earlier parts would be worth COUNTED toward training: their net against the
+     *  girth line the question measures by (SessionActivity's F3b figure), measured beside
+     *  their own-pull time so a session counted only at its end counts whole ({@link
+     *  #wholeWorth}). NaN when not measured (a plan session, nothing enrolled, an older
+     *  snapshot or record). Recording only. */
+    public double worthSec = Double.NaN;
 
-    private static final String V = "p1";
+    private static final String V = "p3", V2 = "p2", V1 = "p1";
 
     public RunParts copy() {
         RunParts p = new RunParts();
         p.startTs = startTs; p.playedMs = playedMs;
         p.netSec = netSec; p.grossSec = grossSec;
         p.doseKpaS = doseKpaS; p.peakKpa = peakKpa; p.cycles = cycles;
-        p.rejoins = rejoins; p.resumes = resumes; p.sessId = sessId;
+        p.rejoins = rejoins; p.resumes = resumes; p.sessId = sessId; p.syncId = syncId;
+        p.worthSec = worthSec;
         return p;
     }
 
@@ -86,17 +97,35 @@ public final class RunParts {
         p.rejoins = s.rejoins;
         p.resumes = s.resumes;
         p.sessId = s.id == null ? "" : s.id;
+        p.syncId = s.syncId != null && !s.syncId.isEmpty() ? s.syncId : p.sessId;
+        p.worthSec = s.countWorthSec == null ? Double.NaN : s.countWorthSec.doubleValue();
         return p;
     }
 
-    /** The session filing now starts when the first part did and lasts them all. Called
-     *  where the record's start and duration are stamped, before anything keys on its ts. */
+    /** {@link #foldTime(RunParts, Model.Sess, long)} for a part timed in whole seconds. */
     public static void foldTime(RunParts prior, Model.Sess rec) {
+        foldTime(prior, rec, rec == null ? 0L : rec.durSec * 1000L);
+    }
+
+    /** The session filing now starts when the first part did and lasts them all. Called
+     *  where the record's start and duration are stamped, before anything keys on its ts;
+     *  `partMs` is this part's own elapsed, the ms its durSec counts in whole seconds. */
+    public static void foldTime(RunParts prior, Model.Sess rec, long partMs) {
         if (prior == null || rec == null) return;
-        rec.durSec += prior.playedMs / 1000L;
+        // ONE CLOCK WITH THE RECORDING (run 4 of the live GrowthTrack test, 10 Nov 2026): the
+        // parts' ms are added first and then counted in whole seconds - the recording moves
+        // this part's rows by the earlier parts' ms (#recording). Truncated part by part, a
+        // rejoin filed 61.973 + 180.9 s as 241 s against rows to 242.866 s, and GrowthTrack's
+        // draft refused it. A part read from its record is whole seconds already.
+        rec.durSec = (prior.playedMs + Math.max(0L, partMs)) / 1000L;
         rec.ts = prior.startTs > 0 ? prior.startTs : rec.ts - prior.playedMs;
         rec.rejoins = prior.rejoins;
         rec.resumes = prior.resumes;
+        // GrowthTrack (bug 5): the whole session keeps the first part's wall-clock start and
+        // the id that part was sent under. Its end is stamped where it files.
+        if (prior.startTs > 0) rec.recordedStartMs = prior.startTs;
+        String carried = prior.syncId != null && !prior.syncId.isEmpty() ? prior.syncId : prior.sessId;
+        if (carried != null && !carried.isEmpty()) rec.syncId = carried;
     }
 
     /** ...and carries the earlier parts' figures, once its own are on it. */
@@ -115,6 +144,19 @@ public final class RunParts {
         if (prior.cycles >= 0) rec.cyclesDone = prior.cycles + Math.max(0, rec.cyclesDone);
     }
 
+    /**
+     * WHAT THE ONE SESSION FILES AS ITS RECORDING (the live GrowthTrack test, 9 Nov 2026): the
+     * earlier part's recording, filed under the session's start, joined with this part's
+     * (AsRun#join) - they are filed under the same key, and this part's alone used to replace
+     * the first's. `earlierFiled` is the recording of the record {@link #dropEarlier} took out,
+     * or null when there is none (a process that died filed nothing to join); then this part's
+     * is filed as it always was.
+     */
+    public static AsRun recording(RunParts prior, AsRun earlierFiled, AsRun part) {
+        if (prior == null || earlierFiled == null || earlierFiled.rows.isEmpty()) return part;
+        return AsRun.join(earlierFiled, part, prior.playedMs);
+    }
+
     /** Takes the earlier parts' filed record out of the log, so the one session replaces it
      *  rather than counting beside it; returns it, or null when there is none. */
     public static Model.Sess dropEarlier(List<Model.Sess> log, RunParts prior) {
@@ -125,6 +167,67 @@ public final class RunParts {
             if (s != null && prior.sessId.equals(s.id)) return log.remove(i);
         }
         return null;
+    }
+
+    /**
+     * THE EARLIER PARTS' ROWS A REJOINED RUN CARRIES (follow-up to the live GrowthTrack test,
+     * 9 Nov 2026): the killed part's own copy, read back from its provisional key - written on
+     * every note, and joined with every part before it once a rejoin has carried them - else
+     * the recording of the part that was filed (STOP, or a screen destroyed mid-run, which
+     * re-keys it), else null. The run joins them into what it persists and files
+     * ({@link #recording}), so a second kill keeps them too. Recording only.
+     */
+    public static AsRun priorRows(AsRun provisional, AsRun filed) {
+        if (provisional != null && !provisional.rows.isEmpty()) return provisional;
+        if (filed != null && !filed.rows.isEmpty()) return filed;
+        return null;
+    }
+
+    /**
+     * WHAT THE WHOLE SESSION IS WORTH COUNTED (follow-up, 9 Nov 2026): the earlier parts'
+     * worth (`prior`, measured beside their own-pull time) plus this part's. Counting a
+     * session stopped and resumed only at its end used to count this part alone - the earlier
+     * parts had been timed against their own pull, and the plan's figure for them was never
+     * kept. Recording only.
+     */
+    public static double wholeWorth(RunParts prior, double partWorthSec) {
+        double before = prior == null || Double.isNaN(prior.worthSec) ? 0.0 : Math.max(0.0, prior.worthSec);
+        return before + Math.max(0.0, partWorthSec);
+    }
+
+    /** The snapshot's figures so far, with this part's worth added (see {@link #wholeWorth}). */
+    public static void addWorth(RunParts sofar, RunParts prior, Double partWorthSec) {
+        if (sofar == null || partWorthSec == null) return;
+        sofar.worthSec = wholeWorth(prior, partWorthSec.doubleValue());
+    }
+
+    /**
+     * A FIRST PART THE PERSON COUNTED, THEN RESUMED (the live GrowthTrack test's follow-up,
+     * 9 Nov 2026). STOP on a routine the plan did not write asks "Count this toward training?",
+     * and since the Resume offer waits for that answer (ResumeOffer), the answer now always
+     * comes first. Counted, the part's record carries the track and its net time
+     * (Model.Sess#countedTrack); the resumed session replaced that record without either and
+     * asked again for the resumed part alone, so the earlier part's counted time was lost.
+     *
+     * Here the one session keeps the count: the earlier part's track, and its counted net plus
+     * `partNetSec` - this part's, measured against the same line the question used - as one
+     * figure, added once ({@link #foldFigures} adds the earlier part's through `prior`; the
+     * earlier record is gone from the log by then, {@link #dropEarlier}). Returns true when it
+     * carried a count: the question is not asked again. False, changing nothing, when the
+     * earlier part was not counted (or there is none).
+     */
+    public static boolean carryCount(Model.Sess earlier, RunParts prior, Model.Sess rec,
+                                     double partNetSec) {
+        if (earlier == null || rec == null || earlier.countedTrack == Model.TRAINER_TRACK_NONE)
+            return false;
+        rec.countedTrack = earlier.countedTrack;
+        double before = earlier.netTupSec == null ? 0.0 : Math.max(0.0, earlier.netTupSec.doubleValue());
+        // The earlier parts' counted net, added once by foldFigures - whether or not `prior`
+        // was taken before the answer (STOP takes it first, so it reads no net).
+        if (prior != null) prior.netSec = before;
+        rec.netTupSec = Double.valueOf(Math.max(0.0, partNetSec)
+            + (prior == null ? before : 0.0));
+        return true;
     }
 
     /** The before-test, when only the earlier part ran it (it runs before the first set). */
@@ -152,14 +255,19 @@ public final class RunParts {
     public String code() {
         return V + ";" + startTs + ";" + playedMs + ";" + num(netSec) + ";" + num(grossSec)
             + ";" + num(doseKpaS) + ";" + num(peakKpa) + ";" + cycles + ";" + rejoins + ";"
-            + resumes + ";" + (sessId == null ? "" : sessId.replace(";", ""));
+            + resumes + ";" + (sessId == null ? "" : sessId.replace(";", ""))
+            + ";" + (syncId == null ? "" : syncId.replace(";", ""))
+            + ";" + num(worthSec);
     }
 
     /** Read back; null for a snapshot that holds none (written before it) or an odd one. */
     public static RunParts fromCode(String c) {
         if (c == null) return null;
         String[] f = c.split(";", -1);
-        if (f.length != 11 || !V.equals(f[0])) return null;
+        // MIGRATION: "p1" (11 fields) was written before syncId existed; it reads as "". "p2"
+        // (12) before the earlier parts' worth was kept; it reads as not measured.
+        if (!((f.length == 13 && V.equals(f[0])) || (f.length == 12 && V2.equals(f[0]))
+                || (f.length == 11 && V1.equals(f[0])))) return null;
         try {
             RunParts p = new RunParts();
             p.startTs = Math.max(0L, Long.parseLong(f[1]));
@@ -173,6 +281,8 @@ public final class RunParts {
             p.rejoins = Math.max(0, Integer.parseInt(f[8]));
             p.resumes = Math.max(0, Integer.parseInt(f[9]));
             p.sessId = f[10];
+            p.syncId = f.length >= 12 ? f[11] : "";
+            p.worthSec = f.length == 13 ? dbl(f[12]) : Double.NaN;
             return p;
         } catch (NumberFormatException e) {
             return null;

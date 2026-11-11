@@ -37,6 +37,8 @@ The goal is bigger than any one feature: the best app there is to pump, track yo
 - **Works with** the Epic Hydro PE Pump over Bluetooth. It's the one pump checked on real hardware so far. Others can be added by the people who own them.
 - **No pump?** Practice mode runs everything against a simulated pump, and marks those runs as simulated.
 - **Your data** stays on your phone. No account, no server, no analytics.
+
+  Want to be part of where PE science goes next? You can choose to connect **GrowthTrack** and send your sessions to your own account there.
 - **You need** Android 7.0 or newer.
 - **It's free** and open source, under AGPL-3.0.
 

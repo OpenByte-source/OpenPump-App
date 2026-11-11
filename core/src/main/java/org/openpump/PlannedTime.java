@@ -283,7 +283,9 @@ public final class PlannedTime {
      * is stated against the length track's goal, which has no levels to climb.
      */
     private static void levelLine(Model m, Model.Sess s, Rows out) {
-        if (m == null || s.netTupSec == null) return;
+        // A routine the plan did not write is timed against its own pull (Sess#tupOwnPull):
+        // no level's goal is stated under it.
+        if (m == null || s.netTupSec == null || s.tupOwnPull) return;
         Model.Routine r = s.routineId == null ? null : m.routine(s.routineId);
         if (r != null && r.trainerTrack == Plan.TRACK_LENGTH) {
             out.levelLabel = "length target";

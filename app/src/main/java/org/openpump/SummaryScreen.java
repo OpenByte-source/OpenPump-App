@@ -314,6 +314,9 @@ final class SummaryScreen {
             a.streakBlock(st.streak, "day streak", sub, st.weekDays, st.scheduledDays);
         }
 
+        // (owner decision 5, 19 Oct 2026) No GrowthTrack button here: a session's status is
+        // on the GrowthTrack screen's "Sent and waiting sessions".
+
         boolean man = s != null && s.manual;
         // The after-session measurement now leads the summary rather than closing it - see
         // measureAfterCard(). One action, one place: a second identical button down here

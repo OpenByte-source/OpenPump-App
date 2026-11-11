@@ -540,6 +540,7 @@ public class SessionActivity extends Activity
         Model.Fmt.unit = model.unit;              // keep the formatter in step with what was saved
         Model.Fmt.sizeUnit = model.sizeUnit;      // ...and the SIZE formatter, the same way
         Model.Fmt.loadUnit = model.loadUnit;      // ...and the LOAD formatter (2026-09-30)
+        GrowthTrackManager.get(this).startSync(model, null);
         openLog();
         storeUnreadable = Store.storeWasUnreadable();
         // KEEP THE PHOTOS OUT OF THE PHONE'S GALLERY. The directory below is
@@ -868,6 +869,12 @@ public class SessionActivity extends Activity
      * The running screen, for the guard at the top of onCreate. Main thread only; set as a
      * screen is created and released in its onDestroy only if it is still this one. */
     private static SessionActivity liveScreen;
+
+    /** Main-thread, read-only guard for optional connected-app handoffs. */
+    static SessionActivity liveForDataHandoff() {
+        SessionActivity s = liveScreen;
+        return s != null && !s.isFinishing() && !s.isDestroyed() ? s : null;
+    }
     /** This instance was created over a running screen and finished at once: its onDestroy
      *  must touch nothing (no last stop, no clearLive, no service stop). */
     private boolean duplicateScreen;
@@ -1077,6 +1084,9 @@ public class SessionActivity extends Activity
      */
     private String pendingCountSessId;
     private double pendingCountNetSec;
+    /** What a session timed against its own pull would plan under pressure once counted - its
+     *  routine against the line its counted net is measured from (Sess#tupOwnPull). */
+    Double pendingCountPlannedSec;
     /** Why this run is waiting to be counted - Say#UNCOUNTED_*, decided when it is filed. */
     private int pendingCountWhy;
     /** Whether the ask has already been PUT to the user for this session. The inline card
@@ -1239,7 +1249,8 @@ public class SessionActivity extends Activity
 
     private final class AskCountRunnable implements Runnable {
         @Override public void run() {
-            if (isFinishing() || pendingCountSessId == null) return;
+            // Not put after all: STOP's Resume offer, kept for it, is shown now (ResumeOffer).
+            if (isFinishing() || pendingCountSessId == null) { resumeAfterQuestion(); return; }
             SessionActivity a = SessionActivity.this;
             LinearLayout col = Ui.col(a);
             col.setPadding(Ui.dp(a, 20), Ui.dp(a, 22), Ui.dp(a, 20), Ui.dp(a, Look.S1));
@@ -1256,6 +1267,8 @@ public class SessionActivity extends Activity
             // and the card below keeps the question.
             countAskDialog = Ui.dialog(a).setView(col).show();
             Ui.dress(a, countAskDialog);
+            // Answered or dismissed, STOP's kept Resume offer comes up after it (ResumeOffer).
+            countAskDialog.setOnDismissListener(new QuestionGone());
         }
     }
 
@@ -1272,10 +1285,18 @@ public class SessionActivity extends Activity
                     // computed while the Session still existed. Re-integrating now is
                     // impossible: the session is closed.
                     e.netTupSec = Double.valueOf(pendingCountNetSec);
+                    // Counted, it is the plan's figure now, planned against the same line.
+                    e.tupOwnPull = false;
+                    if (pendingCountPlannedSec != null) e.plannedTupSec = pendingCountPlannedSec;
                     break;
                 }
                 Store.save(SessionActivity.this, model);
-                Ui.snack(SessionActivity.this, rootFrame, "Counted toward this week");
+                // Said WITH STOP's Resume offer when one is waiting or up, so neither message
+                // replaces the other (ResumeOffer#note); alone otherwise, as before.
+                String counted = "Counted toward this week";
+                int how = resumeOffer.note(counted, android.os.SystemClock.uptimeMillis());
+                if (how == ResumeOffer.AGAIN) resumeOffer.again().run();
+                else if (how == ResumeOffer.ALONE) Ui.snack(SessionActivity.this, rootFrame, counted);
             }
             // Answered either way \u2014 the question is asked once per run, not until it
             // gets the answer the app was hoping for.
@@ -2711,13 +2732,15 @@ public class SessionActivity extends Activity
      *  its switch is on. Incognito (0.10): the switch is "Hide from recent apps" in Settings ›
      *  Privacy - the same field, the same flag, and ONLY this switch sets it (WiringCheck
      *  invariant 193). */
-    void applySecureFlag(android.view.Window w) {
+    static void applySecureFlag(android.view.Window w, Model model) {
         if (w == null) return;
         if (model != null && model.secureWindow)
             w.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
         else
             w.clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
     }
+
+    void applySecureFlag(android.view.Window w) { applySecureFlag(w, model); }
 
     /* ================================================================ INCOGNITO (0.10)
      *
@@ -6244,7 +6267,8 @@ public class SessionActivity extends Activity
             TrainingWeek.PlanWeek pw = TrainerTab.planWeekNow(model, System.currentTimeMillis());
             countedRow(g, "This week", Say.planWeekShort(pw),
                        pw.qualifies ? Ui.ACCENT : Ui.TEXT, false, false);
-            Double net = filedSession.netTupSec;
+            // The plan's figure only: an own routine's time moves nothing toward a level.
+            Double net = Summary.planNetSec(filedSession);
             // polish AS-3: whole minutes under ten - "0 min", never "0.0 min".
             double netMin = net == null ? 0.0 : net.doubleValue() / 60.0;
             countedRow(g, "Toward the next level",
@@ -14208,6 +14232,7 @@ public class SessionActivity extends Activity
         skipCut.clear();         // FIX11 F4 - and what Skip cut out
         runTakenSrc.clear();     // rc9b - and the Skip button's
         runPrior = null;         // a fresh run has no earlier part (a rejoin sets it after)
+        runPriorRows = null;     // ...and no earlier rows
         comingChanged.clear();
         comingOrig.clear();
         setClock.reset();
@@ -18807,6 +18832,25 @@ public class SessionActivity extends Activity
      * (assessTs/assessKpaList/assessNoReading, a few lines below in onSample()) for
      * exactly this reason: its telemetry is not the routine's.
      */
+    /**
+     * THE SESSION'S PEAK IS THE ROUTINE'S OWN (RunPeak): a start check running mid-run (after a
+     * step done by hand) and a before-pull are not the routine's, and the pressure they leave
+     * on the cuff counts only up to what the step playing asks for until the cuff has come
+     * down to it. The after-pull of the tissue response test runs inside the session and counts
+     * against what it commands, as it always has. Reads state only; commands nothing.
+     */
+    private void notePeakFrame(long now, double kpa, boolean noReading) {
+        if (!session.isRunTracking()) return;
+        if (guidedStarting || sealChecking) { session.peakCarriedIn(); return; }
+        if (assessing || assessVenting) {
+            if (!assessAfterPhase) { session.peakCarriedIn(); return; }
+            session.noteRoutinePeak(kpa, noReading, assessing ? assessCommandedKpa : 0.0);
+            return;
+        }
+        if (liveIdxNow(now) < 0) return;
+        session.noteRoutinePeak(kpa, noReading, commandedNowKpa(now));
+    }
+
     private void recordHoldFrame(long now, double kpa, boolean noReading) {
         if (!session.isRunTracking() || assessing || plan.isEmpty() || presetDurMs.length == 0)
             return;
@@ -18858,6 +18902,8 @@ public class SessionActivity extends Activity
         // pump has been told to hold is a sensor the app cannot see past, not a vented cuff.
         session.noteHoldFrame(now, kpa, noReading, commanded, phase, cur.stageIdx,
                               fatigueStage, dropPhase, commandingPressure(idx));
+        // A start check mid-run is not the routine's own time under tension (as for its peak).
+        if (guidedStarting || sealChecking) session.noteStartCheckFrame();
     }
 
     /**
@@ -23845,7 +23891,9 @@ public class SessionActivity extends Activity
     /** Writes the recording under its current key. Cheap: Store keeps the file parsed. */
     void asRunPersist() {
         if (asRunKey == 0 || asRun == null) return;
-        Store.saveAsRun(this, asRunKey, asRun);
+        // A rejoined run persists its earlier parts' rows with its own, so a kill now keeps them.
+        Store.saveAsRun(this, asRunKey, runPriorRows == null ? asRun
+            : RunParts.recording(runPrior, runPriorRows, asRun));
     }
 
     /**
@@ -23856,7 +23904,8 @@ public class SessionActivity extends Activity
      * session.endRun() stops the clock. Idempotent on the recording: close() on nothing
      * open is a no-op, and fileSession itself runs once per session.
      */
-    private void asRunFile(Model.Sess rec, long elapsedMs) {
+    private void asRunFile(Model.Sess rec, long elapsedMs, Model.Sess earlier, RunParts parts,
+                           AsRun partsRows) {
         asRunForgetPending();
         if (asRunKey == 0) {
             // No run was recorded for THIS session (an abort during the seal check, before
@@ -23878,15 +23927,26 @@ public class SessionActivity extends Activity
         try {
             asRun.close(elapsedMs);
             asRun.ts = rec.ts;
-            rec.hasAsRun = !asRun.rows.isEmpty();
+            // A RESUMED SESSION FILES BOTH PARTS (RunParts#recording, the live GrowthTrack test
+            // of 9 Nov 2026): the first part's recording is under the same key as this one, and
+            // this part's alone used to replace it. `asRun` stays this part's own - the cycles
+            // below are counted from it and the earlier parts' added by RunParts.
+            // The rows the rejoin carried (a killed part's included); else the filed part's.
+            AsRun earlierRun = partsRows != null ? partsRows
+                : earlier == null || !earlier.hasAsRun ? null : Store.loadAsRun(this, earlier.ts);
+            AsRun filed = RunParts.recording(parts, earlierRun, asRun);
+            filed.ts = rec.ts;
+            rec.hasAsRun = !filed.rows.isEmpty();
             // Whether the run differs from its plan — decided ONCE, here, and persisted, so
             // the History list can label its rows (AsRun.historyLabel) without loading and
             // re-deriving every recording on every render.
-            rec.differs = rec.hasAsRun && AsRun.differs(AsRun.blocks(asRun, model));
-            rec.asRunSnapshot = rec.manual ? null : asRun.snap;
+            rec.differs = rec.hasAsRun && AsRun.differs(AsRun.blocks(filed, model));
+            rec.asRunSnapshot = rec.manual ? null : filed.snap;
             if (asRunKey != rec.ts) Store.deleteAsRun(this, asRunKey);
             asRunKey = 0;
-            if (rec.hasAsRun) Store.saveAsRun(this, rec.ts, asRun);
+            // The earlier part's own key, when it was not this session's start.
+            if (earlier != null && earlier.hasAsRun && earlier.ts != rec.ts) Store.deleteAsRun(this, earlier.ts);
+            if (rec.hasAsRun) Store.saveAsRun(this, rec.ts, filed);
             // ONE CUTOFF FOR BOTH HALVES OF A RECORDING. The rows go from asrun.json
             // and the routine snapshot goes from the Sess in model.json at the same
             // moment - see Model#trimAsRunSnapshots for why the second one matters more.
@@ -25566,6 +25626,10 @@ public class SessionActivity extends Activity
      *  the leftovers, option A): filed with this part as ONE session. Null for a run in one
      *  part; set by RejoinRunTap after startSession, taken by fileSession. */
     RunParts runPrior;
+    /** The earlier parts' as-run rows, carried by a rejoined or resumed run (RunParts#priorRows):
+     *  joined into everything this part persists and files. Null for a run in one part. Set by
+     *  RejoinRunTap after startSession, taken by fileSession. Recording only. */
+    AsRun runPriorRows;
     /** When the snapshot last kept the figures so far (tickRun's slow beat). */
     private long snapPartsAt;
     /** How often the tick re-writes them between step boundaries: a death loses at most this
@@ -27842,6 +27906,8 @@ public class SessionActivity extends Activity
         // resumed run carries its earlier parts here, and files them with this one.
         RunParts parts = runPrior;
         runPrior = null;
+        AsRun partsRows = runPriorRows;
+        runPriorRows = null;
 
         // ONE derivation of "how far did it get", used by the summary AND by the History
         // row — defect #11 in the do-not-reintroduce list, and defect #02's root cause.
@@ -27856,7 +27922,9 @@ public class SessionActivity extends Activity
         long elMs = session.elapsedMs(now, LINK_TIMEOUT_MS);
         long el = elMs / 1000;
         int presetsDone = ranAtAll ? Math.max(0, Math.min(planIdx + 1, plan.size())) : 0;
-        Double peak = ranAtAll ? session.observedPeakKpa() : null;
+        // The routine's own peak (RunPeak): the start check's pull left on the cuff when the
+        // first step began is not part of it (the live GrowthTrack test, 9 Nov 2026).
+        Double peak = ranAtAll ? session.routinePeakKpa() : null;
         double dose = ranAtAll ? session.deliveredDoseKpaS() : 0;
         int noReads = ranAtAll ? session.noReadingSampleCount() : 0;
         // Task 5 (T14+): computed ONCE, here, from the run's own recording — the raw
@@ -27882,8 +27950,10 @@ public class SessionActivity extends Activity
         // started" apart from "the routine ran and no telemetry arrived" - two completely
         // different claims it used to print with one sentence (the second one, always).
         // Filed on the record below, so a summary reopened from History gives this reason.
+        // A run whose only readings were a start check's (stopped there after a step done by
+        // hand) never reached a pressure of its own: the routine's pressure never started.
         int noPeakWhy = peak != null ? Summary.NO_PEAK_UNKNOWN
-                      : !ranAtAll ? Summary.NO_PEAK_NEVER_RAN
+                      : !ranAtAll || session.observedPeakKpa() != null ? Summary.NO_PEAK_NEVER_RAN
                       : !session.sawSampleThisRun() ? Summary.NO_PEAK_NO_READINGS
                       : Summary.NO_PEAK_NO_MEASUREMENT;
         // THE PLANNED DURATION IS NO LONGER HELD HERE. It is filed on the record below
@@ -27908,7 +27978,11 @@ public class SessionActivity extends Activity
         // not the deeper of them. Gated on ranAtAll for the same reason the after-pull
         // term is: with no tracked run there is no observed peak to compare against and
         // nothing was carried into anything.
-        int carriedInKpa = assessBeforeArmedKpa > 0 ? assessBeforeArmedKpa : sealCommandedKpa;
+        // THE LIVE GROWTHTRACK TEST (9 Nov 2026): the observed side no longer carries that
+        // residual - the session's peak is the routine's own (RunPeak) - so the commanded side
+        // does not either, and the summary has nothing carried in to name. 0, as on a session
+        // nothing was carried into; sessions filed before keep what they were filed with.
+        int carriedInKpa = 0;
         int commandedPeakKpa = Summary.commandedPeakKpa(plan, presetsDone - 1, model.ceilKpa,
                                                          ranAtAll ? assessAfterArmedKpa : 0,
                                                          ranAtAll ? carriedInKpa : 0);
@@ -27952,7 +28026,12 @@ public class SessionActivity extends Activity
         rec.durSec = el;                       // the SAME value the summary displays
         // ...and with the earlier parts, the session lasts them all and starts when the first
         // did - before anything below keys on rec.ts (the as-run, the traces, the day).
-        RunParts.foldTime(parts, rec);
+        RunParts.foldTime(parts, rec, elMs);
+        // Data-only wall-clock facts: do not reinterpret old history's end/start key. A
+        // resumed or rejoined session already has its FIRST part's start (RunParts#foldTime),
+        // and it ends now like any other (GrowthTrack bug 5).
+        if (rec.recordedStartMs <= 0) rec.recordedStartMs = session.runStartedAtOrZero();
+        rec.recordedEndMs = now;
         el = rec.durSec;
         sessionElapsedSec = el;
         rec.completed = !aborted;
@@ -27983,7 +28062,7 @@ public class SessionActivity extends Activity
         rec.cmdPeakKpa = Double.valueOf(commandedPeakKpa);
         rec.afterPullKpa = ranAtAll ? assessAfterArmedKpa : 0;
         rec.carriedInKpa = ranAtAll ? carriedInKpa : 0;
-        rec.carriedFromPull = assessBeforeArmedKpa > 0;
+        rec.carriedFromPull = carriedInKpa > 0 && assessBeforeArmedKpa > 0;
         rec.noReadSamples = noReads;
         rec.noPeakWhy = noPeakWhy;
         rec.holdEfficiencyPct = holdEff;       // null = "—" (never tracked, or under 60 s)
@@ -28027,6 +28106,19 @@ public class SessionActivity extends Activity
                 grossTup = Double.valueOf(tup[1]);
             }
         }
+        // OWN PULL (the owner's pick B, 9 Nov 2026): a routine the plan did not write - own or
+        // seed - and a manual run are timed against each step's OWN commanded pull, with the
+        // plan's own tolerance and exclusions (Session#ownPullTupSec). A plan session keeps
+        // its floor, and one with no floor (a feeder) stays unscored, as before. Marked on the
+        // record, so it never reads as the plan's (Summary#planNetSec).
+        boolean ownPull = false;
+        if (ranAtAll && netTup == null
+                && (r == null || r.trainerTrack == Model.TRAINER_TRACK_NONE)) {
+            double[] tup = session.ownPullTupSec(model.tupCountTolKpa(1.0));
+            netTup = Double.valueOf(tup[0]);
+            grossTup = Double.valueOf(tup[1]);
+            ownPull = true;
+        }
         // PASS H - the local day, decided now, while the phone is still in the timezone the
         // session happened in.
         /* A PLAN CHANGE STOPS BEING NEWS ONCE THE NEW SHAPE HAS RUN. After this the chip
@@ -28045,6 +28137,7 @@ public class SessionActivity extends Activity
                 if (runRoutine.stages.get(i).traction) { tractionAskSessId = rec.id; break; }
         rec.netTupSec = netTup;
         rec.grossTupSec = grossTup;
+        rec.tupOwnPull = ownPull;
 
         /* F3b - WHAT THIS RUN WOULD BE WORTH IF THE PERSON COUNTED IT.
          *
@@ -28060,21 +28153,42 @@ public class SessionActivity extends Activity
          * screen that asks the question is on display. */
         pendingCountSessId = null;
         pendingCountNetSec = 0;
+        pendingCountPlannedSec = null;
         countAskShown = false;
-        if (ranAtAll && netTup == null && model.trainerEnrolled) {
+        // Not scored by the plan: its own-pull time (above) is the session's, never the plan's.
+        if (ranAtAll && (netTup == null || ownPull) && model.trainerEnrolled) {
             // rec.ts for the same reason as the scored path above: what this run WOULD be
             // worth has to be measured against the floor it was actually run under.
             double gFloor = model.netFloorKpa(Plan.floorKpa(model.trainerGirth.level), rec.ts);
             double[] tup = session.netGrossTupSec(gFloor, model.tupCountTolKpa(gFloor));
-            // Counted, this is the line its net was measured from (CountTowardTrainingTap).
-            tupCountFromKpa = gFloor - model.tupCountTolKpa(gFloor);
-            if (tup[0] > 0) {
+            // Counted, this is the line its net was measured from (CountTowardTrainingTap). A
+            // session timed against its own pull keeps its own plan (every hold) until then.
+            double countLine = gFloor - model.tupCountTolKpa(gFloor);
+            if (!ownPull) tupCountFromKpa = countLine;
+            else pendingCountPlannedSec = Double.valueOf(
+                PlannedTime.underPressureSec(model, runRoutine, countLine));
+            // A first part the person COUNTED, now resumed: the one session keeps that count,
+            // this part's net added to it once, and the question is not asked again for this
+            // part alone (RunParts#carryCount).
+            if (RunParts.carryCount(earlier, parts, rec, tup[0])) {
+                // Counted: the plan's figure, against the plan's line.
+                rec.tupOwnPull = false;
+                tupCountFromKpa = countLine;
+                log("counted first part carried into the resumed session");
+            } else {
+                // WHAT THE WHOLE SESSION IS WORTH COUNTED (follow-up, 9 Nov 2026): the earlier
+                // parts' figure, measured beside their own-pull time and carried, plus this
+                // part's - so a resumed session counted only now counts every part.
+                double worth = RunParts.wholeWorth(parts, tup[0]);
+                if (ownPull) rec.countWorthSec = Double.valueOf(worth);
+                if (worth > 0) {
                 pendingCountSessId = rec.id;
-                pendingCountNetSec = tup[0];
+                pendingCountNetSec = worth;
                 // Why it waits, for the question's one line: a single set, a feeder, or a
                 // routine the plan did not write - decided now, while the run is known.
                 pendingCountWhy = Say.uncountedWhy(manualSession,
                                                    r == null ? 0 : r.trainerTrack);
+                }
             }
         }
         // B3 - WHAT THIS ROUTINE PLANNED, in both counts the summary can compare by, copied
@@ -28133,7 +28247,7 @@ public class SessionActivity extends Activity
         // t10 O8 - a reduced day of the return, asked before this session spends its step
         // below (Deload#onFiled): its length reading stays out of the low streak.
         rec.returnDay = !manualSession && Deload.reducedOn(model, rec.ts);
-        asRunFile(rec, elMs);
+        asRunFile(rec, elMs, earlier, parts, partsRows);
         // Counted over the recording asRunFile has just closed - the same recording, at the
         // same moment, the summary's cycles row used to count it from.
         rec.cyclesDone = deliveredCycles();
@@ -28213,7 +28327,15 @@ public class SessionActivity extends Activity
         // it is where the summary's Done goes, and the summary is drawn after this runs.
         manualSource = null;
         model.adhoc.clear();
+        GrowthTrackManager sync = GrowthTrackManager.get(this);
+        // Never a practice run, and never one its GrowthTrack switch was off for - and when it
+        // is not marked, why, for "Sent and waiting sessions" (GrowthTrackOutbox#file).
+        GrowthTrackOutbox.file(rec, sync.connectionId(), model, null);
+        // WAIT UNTIL FINAL (GrowthTrackHold): STOP's part, with Resume about to be offered, is
+        // held before the sync below - GrowthTrack keeps the first copy it is sent.
+        if (stopResumable) resumeOffer.holding(rec.id);
         Store.save(this, model);
+        sync.startSync(model, null);
 
         // The run is over: stop attributing samples to it and stop its clock. What it
         // accumulated stays readable (the summary is redrawn after the after-measurement
@@ -28594,6 +28716,8 @@ public class SessionActivity extends Activity
             // Evidence does not outlive its run.
             Store.deleteTau(SessionActivity.this, target.ts);
             Store.save(SessionActivity.this, model);
+            // A deleted session that was still waiting is never sent to GrowthTrack.
+            GrowthTrackManager.get(SessionActivity.this).withdraw(target.id, null);
             refreshWidgetIdle();     // the streak on the home screen just changed
             Ui.snack(SessionActivity.this, rootFrame, "Session deleted");
             showSessionHistory();
@@ -31919,6 +32043,9 @@ public class SessionActivity extends Activity
         // runTracking gate that keeps the seal check's and an assessment's telemetry out
         // of preset 0's hold phase.
         recordHoldFrame(now, s.kpa, s.noReading);
+        // THE SESSION'S PEAK, from the routine's own steps only (RunPeak, the live GrowthTrack
+        // test of 9 Nov 2026): never the start check's pull still on the cuff.
+        if (running) notePeakFrame(now, s.kpa, s.noReading);
         // THE PRESSURE TRACE takes its samples HERE, where they actually arrive, and not
         // from the redraw loop. Sampling a 4 Hz feed at 25 fps would put the same reading
         // in the buffer six times and stretch the shape of a pull across a time axis that
@@ -35336,6 +35463,7 @@ public class SessionActivity extends Activity
 
     /** Set at load, so the warning survives the rest of onCreate deciding what to show. */
     private boolean storeUnreadable = false;
+    boolean dataStoreUnreadable() { return storeUnreadable; }
 
     /**
      * THE SCREEN THAT USED TO NOT EXIST (audit A33). A model.json that could not be read
@@ -39407,6 +39535,8 @@ public class SessionActivity extends Activity
         if (setupPopup != null && setupPopup.isShowing()) refreshSetupPopup();
         // The first-run setup's battery row, back from the same system screen.
         if (currentScreen == Nav.SCR_SETUP && setupScreen != null) setupScreen.onResume();
+        // Settings' GrowthTrack row, back from the GrowthTrack screen: read again in place.
+        if (currentScreen == Nav.SCR_SETTINGS && settingsScreen != null) settingsScreen.onResume();
         // H1 - a hold the previous screen ended as it was destroyed, said once.
         showHoldEndedWithScreen();
         // (the second re-review) the vent watch's give-up is now in front of the person.
@@ -39759,6 +39889,11 @@ public class SessionActivity extends Activity
      *  record, if any), so a rejoin files ONE session. Absent on a snapshot written before
      *  it: the rejoin files its own part, as it always did. */
     private static final String KEY_SNAP_PARTS = "parts";
+    /** When the snapshot was last written (wall clock), and whether the pump was simulated: a
+     *  run not rejoined is filed from it (DeclinedRun) and ends there. Absent on a snapshot
+     *  written before them: the end is its start plus the time played, the pump the one now. */
+    private static final String KEY_SNAP_AT = "at";
+    private static final String KEY_SNAP_SIM = "sim";
 
     /** How stale a snapshot may be and still be worth offering. Past this the pump has
      *  almost certainly been dealt with by hand, and asking would be noise. */
@@ -39774,19 +39909,32 @@ public class SessionActivity extends Activity
             long now = System.currentTimeMillis();
             boolean ran = session.isRunTracking();
             long partStart = session.runStartedAtOrZero();
-            Double net = null, gross = null;
+            Double net = null, gross = null, worth = null;
             if (ran && !manualSession) {
                 double floorKpa = model.scoringFloorKpa(runRoutine, partStart > 0 ? partStart : now);
                 if (!Double.isNaN(floorKpa)) {
                     double[] tup = session.netGrossTupSec(floorKpa, model.tupCountTolKpa(floorKpa));
                     net = Double.valueOf(tup[0]);
                     gross = Double.valueOf(tup[1]);
+                } else if (runRoutine.trainerTrack == Model.TRAINER_TRACK_NONE) {
+                    // Counted as fileSession counts it: against each step's own pull.
+                    double[] tup = session.ownPullTupSec(model.tupCountTolKpa(1.0));
+                    net = Double.valueOf(tup[0]);
+                    gross = Double.valueOf(tup[1]);
+                    // ...and what it would be worth counted, beside it (RunParts#wholeWorth).
+                    if (model.trainerEnrolled) {
+                        double gFloor = model.netFloorKpa(Plan.floorKpa(model.trainerGirth.level),
+                                                          partStart > 0 ? partStart : now);
+                        worth = Double.valueOf(
+                            session.netGrossTupSec(gFloor, model.tupCountTolKpa(gFloor))[0]);
+                    }
                 }
             }
             parts = RunParts.sofar(runPrior, partStart,
                 ran ? session.elapsedMs(now, LINK_TIMEOUT_MS) : 0L, net, gross,
-                ran ? session.deliveredDoseKpaS() : 0.0, ran ? session.observedPeakKpa() : null,
+                ran ? session.deliveredDoseKpaS() : 0.0, ran ? session.routinePeakKpa() : null,
                 ran ? deliveredCycles() : -1);
+            RunParts.addWorth(parts, runPrior, worth);
         } catch (RuntimeException e) {
             log("run snapshot: the figures so far could not be counted: " + e);
         }
@@ -39805,6 +39953,8 @@ public class SessionActivity extends Activity
                 .putString(KEY_SNAP_SKIPPED, at.skippedCsv())
                 .putString(KEY_SNAP_TAKEN, at.takenCsv())
                 .putString(KEY_SNAP_PARTS, parts == null ? "" : parts.code())
+                .putLong(KEY_SNAP_AT, System.currentTimeMillis())
+                .putBoolean(KEY_SNAP_SIM, link != null && link.isSimulated())
                 .apply();
         } catch (Exception ignored) { }
     }
@@ -39836,7 +39986,9 @@ public class SessionActivity extends Activity
      *
      * A MANUAL run is recorded but never offered: its routine is ephemeral and rebuilt from
      * values that no longer exist, so there is nothing to rejoin. It is cleared instead, and
-     * the kill dialogs still say what happened.
+     * the kill dialogs still say what happened. Its part is kept all the same (DeclinedRun),
+     * as is that of a run whose routine was deleted or edited shorter, or whose snapshot is
+     * too old to offer: filed as a session stopped early, as a declined rejoin files it.
      */
     private boolean offerRunSnapshot() {
         String rid;
@@ -39845,6 +39997,8 @@ public class SessionActivity extends Activity
         boolean man;
         String shapeCode;
         RunRejoin.Spot spot;
+        long lastAt;
+        Boolean sim;
         try {
             android.content.SharedPreferences p = getSharedPreferences(RUN_PREFS, MODE_PRIVATE);
             shapeCode = p.getString(KEY_SNAP_SHAPE, "");
@@ -39856,27 +40010,45 @@ public class SessionActivity extends Activity
             spot = RunRejoin.Spot.read(idx, p.getInt(KEY_SNAP_SRC, -1), p.getInt(KEY_SNAP_AHEAD, 0),
                 p.getInt(KEY_SNAP_BLOCK, -1), p.getInt(KEY_SNAP_BUILT, -1),
                 p.getString(KEY_SNAP_SKIPPED, ""), p.getString(KEY_SNAP_TAKEN, ""));
-            // RunParts - what the run had played (and filed); its rejoin counts once more.
+            // RunParts - what the run had played (and filed); its rejoin counts once more
+            // (below, once a part not rejoined has been filed from it).
             spot.prior = RunParts.fromCode(p.getString(KEY_SNAP_PARTS, ""));
-            if (spot.prior != null) spot.prior.rejoins++;
+            lastAt = p.getLong(KEY_SNAP_AT, 0L);
+            sim = p.contains(KEY_SNAP_SIM) ? Boolean.valueOf(p.getBoolean(KEY_SNAP_SIM, false)) : null;
+            // ...and where its rows were persisted while it ran (its provisional key).
+            spot.rowsKey = started;
         } catch (Exception e) { return false; }
         if (rid == null || idx < 0) return false;
         clearRunSnapshot();                       // offered once, whatever is chosen
-        if (man) return false;
-        final Model.Routine r = model.routine(rid);
-        if (r == null) return false;              // the routine was deleted meanwhile
+        final Model.Routine r = man ? null : model.routine(rid);  // null: manual, or deleted meanwhile
         long now = System.currentTimeMillis();
-        if (started <= 0 || now - started > SNAP_MAX_AGE_MS) return false;
         // 0.10 - the run as it was built that day, counted the same way the rejoin builds it.
         final RunShape.Choice shaped = RunShape.Choice.fromCode(shapeCode);
-        java.util.List<Model.Preset> fresh = model.plan(RunShape.build(model, r, shaped).routine);
+        if (r == null || started <= 0 || now - started > SNAP_MAX_AGE_MS) {
+            // Not offered; its part is kept all the same, once (the snapshot is gone).
+            fileDeclinedPart(DeclinedRun.unoffered(model, rid, man), spot, lastAt, sim,
+                r == null ? "" : RunShape.build(model, r, shaped).code(),
+                idx + 1, Math.max(idx + 1, spot.built), now, false);
+            return false;
+        }
+        RunShape.Built built = RunShape.build(model, r, shaped);
+        java.util.List<Model.Preset> fresh = model.plan(built.routine);
         // rc9b (EMU9b N1) - counted in the plan the rejoin will play: the rebuild, put back in
         // the shape the run had (its skips), and the step found by what it is, not by an index
         // counted in that shorter list.
         RunRejoin.stamp(fresh);
         RunRejoin.Rebuilt where = RunRejoin.apply(fresh, spot);
-        if (where.idx < 0 || where.idx >= where.size) return false;    // edited shorter
+        if (where.idx < 0 || where.idx >= where.size) {      // edited shorter: kept, and final
+            fileDeclinedPart(r, spot, lastAt, sim, built.code(), idx + 1, Math.max(idx + 1, spot.built), now, false);
+            gtHoldEnded(); return false;
+        }
         long overdueSec = Math.max(0, (now - fire) / 1000L);
+        // The part played is kept, whatever the answer (DeclinedRun): filed now, once, as a
+        // session stopped early - a rejoin replaces it with the one session.
+        fileDeclinedPart(r, spot, lastAt, sim, built.code(), where.idx + 1, where.size, now, true);
+        if (spot.prior != null) spot.prior.rejoins++;
+        // Its filed part, if any, waits for the answer (GrowthTrackHold): the snapshot is gone.
+        rejoinAsked = spot.prior == null ? null : spot.prior.sessId;
         AlertDialog d = Ui.dialog(this)
             .setTitle("A run did not finish")
             .setMessage(A11y.collapse(r.name) + " was on step " + (where.idx + 1) + " of "
@@ -39891,7 +40063,56 @@ public class SessionActivity extends Activity
             .setCancelable(false)
             .show();
         Ui.dress(this, d);
+        d.setOnDismissListener(new RejoinAnswered());
         return true;
+    }
+
+    /**
+     * A RUN NOT REJOINED IS KEPT (run 4 of the live GrowthTrack test, check 4; the owner's
+     * decision): what the snapshot holds is filed as a session stopped early (DeclinedRun) -
+     * not counted, the routine's done count and the measurement cadence untouched, as for a
+     * STOP nobody counted. Filed when the offer is put, so "Neither", "Stop the pump", an
+     * answer tapped twice or never tapped (the app closed again) all leave exactly one record;
+     * a rejoin carries it (spot.prior learns it) and replaces it with the one session. Nothing
+     * when the snapshot played nothing, or a record already holds it (a screen destroyed
+     * mid-run filed it). Bookkeeping only: the offer, and the stop it may lead to, wait for
+     * nothing here. `offered` false: no offer is put (offerRunSnapshot), so nothing holds it.
+     */
+    private void fileDeclinedPart(Model.Routine r, RunRejoin.Spot spot, long lastAt, Boolean sim,
+                                  String shape, int presetsDone, int presetsPlanned, long now,
+                                  boolean offered) {
+        RunParts sofar = spot.prior;
+        if (sofar == null) return;
+        try {
+            Model.Sess covered = DeclinedRun.covering(model.sessLog.all, sofar);
+            if (covered != null) { DeclinedRun.learn(sofar, covered); return; }
+            Model.Sess earlier = DeclinedRun.earlier(model.sessLog.all, sofar);
+            AsRun provisional = spot.rowsKey > 0 ? Store.loadAsRun(this, spot.rowsKey) : null;
+            AsRun filedRows = earlier == null || !earlier.hasAsRun ? null : Store.loadAsRun(this, earlier.ts);
+            AsRun rows = DeclinedRun.closed(RunParts.priorRows(provisional, filedRows), sofar.playedMs);
+            Model.Sess rec = DeclinedRun.record(model, r, sofar, earlier, rows, lastAt, now,
+                sim != null ? sim.booleanValue() : link != null && link.isSimulated(),
+                shape, presetsDone, presetsPlanned);
+            if (rec == null) return;
+            RunParts.dropEarlier(model.sessLog.all, sofar);
+            rows.ts = rec.ts;
+            Store.saveAsRun(this, rec.ts, rows);
+            if (spot.rowsKey > 0 && spot.rowsKey != rec.ts) Store.deleteAsRun(this, spot.rowsKey);
+            if (earlier != null && earlier.hasAsRun && earlier.ts != rec.ts) Store.deleteAsRun(this, earlier.ts);
+            spot.rowsKey = 0L;                   // its rows are the record's now
+            model.sessLog.file(rec);
+            DeclinedRun.learn(sofar, rec);
+            Deload.onFiled(model, rec.ts, r.trainerTrack, rec.manual, true);
+            GrowthTrackManager sync = GrowthTrackManager.get(this);
+            GrowthTrackOutbox.file(rec, sync.connectionId(), model, rows);
+            // Held while the offer asks about it (GrowthTrackHold); final once answered.
+            if (offered) rejoinAsked = rec.id;
+            Store.save(this, model);
+            sync.startSync(model, null);
+            log("run not rejoined: filed as stopped early after " + Model.Fmt.t(rec.durSec));
+        } catch (RuntimeException e) {
+            log("run not rejoined: its part could not be filed: " + e);
+        }
     }
 
     /**
@@ -39977,6 +40198,30 @@ public class SessionActivity extends Activity
             // played before - and its record, if it was filed - goes with this part to the
             // filing, which adds them together and replaces that record.
             runPrior = spot.prior;
+            /* RECORDING ONLY (follow-up to the live GrowthTrack test, 9 Nov 2026): the earlier
+             * parts' rows go with this part. After a kill nothing was filed and they are still
+             * where the run persisted them, under the key the snapshot names; after STOP (or a
+             * screen that filed) they are the filed record's. Persisted at once under this
+             * part's own key, joined with its rows, so a second kill keeps them; the killed
+             * part's old key then goes. Nothing here reaches the pump. */
+            runPriorRows = null;
+            if (runPrior != null) {
+                long key = spot.rowsKey > 0 && spot.rowsKey != asRunKey ? spot.rowsKey : 0L;
+                AsRun provisional = key > 0 ? Store.loadAsRun(SessionActivity.this, key) : null;
+                Model.Sess filedPart = null;
+                for (int i = 0; runPrior.sessId != null && runPrior.sessId.length() > 0
+                        && i < model.sessLog.all.size(); i++) {
+                    Model.Sess e = model.sessLog.all.get(i);
+                    if (e != null && runPrior.sessId.equals(e.id)) { filedPart = e; break; }
+                }
+                AsRun filedRows = filedPart == null || !filedPart.hasAsRun ? null
+                    : Store.loadAsRun(SessionActivity.this, filedPart.ts);
+                runPriorRows = RunParts.priorRows(provisional, filedRows);
+                if (runPriorRows != null) {
+                    asRunPersist();
+                    if (runPriorRows == provisional) Store.deleteAsRun(SessionActivity.this, key);
+                }
+            }
             /* rc9b (EMU9b N1) - THE RUN IN THE SHAPE IT HAD. The rebuild is the routine; the run
              * had been edited "this run only" - Coming steps' skips, the Skip button's - and the
              * index it was on is counted in THAT list. Read against the rebuild it named a step
@@ -40078,8 +40323,13 @@ public class SessionActivity extends Activity
                           && idx >= 0 && idx < plan.size() - 1;
         Model.Sess filedBefore = filedSession;
         stopBecause(RunStopReason.WHY_STOP);
-        finishSession(true);
-        if (!offerable || !link.isReady()) return;
+        // A flag for the filing only (GrowthTrackHold): the stop, its vent and its order are untouched.
+        stopResumable = offerable && link.isReady();
+        try { finishSession(true); } finally { stopResumable = false; }
+        if (!offerable || !link.isReady()) {
+            if (resumeOffer.release()) gtHoldEnded();    // no offer after all: final now
+            return;
+        }
         // ONE SESSION (RunParts): STOP has just filed this part. A Resume carries it - its
         // figures and its record, which the resumed run's filing replaces - so the two parts
         // file as one session and nothing is counted twice.
@@ -40088,9 +40338,96 @@ public class SessionActivity extends Activity
             at.prior.resumes++;
         }
         // polish RN-16: short, so it does not cover the summary, and held long enough for its
-        // action to be tapped.
-        Ui.snack(this, rootFrame, "Stopped and vented at step " + (idx + 1) + ".",
-            "Resume", new ResumeAfterStopTap(countsOf(r), at, shaped), Snack.HOLD_MS_ACTIONABLE);
+        // action to be tapped. THE LIVE GROWTHTRACK TEST (9 Nov 2026): not under "Count this
+        // toward training?" - while that question is coming or up the offer waits, and is shown
+        // with its full time once the question has gone (ResumeOffer). Otherwise at once.
+        Runnable show = new ResumeSnack("Stopped and vented at step " + (idx + 1) + ".",
+            new ResumeAfterStopTap(countsOf(r), at, shaped));
+        Runnable now = resumeOffer.offer(show, (countAskShown && pendingCountSessId != null)
+            || (countAskDialog != null && countAskDialog.isShowing()));
+        if (now != null) now.run();
+    }
+
+    /** STOP's way back, kept while the training question is up (ResumeOffer). */
+    final ResumeOffer<Runnable> resumeOffer = new ResumeOffer<Runnable>();
+
+    /* ===================== WAIT UNTIL FINAL (GrowthTrackHold, 10 Nov 2026) ==============
+     *
+     * GrowthTrack keeps the first copy of a session it is sent, so a filed part this screen can
+     * still continue is not sent: STOP's part while Resume is on offer, a part the rejoin offer
+     * is asking about, and the earlier part of a run playing now. Each ends by itself, and when
+     * it does the next pass is started here, so a held session goes once, whole. Logging only:
+     * nothing here reaches the pump or waits for anything. */
+
+    /** STOP with a Resume to offer is filing: its part is held from the filing. */
+    private boolean stopResumable;
+    /** The filed part the rejoin offer is asking about while its dialog is up, or null. */
+    private String rejoinAsked;
+
+    /** MAIN THREAD. The filed sessions this screen can still continue, and why. */
+    java.util.Map<String, Integer> gtHolds() {
+        return GrowthTrackHold.of(running && runPrior != null ? runPrior.sessId : null,
+            resumeOffer.held(android.os.SystemClock.uptimeMillis()), rejoinAsked, gtSnapshotHold(this, model));
+    }
+
+    /** The filed part the run snapshot would bring back on a cold open, or null. */
+    static String gtSnapshotHold(android.content.Context c, Model m) {
+        try {
+            android.content.SharedPreferences p = c.getSharedPreferences(RUN_PREFS, MODE_PRIVATE);
+            return GrowthTrackHold.snapshot(m, p.getString(KEY_SNAP_ROUTINE, null), p.getInt(KEY_SNAP_IDX, -1),
+                p.getBoolean(KEY_SNAP_MANUAL, false), p.getLong(KEY_SNAP_STARTED, 0L),
+                p.getString(KEY_SNAP_PARTS, ""), System.currentTimeMillis(), SNAP_MAX_AGE_MS);
+        } catch (Exception e) { return null; }
+    }
+
+    /** A hold has ended: the part is final, and the next pass sends it. A run started meanwhile
+     *  sends it when it files. */
+    void gtHoldEnded() {
+        if (!running) GrowthTrackManager.get(this).startSync((GrowthTrackManager.Listener) null);
+    }
+
+    /** STOP's offer, its time up: its part is final. */
+    private final Runnable gtOfferEnds = new Runnable() {
+        @Override public void run() {
+            if (resumeOffer.ended(android.os.SystemClock.uptimeMillis())) gtHoldEnded();
+        }
+    };
+
+    /** The rejoin offer answered, whichever way: a part not rejoined is final. */
+    private final class RejoinAnswered implements DialogInterface.OnDismissListener {
+        @Override public void onDismiss(DialogInterface d) {
+            rejoinAsked = null;
+            gtHoldEnded();
+        }
+    }
+
+    /** The question has gone, or is not put after all: STOP's kept offer, now. */
+    void resumeAfterQuestion() {
+        Runnable kept = resumeOffer.questionGone();
+        if (kept != null && !isFinishing()) kept.run();
+    }
+
+    private final class ResumeSnack implements Runnable {
+        private final String message; private final View.OnClickListener tap;
+        ResumeSnack(String m, View.OnClickListener t) { message = m; tap = t; }
+        @Override public void run() {
+            // "Counted toward this week" answered at the same moment rides in the same message
+            // (ResumeOffer#note): one message at a time, and Resume keeps its full time.
+            Ui.snack(SessionActivity.this, rootFrame,
+                ResumeOffer.withNote(resumeOffer.takeNote(), message),
+                "Resume", tap, Snack.HOLD_MS_ACTIONABLE);
+            resumeOffer.shown(this, android.os.SystemClock.uptimeMillis(), Snack.HOLD_MS_ACTIONABLE);
+            // Its time up (and the late-tap guard past), the part it holds is final (GrowthTrackHold).
+            ui.removeCallbacks(gtOfferEnds);
+            ui.postDelayed(gtOfferEnds, Snack.HOLD_MS_ACTIONABLE + Snack.LATE_TAP_GUARD_MS);
+        }
+    }
+
+    private final class QuestionGone implements DialogInterface.OnDismissListener {
+        @Override public void onDismiss(DialogInterface d) {
+            if (countAskDialog == d) countAskDialog = null;   // gone, however it went
+            resumeAfterQuestion();
+        }
     }
 
     private final class ResumeAfterStopTap implements View.OnClickListener {
@@ -40100,13 +40437,15 @@ public class SessionActivity extends Activity
             r = rr; spot = at; choice = c;
         }
         @Override public void onClick(View v) {
+            resumeOffer.spent();                       // the offer is done with
             if (running) return;                       // something already started again
-            if (!link.isReady()) { toast("Not connected to the pump"); return; }
+            if (!link.isReady()) { toast("Not connected to the pump"); gtHoldEnded(); return; }
             log("=== RESUME after STOP: " + r.name + " from preset " + spot.legacyIdx + " ===");
             // Through the SAME rejoin the unfinished-run offer uses. A resume is a rejoin
             // that happens to be seconds rather than hours later, and it must not become a
             // second way of restarting a routine that could drift from the first.
             new RejoinRunTap(r, spot, choice).onClick(null, 0);
+            gtHoldEnded();                             // refused, the part is final; run, it waits
         }
     }
 

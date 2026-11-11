@@ -29,7 +29,8 @@ a run stops as safety-critical (see SAFETY.md).
 1. Never weaken, skip or delete a check to make a change pass. Fix the code or explain.
 2. Never bypass the stop/vent confirmation, the ceiling clamp, or the START gate.
 3. Saved-data changes must keep old files loading; add a `Migrate` case.
-4. No network code in release builds; no data leaves the phone unless the user opts in.
+4. The only network code in release builds is the optional GrowthTrack connection; no data
+   leaves the phone unless the user opts in. Diagnostic log upload stays debug-only.
 5. UI: Java-built views (no XML layouts), 48 dp minimum touch targets, colours and sizes
    from `Look`, dialogs through `Ui.dialog()` + `Ui.dress()`.
 6. New logic that can be pure goes in `core/` with a JUnit test.

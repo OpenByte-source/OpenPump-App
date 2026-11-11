@@ -162,8 +162,32 @@ public final class IncognitoShell {
         int s = pm.getComponentEnabledSetting(new ComponentName(c.getPackageName(), cls));
         if (s == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) return true;
         if (s == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT)
-            return Incognito.LAUNCHER_REAL.equals(cls);
+            return Incognito.LAUNCHER_REAL.equals(cls) || Incognito.RETURN_REAL.equals(cls);
         return false;
+    }
+
+    /**
+     * THE GROWTHTRACK SIGN-IN'S WAY BACK WEARS THE IDENTITY (bug 10, the browser step). Asked
+     * by GrowthTrackActivity right before it hands the phone to the browser: the browser's
+     * "Continue to ...?" names the return entry that takes gt-openpump://, so the identity's
+     * own is enabled first and every other one disabled after - never a moment with no way
+     * back. Disabling an entry removes only tasks rooted on it: the return is a no-history
+     * screen that has already finished, so nothing the person is looking at goes with it.
+     */
+    public static boolean applyReturn(Context c, int identity) {
+        if (c == null) return false;
+        boolean changed = false;
+        try {
+            PackageManager pm = c.getPackageManager();
+            changed |= setEnabled(pm, c, Incognito.returnFor(identity), true);
+            for (int i = 0; i < Incognito.RETURNS.length; i++) {
+                String r = Incognito.RETURNS[i];
+                if (!Incognito.returnEnabled(r, identity)) changed |= setEnabled(pm, c, r, false);
+            }
+        } catch (Exception e) {
+            android.util.Log.w("PumpIncognito", "could not switch the sign-in return: " + e);
+        }
+        return changed;
     }
 
     private static boolean setEnabled(PackageManager pm, Context c, String cls, boolean on) {

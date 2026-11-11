@@ -4,6 +4,46 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.10.1] — unreleased
+
+Installs over 0.10.0; nothing to back up or move.
+
+### Added
+
+**GrowthTrack, if you choose it**
+- You can connect **GrowthTrack** and send your sessions to your own account there. It is off
+  until you connect, and nothing leaves the phone before that. Settings › Connected apps ›
+  GrowthTrack explains what is sent and asks whether earlier sessions go too, before the
+  browser opens; you sign in on GrowthTrack's own page.
+- The GrowthTrack screen has one switch for sending, the kinds of session to send (girth plan,
+  length plan, own routines, manual runs, and "Include sessions stopped early", which starts
+  off), and a list of sent and waiting sessions, each saying why it waits or why it was not
+  sent. Change account and Disconnect are on the same screen.
+- A session is sent once, when it is final: never while Resume is still on offer, while a run
+  cut off by the app closing can still be rejoined, or while a resumed run is playing.
+- Deleting a session also withdraws it from GrowthTrack. Erase all data erases the GrowthTrack
+  connection and its waiting sessions too.
+- The PIN lock and the disguise cover the GrowthTrack screens and the sign-in step.
+- Disconnect removes the connection from this phone. To remove it on GrowthTrack's side too, use
+  Connected apps and devices on GrowthTrack's website.
+- This is the first version with internet access. Only the GrowthTrack connection uses it, and
+  the only new permissions are internet and network state. Without a connection the app works as
+  before, fully on your phone.
+
+**Sessions**
+- Your own routines and manual runs now record time under tension, at each step's own pull.
+
+### Fixed
+
+- A session resumed after STOP keeps the recording and the count from before STOP, and counts
+  as one whole session.
+- A run rejoined after the app was closed keeps its first part, and its length is right.
+- A run lost when the app was closed and not rejoined is kept, as a session stopped early.
+  This includes runs that cannot be offered again: a manual run, a routine deleted or made
+  shorter since, or a run more than 6 hours old.
+- A session's peak pressure is the routine's own, not the start check's pull.
+- STOP's Resume offer waits until the training question is answered.
+
 ## [0.10.0] — 2026-10-07
 
 The first published release, and the first with a signed APK to download. 0.9.0 was prepared

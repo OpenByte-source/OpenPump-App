@@ -53,7 +53,9 @@ own risk — the full terms, including the warranty and liability disclaimer, ar
    or leaving a screen never orphans a pump under pressure.
 6. **Practice mode is never mistaken for a pump.** Simulated runs are labelled everywhere
    and filed as simulated.
-7. **Nothing is sent on the user's behalf.** No network traffic in release builds.
+7. **Nothing is sent unless the user connects an account or exports.** Connecting is
+   opt-in and can be switched off; transfer code never touches the pump. The diagnostic
+   log console is in debug builds only.
 
 These are enforced by code review, by `WiringCheck` (static checks over the source), by
 the self-test, and — as pump drivers arrive — by a conformance kit every driver must pass.

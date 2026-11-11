@@ -4,6 +4,122 @@ import org.openpump.Traction;
 public class Migrate {
     // `throws Exception` only for the org.json constructor below, which is checked.
     public static void main(String[] a) throws Exception {
+        // GrowthTrack: old snapshots have no recorded designation, while new snapshots
+        // freeze the structured track and keep it through later routine edits/deletion.
+        Model.AsRunSnapshot gtOld = Model.AsRunSnapshot.fromJson(
+            new org.json.JSONObject("{\"rid\":\"legacy\",\"stages\":[]}"));
+        if (gtOld.trainerTrack != -1 || gtOld.toJson().has("trainerTrack"))
+            throw new AssertionError("Old track metadata must remain unknown");
+        Model.Routine gtRoutine = new Model.Routine(); gtRoutine.id = "gt-fixture";
+        gtRoutine.trainerTrack = org.openpump.Plan.TRACK_LENGTH;
+        Model.AsRunSnapshot gtFrozen = Model.AsRunSnapshot.of(gtRoutine, new Model());
+        gtRoutine.trainerTrack = Model.TRAINER_TRACK_NONE;
+        if (Model.AsRunSnapshot.fromJson(gtFrozen.toJson()).trainerTrack != org.openpump.Plan.TRACK_LENGTH
+                || Model.AsRunSnapshot.fromJson(Model.AsRunSnapshot.of(gtRoutine, new Model()).toJson()).trainerTrack != 0)
+            throw new AssertionError("Frozen Length and known unmarked metadata must round-trip");
+        System.out.println("GrowthTrack snapshot: old unknown / frozen Length / known unmarked preserved");
+
+        org.openpump.AsRun.Row gtOldRow = org.openpump.AsRun.Row.fromJson(new org.json.JSONObject());
+        if (gtOldRow.cyclePart != -1 || gtOldRow.toJson().has("cyclePart")) throw new AssertionError("Old stitch boundary must remain unknown");
+        gtOldRow.cyclePart = 1;
+        if (org.openpump.AsRun.Row.fromJson(gtOldRow.toJson()).cyclePart != 1) throw new AssertionError("Frozen stitch boundary must round-trip");
+        // A resumed session keeps both parts (9 Nov 2026): a row written before reads as part 0,
+        // a one-part row is written exactly as before, and a later part round-trips.
+        if (gtOldRow.part != 0 || gtOldRow.toJson().has("part")) throw new AssertionError("An old as-run row must read as one part");
+        gtOldRow.part = 1;
+        if (org.openpump.AsRun.Row.fromJson(gtOldRow.toJson()).part != 1) throw new AssertionError("A resumed part's number must round-trip");
+        gtOldRow.part = 0;
+        Model gtFresh = Model.seed();
+        if (gtFresh.growthTrackOfferSeen || !Model.fromJson("{\"sets\":[],\"routines\":[]}").growthTrackOfferSeen) throw new AssertionError("Optional invitation migration must never nag upgrades");
+        org.openpump.GrowthTrackOnboarding.presented(gtFresh);
+        if (!Model.fromJson(gtFresh.toJson()).growthTrackOfferSeen) throw new AssertionError("Invitation dismissal must round-trip");
+        System.out.println("GrowthTrack timing/onboarding: unknown old boundaries, frozen new boundaries, one-time offer preserved");
+
+        Model.Sess gtLegacyTime = Model.Sess.fromJson(new org.json.JSONObject("{\"ts\":\"1700000000000\",\"dur\":\"120\"}"));
+        if (gtLegacyTime.recordedStartMs != 0 || gtLegacyTime.recordedEndMs != 0) throw new AssertionError("Old wall-clock boundaries must not be invented");
+        gtLegacyTime.recordedStartMs = 1700000000000L; gtLegacyTime.recordedEndMs = 1700000120000L;
+        Model.Sess gtTimeRoundTrip = Model.Sess.fromJson(gtLegacyTime.toJson());
+        if (gtTimeRoundTrip.recordedStartMs != gtLegacyTime.recordedStartMs || gtTimeRoundTrip.recordedEndMs != gtLegacyTime.recordedEndMs) throw new AssertionError("Explicit wall-clock boundaries must round-trip");
+
+        if (!gtLegacyTime.growthTrackConnectionId.isEmpty()) throw new AssertionError("Legacy history must not opt into sync");
+        gtLegacyTime.growthTrackConnectionId = "fictional-browser-grant";
+        if (!Model.Sess.fromJson(gtLegacyTime.toJson()).growthTrackConnectionId.equals(gtLegacyTime.growthTrackConnectionId))
+            throw new AssertionError("Completion grant marker must round-trip for crash recovery");
+
+        // GrowthTrack, the owner's 19 Oct 2026 changes on top of Karl's fields. Each new field
+        // is absent on every 0.10.0 file and on every file Karl's branch wrote.
+        Model gtOldModel = Model.fromJson("{\"sets\":[],\"routines\":[],\"growthTrackOfferSeen\":false}");
+        if (gtOldModel.growthTrackOfferSeen || gtOldModel.gtSend == null || !gtOldModel.gtSend.on || !gtOldModel.gtSend.girthPlan
+                || !gtOldModel.gtSend.lengthPlan || !gtOldModel.gtSend.ownRoutines || !gtOldModel.gtSend.manualRuns || gtOldModel.gtSend.stoppedEarly)
+            throw new AssertionError("A model without the sending switches must read as the defaults, keeping Karl's offer flag");
+        gtOldModel.gtSend.manualRuns = false; gtOldModel.gtSend.stoppedEarly = true;
+        Model gtSwitches = Model.fromJson(gtOldModel.toJson());
+        if (gtSwitches.gtSend.manualRuns || !gtSwitches.gtSend.stoppedEarly) throw new AssertionError("Sending switches must round-trip");
+        Model.Sess gtKarl = Model.Sess.fromJson(new org.json.JSONObject(
+            "{\"id\":\"sess1700000120000\",\"ts\":\"1700000000000\",\"dur\":\"120\",\"recordedStartMs\":\"1700000000000\","
+            + "\"recordedEndMs\":\"1700000120000\",\"growthTrackConnectionId\":\"karl-grant\"}"));
+        if (gtKarl.recordedStartMs != 1700000000000L || gtKarl.recordedEndMs != 1700000120000L
+                || !"karl-grant".equals(gtKarl.growthTrackConnectionId) || !gtKarl.syncId.isEmpty())
+            throw new AssertionError("A record Karl's branch wrote must load, with no sync id");
+        gtKarl.syncId = "sess1699999000000";
+        if (!"sess1699999000000".equals(Model.Sess.fromJson(gtKarl.toJson()).syncId)) throw new AssertionError("The sync id must round-trip");
+        // Why a record was filed unmarked (9 Nov 2026): 0 on every record written before it, not
+        // written for 0, and the switch round-trips.
+        if (gtKarl.gtHeldWhy != 0 || gtKarl.toJson().has("gtWhy")) throw new AssertionError("An old record has no kept reason");
+        gtKarl.gtHeldWhy = org.openpump.GrowthTrackSettings.HELD_MANUAL;
+        if (Model.Sess.fromJson(gtKarl.toJson()).gtHeldWhy != org.openpump.GrowthTrackSettings.HELD_MANUAL)
+            throw new AssertionError("The reason a record was filed unmarked must round-trip");
+        gtKarl.gtHeldWhy = 0;
+        // How a record's net was counted (the owner's pick B, 9 Nov 2026): every record written
+        // before it reads as a plan-counted one (only plan sessions had a net), nothing new is
+        // written for those, and an own-pull time round-trips.
+        if (gtKarl.tupOwnPull || gtKarl.toJson().has("tupOwn")) throw new AssertionError("An old record's net is the plan's");
+        gtKarl.tupOwnPull = true;
+        if (!Model.Sess.fromJson(gtKarl.toJson()).tupOwnPull) throw new AssertionError("An own-pull time must round-trip");
+        gtKarl.tupOwnPull = false;
+        // What a session would be worth counted (9 Nov 2026): absent on every record written
+        // before it and not written for those; kept when known. A "p2" run snapshot (before
+        // it was carried) reads with nothing measured.
+        if (gtKarl.countWorthSec != null || gtKarl.toJson().has("worth")) throw new AssertionError("An old record has no worth measured");
+        gtKarl.countWorthSec = Double.valueOf(42.0);
+        if (Model.Sess.fromJson(gtKarl.toJson()).countWorthSec == null) throw new AssertionError("The worth must round-trip");
+        gtKarl.countWorthSec = null;
+        org.openpump.RunParts gtP2 = org.openpump.RunParts.fromCode("p2;1000;2000;;;0.000;;-1;0;1;sessA;sessA");
+        if (gtP2 == null || !"sessA".equals(gtP2.syncId) || !Double.isNaN(gtP2.worthSec))
+            throw new AssertionError("A p2 run snapshot must still read, with no worth");
+        // A run not rejoined is filed from its snapshot (DeclinedRun, 10 Nov 2026). One written
+        // before the snapshot kept its write time ("at" absent, read as 0) ends at its start
+        // plus the time played; a "p2" one reads as an own routine's with no worth measured.
+        Model gtDm = new Model();
+        Model.Routine gtDr = new Model.Routine(); gtDr.id = "r"; gtDr.name = "Old run"; gtDm.routines.add(gtDr);
+        org.openpump.AsRun gtDrows = new org.openpump.AsRun(); gtDrows.rows.add(new org.openpump.AsRun.Row());
+        gtDrows.rows.get(0).t0 = 900; gtDrows.rows.get(0).t1 = -1;
+        Model.Sess gtDecl = org.openpump.DeclinedRun.record(gtDm, gtDr,
+            org.openpump.RunParts.fromCode("p2;1700000000000;61500;;;0.000;;-1;0;0;;"), null,
+            org.openpump.DeclinedRun.closed(gtDrows, 61500L), 0L, 1700000300000L, false, "", 1, 1);
+        if (gtDecl == null || gtDecl.durSec != 61 || gtDecl.recordedEndMs != 1700000061500L
+                || gtDecl.completed || gtDecl.countWorthSec != null)
+            throw new AssertionError("A run snapshot written before its write time must still file");
+        Model.AsRunSnapshot gtNoRole =Model.AsRunSnapshot.fromJson(new org.json.JSONObject("{\"rid\":\"r\",\"stages\":[{\"name\":\"Warm-up\"}]}"));
+        if (gtNoRole.stages.get(0).role != Model.AsRunSnapshot.ROLE_UNKNOWN
+                || gtNoRole.toJson().getJSONArray("stages").getJSONObject(0).has("role"))
+            throw new AssertionError("An old stage snapshot's role must stay unknown");
+        gtNoRole.stages.get(0).role = Model.AsRunSnapshot.ROLE_WARM;
+        if (Model.AsRunSnapshot.fromJson(gtNoRole.toJson()).stages.get(0).role != Model.AsRunSnapshot.ROLE_WARM)
+            throw new AssertionError("A frozen stage role must round-trip");
+        org.openpump.RunParts gtP1 = org.openpump.RunParts.fromCode("p1;1000;2000;;;0.000;;-1;0;1;sessA");
+        if (gtP1 == null || !"sessA".equals(gtP1.sessId) || !gtP1.syncId.isEmpty())
+            throw new AssertionError("A 0.10.0 run snapshot (p1) must still read");
+        gtP1.syncId = "sessFirst";
+        if (!"sessFirst".equals(org.openpump.RunParts.fromCode(gtP1.code()).syncId)) throw new AssertionError("The carried sync id must round-trip");
+        Model.Sess gtLegacy = Model.Sess.fromJson(new org.json.JSONObject("{\"id\":\"sess1700000120000\",\"ts\":\"1700000000000\",\"dur\":\"120\"}"));
+        org.openpump.AsRun gtOwn = new org.openpump.AsRun(); gtOwn.ts = 1700000000000L;
+        org.openpump.AsRun.Row gtRow = new org.openpump.AsRun.Row(); gtRow.t0 = 0; gtRow.t1 = 120000; gtOwn.rows.add(gtRow);
+        long[] gtBounds = org.openpump.GrowthTrackSession.bounds(gtLegacy, gtOwn);
+        if (gtBounds == null || gtBounds[0] != 1700000000000L || gtBounds[1] != 1700000120000L || gtLegacy.recordedStartMs != 0)
+            throw new AssertionError("A 0.10.0 session's times come from its own record, without rewriting it");
+        System.out.println("GrowthTrack 19 Oct: switches default, sync id / stage role / p1 snapshot / 0.10.0 times read");
+
         // EXACTLY what build 30 (pre-stage) wrote to model.json
         String old = "{\"ceil\":40,\"unit\":\"inHg\",\"selected\":\"r1\","
           + "\"sets\":[{\"id\":\"s1\",\"name\":\"Gentle Warm\",\"ramp\":false,\"up\":14,"

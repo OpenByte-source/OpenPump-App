@@ -11,3 +11,4 @@ Short records of decisions that shape the project, so the reasoning outlives any
 - [0007 · New name and application id](0007-new-name-and-id.md)
 - [0008 · A driver seam with one safety supervisor](0008-driver-seam.md) (proposed)
 - [0009 · Incognito never weakens safety](0009-incognito-never-weakens-safety.md)
+- [0010 · The release app may reach one service, and only when the person connects it](0010-optional-growthtrack-connection.md)

@@ -538,6 +538,9 @@ public final class Store {
      * the same either way, and a half-completed erase must still leave the app usable.
      */
     public static boolean deleteAll(Context c) {
+        // The GrowthTrack state (tokens, queue, retry job) lives outside these files; the
+        // caller erases it through GrowthTrackManager.eraseWithAppData and reports done only
+        // with its answer (bug 19).
         File dir = c.getFilesDir();
         boolean ok = true;
         ok &= gone(new File(dir, FILE));

@@ -143,7 +143,67 @@ class OneScreenManifestTest {
         Matcher m = Pattern.compile("<activity-alias\\b").matcher(x);
         int aliases = 0;
         while (m.find()) aliases++;
-        assertEquals(Incognito.LAUNCHERS.length, aliases, "an alias Incognito does not switch");
+        // CHANGED (app phase, bug 10): the GrowthTrack sign-in's return entries are aliases too,
+        // and Incognito switches them as well (Incognito#RETURNS); every alias is still one of
+        // Incognito's two tables - theSignInReturnWearsEachIdentity holds the second.
+        assertEquals(Incognito.LAUNCHERS.length + Incognito.RETURNS.length, aliases,
+            "an alias Incognito does not switch");
+    }
+
+    /**
+     * THE GROWTHTRACK SIGN-IN'S WAY BACK (bugs 9 and 10). The browser asks "Continue to
+     * <name>?" with the name of what takes gt-openpump://, so each identity has its own return
+     * entry: an alias of the callback, with that identity's name and icons, the one VIEW filter,
+     * exactly one enabled as installed (the real one). The callback itself is not exported, has
+     * no filter, keeps no history, stays out of Recents and draws nothing.
+     */
+    @Test void theSignInReturnWearsEachIdentity() throws IOException {
+        String x = withoutXmlComments(read(SRC.resolve("AndroidManifest.xml")));
+        String cb = activityIn(x, "org.openpump.GrowthTrackCallbackActivity", ".GrowthTrackCallbackActivity");
+        assertNotNull(cb, "the callback is not declared");
+        assertEquals("false", attr(cb, "exported"), "the callback itself must not be exported");
+        assertFalse(cb.contains("<intent-filter"), "the callback has its own filter - an undisguised return");
+        assertTrue(cb.contains("android:noHistory=\"true\""), "the callback keeps history");
+        assertTrue(cb.contains("android:excludeFromRecents=\"true\""), "the callback shows in Recents");
+        assertTrue(cb.contains("Translucent"), "the callback draws something");
+        int callbackAt = x.indexOf("android:name=\".GrowthTrackCallbackActivity\"");
+        int enabled = 0;
+        int[] ids = { Incognito.REAL, Incognito.FITNESS_LOG, Incognito.HABITS, Incognito.NOTES };
+        for (int id : ids) {
+            String full = Incognito.returnFor(id);
+            String a = aliasIn(x, full, full.substring("org.openpump".length()));
+            assertNotNull(a, full + " is not declared");
+            assertTrue(callbackAt >= 0 && callbackAt < x.indexOf(a), full + " is declared before its target");
+            assertTrue(a.contains("android:targetActivity=\".GrowthTrackCallbackActivity\""), full + " must start the callback");
+            assertEquals(Incognito.shownName(id), attr(a, "label"), full + ": the wrong name");
+            assertEquals("@mipmap/" + Incognito.iconName(id), attr(a, "icon"), full + ": the wrong icon");
+            assertEquals("@mipmap/" + Incognito.iconName(id) + "_round", attr(a, "roundIcon"), full + ": the wrong round icon");
+            assertEquals("true", attr(a, "exported"), full + " cannot be reached by the browser");
+            assertTrue(a.contains("android:scheme=\"gt-openpump\"") && a.contains("android:host=\"oauth\"")
+                && a.contains("android:path=\"/callback\"") && a.contains("android.intent.category.BROWSABLE"),
+                full + " does not take the sign-in return");
+            assertFalse(a.contains("android.intent.category.LAUNCHER"), full + " is a launcher entry - an extra icon");
+            if (a.contains("android:enabled=\"true\"")) {
+                enabled++;
+                assertEquals(Incognito.RETURN_REAL, full, "only the real return ships enabled");
+            } else {
+                assertTrue(a.contains("android:enabled=\"false\""), full + " must say its state");
+            }
+        }
+        assertEquals(1, enabled, "exactly one return entry is enabled as installed");
+    }
+
+    /** The GrowthTrack screen is portrait like the rest of the app, and a turn of the phone
+     *  or a dark-theme switch never recreates it (its page, a sign-in in flight). */
+    @Test void theGrowthTrackScreenIsPortraitAndKeepsItsPage() throws IOException {
+        String gt = activity("org.openpump.GrowthTrackActivity", ".GrowthTrackActivity");
+        assertNotNull(gt, "GrowthTrackActivity is not declared");
+        assertEquals("sensorPortrait", attr(gt, "screenOrientation"), "the GrowthTrack screen rotates");
+        String changes = attr(gt, "configChanges");
+        assertNotNull(changes, "the GrowthTrack screen is recreated by a configuration change");
+        for (String c : new String[]{ "orientation", "screenSize", "uiMode", "fontScale", "density", "locale" })
+            assertTrue(changes.contains(c), "the GrowthTrack screen is recreated by " + c);
+        assertEquals("false", attr(gt, "exported"), "the GrowthTrack screen must not be exported");
     }
 
     /**
