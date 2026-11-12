@@ -33836,12 +33836,7 @@ public class SessionActivity extends Activity
         usedUndoSnap = new java.util.LinkedHashMap<String, UsedUndoState>();
         for (int i = 0; i < model.routines.size(); i++) {
             Model.Routine r = model.routines.get(i);
-            List<Model.Stage> copy = new ArrayList<Model.Stage>();
-            for (int j = 0; j < r.stages.size(); j++) {
-                Model.Stage st = r.stages.get(j);
-                copy.add(Model.Stage.of(st.name, st.colour,
-                        st.setIds.toArray(new String[st.setIds.size()])));
-            }
+            List<Model.Stage> copy = Model.copyStages(r.stages);
             // TASK 6 — see UsedUndoState's own doc for why a shallow copy of `history`
             // is enough and why versionSince/versionRuns ride along too.
             usedUndoSnap.put(r.id, new UsedUndoState(copy,

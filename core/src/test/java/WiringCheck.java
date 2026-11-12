@@ -32119,7 +32119,10 @@ public final class WiringCheck {
      *       loads them;
      *   (d) the copies carry both flags: Routine#copy, Routine#stepUpCopy, Model#plan's preset;
      *   (e) the load (onCreate) runs the rule over every saved routine before the reshape and
-     *       before it saves, and a backup restore runs it before the restored file is saved.
+     *       before it saves, and a backup restore runs it before the restored file is saved;
+     *   (f) the Used-in screen's Undo snapshots every routine's stages exactly
+     *       (Model.copyStages, Stage#copy), so Undo never turns a rest into an empty stage or
+     *       drops a wait.
      * ===================================================================================== */
     static final String[][] WAIT_REBUILDS = {
         { "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "a v1/v2 share code",
@@ -32255,6 +32258,14 @@ public final class WiringCheck {
                     violations.add("SessionActivity.java: invariant 267 - a backup restore no longer "
                         + "gives every routine its stage waits before the restored file is saved");
             }
+            // (f) the Used-in Undo's snapshot.
+            String us = body228(act, "void\\s+usedSnapshot\\s*\\(", "SessionActivity.java",
+                "usedSnapshot", violations);
+            if (us != null && (us.indexOf("Model.copyStages(r.stages)") < 0
+                    || us.indexOf("Model.Stage.of(") >= 0))
+                violations.add("SessionActivity.java: invariant 267 - the Used-in Undo no longer "
+                    + "snapshots each routine's stages exactly (Model.copyStages) - Undo would turn "
+                    + "a rest into an empty stage and drop the release's and the changeover's waits");
         }
     }
 
@@ -32346,6 +32357,9 @@ public final class WiringCheck {
             + "private void restoreFromBackup(List<Backup.Entry> entries) {\n"
             + "    int waited = restoredModel.giveRoutinesTheirWaits();\n"
             + "    Store.save(this, restoredModel);\n"
+            + "}\n"
+            + "private void usedSnapshot(String label) {\n"
+            + "    List<Model.Stage> copy = Model.copyStages(r.stages);\n"
             + "}\n";
         List<String> v = new ArrayList<String>();
         checkStageWaits(model, act, v);
@@ -32409,6 +32423,8 @@ public final class WiringCheck {
             { "A", "a restore repairing after the save",
               "    int waited = restoredModel.giveRoutinesTheirWaits();\n    Store.save(this, restoredModel);\n",
               "    Store.save(this, restoredModel);\n    int waited = restoredModel.giveRoutinesTheirWaits();\n" },
+            { "A", "a Used-in Undo that copies only names and sets",
+              "Model.copyStages(r.stages);", "Model.Stage.of(st.name, st.colour, ids);" },
         };
         for (int i = 0; i < bad.length; i++) {
             String m2 = model, a2 = act;

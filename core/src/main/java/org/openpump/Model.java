@@ -3422,6 +3422,28 @@ public final class Model {
 
         public Stage() { }
 
+        /** THIS STAGE, FIELD FOR FIELD, with its own set-id list. Nothing is clamped or
+         *  inferred: an Undo or a rebuild that starts from it puts back exactly what was
+         *  there - the rest flag and its time, the release's and the changeover's waits,
+         *  the length and fatigue markers, the climb, the cylinder. A field added to Stage
+         *  must be added here (UsedUndoStagesTest reads every field reflectively). */
+        public Stage copy() {
+            Stage c = new Stage();
+            c.name = name;
+            c.colour = colour;
+            c.setIds.addAll(setIds);
+            c.rest = rest;
+            c.restSec = restSec;
+            c.fatigueBlock = fatigueBlock;
+            c.retention = retention;
+            c.cylinderId = cylinderId;
+            c.manual = manual;
+            c.traction = traction;
+            c.awaitAck = awaitAck;
+            c.climb = climb;
+            return c;
+        }
+
         public static Stage of(String name, int colour, String[] ids) {
             Stage s = new Stage();
             s.name = name; s.colour = colour;
@@ -9138,6 +9160,19 @@ public final class Model {
             if (touched) changed++;
         }
         return changed;
+    }
+
+    /** An exact copy of `src`, one Stage#copy per stage - what the Used-in screen's Undo
+     *  puts back, so a rest stays a rest and the release and the changeover keep their
+     *  waits (UsedUndoStagesTest). */
+    public static List<Stage> copyStages(List<Stage> src) {
+        List<Stage> out = new ArrayList<Stage>();
+        if (src == null) return out;
+        for (int j = 0; j < src.size(); j++) {
+            Stage st = src.get(j);
+            out.add(st == null ? null : st.copy());
+        }
+        return out;
     }
 
     /**

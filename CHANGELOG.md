@@ -57,6 +57,9 @@ Installs over 0.10.0; nothing to back up or move.
   the app opens, or when a backup is restored. A code made from a routine with these waits needs
   this version or later to add it; an older version says it does not recognise the code. A code
   made by an older version still adds, with its waits given back.
+- **Undo** in a set's **Used in** screen puts every routine back exactly as it was. Before, it
+  turned rests, including the changeover, into empty stages, and dropped the waits for
+  **Done** and **I've swapped**.
 
 ## [0.10.0] — 2026-10-07
 
