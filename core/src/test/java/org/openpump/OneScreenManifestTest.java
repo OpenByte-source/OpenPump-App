@@ -35,6 +35,23 @@ class OneScreenManifestTest {
 
     private static final Path SRC = Paths.get("../app/src/main");
 
+    @Test void importedRoutineReturnUsesTheSameOneScreenFactoryAndDoor() throws IOException {
+        String source = new String(Files.readAllBytes(SRC.resolve("java/org/openpump/GrowthTrackActivity.java")), StandardCharsets.UTF_8);
+        int start = source.indexOf("private boolean frontTheApp()");
+        int end = source.indexOf("private String pendingImport", start);
+        String body = source.substring(start, end);
+        assertTrue(body.contains("if (doorShut(null)) return false;"));
+        assertTrue(body.contains("Intent back = RunService.appIntent(this);"));
+        assertTrue(body.indexOf("if (doorShut(null)) return false;") < body.indexOf("Intent back = RunService.appIntent(this);"));
+        assertTrue(body.contains("importStartAccount.equals(manager.connectionId())"));
+        assertTrue(body.contains("back.putExtra(\"gt_import_account\", importStartAccount)"));
+        assertTrue(body.contains("back.putExtra(\"gt_import_id\", importStartId)"));
+        assertTrue(body.contains("startActivity(back)"));
+        assertTrue(body.contains("startActivity(RunService.appIntent(this))"));
+        assertFalse(body.contains("new Intent("));
+        assertFalse(body.contains("SessionActivity.class"));
+    }
+
     @Test void theSessionScreenIsSingleTask() throws IOException {
         String a = activity("org.openpump.SessionActivity", ".SessionActivity");
         assertNotNull(a, "SessionActivity is not declared");
@@ -182,6 +199,8 @@ class OneScreenManifestTest {
             assertTrue(a.contains("android:scheme=\"gt-openpump\"") && a.contains("android:host=\"oauth\"")
                 && a.contains("android:path=\"/callback\"") && a.contains("android.intent.category.BROWSABLE"),
                 full + " does not take the sign-in return");
+            assertTrue(a.contains("android:host=\"routine\"") && a.contains("android:path=\"/import\""),
+                full + " must also carry identity-safe routine navigation");
             assertFalse(a.contains("android.intent.category.LAUNCHER"), full + " is a launcher entry - an extra icon");
             if (a.contains("android:enabled=\"true\"")) {
                 enabled++;

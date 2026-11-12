@@ -168,12 +168,20 @@ public final class GrowthTrackClient {
     /** "Change account": the approval that arrives starts a new connection, and the old
      *  account's waiting sessions are dropped from the queue. Cancelled, nothing changes. */
     public synchronized String beginChangeAccount(String earlierChoice) throws IOException { return beginInternal(true, earlierChoice); }
+    /** Explicit upgrade only: cancellation leaves the existing session connection intact. */
+    public synchronized String beginWithRoutines() throws IOException {
+        checkLinked(); // The existing connect screen must explain automatic session uploads first.
+        return beginInternal(false, "", true);
+    }
     private String beginInternal(boolean change, String earlierChoice) throws IOException {
+        return beginInternal(change, earlierChoice, false);
+    }
+    private String beginInternal(boolean change, String earlierChoice, boolean routines) throws IOException {
         if (storageBroken) throw new Problem("Secure storage failed. Disconnect/reset this connection before continuing.");
         cancelled = false;
-        GrowthTrackProtocol.Pending p = GrowthTrackProtocol.pending(clock.now());
+        GrowthTrackProtocol.Pending p = GrowthTrackProtocol.pending(clock.now(), routines || (!change && canReadRoutines()));
         try {
-            JSONObject pj = p.json().put("mode", change ? "change" : "same")
+            JSONObject pj = p.json().put("mode", change ? "change" : "same").put("routine_upgrade", routines)
                 .put("earlier", EARLIER_NEW.equals(earlierChoice) || EARLIER_ALSO.equals(earlierChoice) ? earlierChoice : "");
             put("pending", pj);
         } catch (JSONException e) { throw new Problem("Could not create the connection request"); }
@@ -251,7 +259,8 @@ public final class GrowthTrackClient {
                 put("attempts", 0); put("retry_at", 0);
             }
             if (account != null) put("account", account);
-            put("tokens", tokens); put("exchanging", false); put("automatic_sync", true); put("sync_paused", false);
+            boolean keepPaused = pj.optBoolean("routine_upgrade") && !otherAccount && state.optBoolean("sync_paused");
+            put("tokens", tokens); put("exchanging", false); put("automatic_sync", true); put("sync_paused", keepPaused);
             JSONObject earlier = obj("earlier");
             if (earlier.optString(conn, "").isEmpty() && !choice.isEmpty()) earlier.put(conn, choice);
             put("message", "Connected to the GrowthTrack account you approved in the browser."); save();
@@ -313,7 +322,8 @@ public final class GrowthTrackClient {
             JSONObject m = meta.optJSONObject(id);
             boolean carried = m != null && m.optBoolean("carried");
             int rev = m == null ? 0 : m.optInt("rev", 0);
-            if (!carried && item.revision <= rev) return false;
+            // Reconnect may refresh the same revision, never roll a newer queued snapshot back.
+            if (item.revision < rev || (!carried && item.revision == rev)) return false;
             if (m == null) m = new JSONObject();
             jput(m, "carried", false);
             if (item.sendable()) { replaceAt(index, item.payload); jput(m, "rev", Math.max(rev, item.revision)); jput(obj("revisions"), id, Math.max(rev, item.revision)); }
@@ -336,8 +346,8 @@ public final class GrowthTrackClient {
         }
         approved().put(item.payload);
         JSONObject m = new JSONObject(); jput(m, "rev", item.revision); if (item.localId != null) jput(m, "local", item.localId);
-        // An update of a session GrowthTrack already holds: it keeps its first copy and answers
-        // "already present" (applyResults), so whether this one was taken is read from that.
+        // An update of a session GrowthTrack already holds. Current GT accepts the latest
+        // snapshot; older servers may answer duplicate, so applyResults preserves that distinction.
         if (receipt.startsWith("Received")) jput(m, "update", true);
         jput(meta, id, m);
         jput(obj("revisions"), id, item.revision);
@@ -465,19 +475,81 @@ public final class GrowthTrackClient {
         }
     }
 
+    /** This is consent, not proof that a downloaded routine is executable by the device. */
+    public synchronized boolean canReadRoutines() {
+        JSONObject t = state.optJSONObject("tokens");
+        return !storageBroken && t != null && hasScope(t.optString("scope"), GrowthTrackProtocol.READ_ROUTINES);
+    }
+    /** Read only explicitly negotiated executable summaries; legacy routines are not runnable. */
+    public synchronized JSONArray listExecutableRoutines() throws IOException {
+        JSONObject envelope = routineResponse(GrowthTrackProtocol.ROUTINES_PATH);
+        try {
+            JSONArray rows = envelope.getJSONArray("routines"), result = new JSONArray();
+            if (rows.length() > 1500) throw new JSONException("Too many routines");
+            for (int i = 0; i < rows.length(); i++) {
+                JSONObject row = rows.getJSONObject(i);
+                if (!GrowthTrackProtocol.EXECUTION_CONTRACT.equals(row.optString("execution_contract"))) continue;
+                String id = row.getString("id"), name = row.getString("name");
+                if (!routineId(id) || name.trim().isEmpty() || name.length() > 120) throw new JSONException("Invalid routine summary");
+                result.put(new JSONObject().put("id", id).put("name", name)
+                    .put("revision", row.optString("revision")));
+            }
+            return result;
+        } catch (JSONException e) { throw new Problem("GrowthTrack returned an invalid routine list"); }
+    }
+    /** Downloads data only. The importer must validate every step before offering execution. */
+    public synchronized JSONObject downloadExecutableRoutine(String id) throws IOException {
+        if (!routineId(id)) throw new Problem("Invalid GrowthTrack routine ID");
+        JSONObject envelope = routineResponse(GrowthTrackProtocol.ROUTINES_PATH + "&id=" + id);
+        JSONObject routine = envelope.optJSONObject("routine");
+        if (!GrowthTrackProtocol.EXECUTION_CONTRACT.equals(envelope.optString("execution_contract"))
+                || routine == null || !id.equalsIgnoreCase(routine.optString("id")))
+            throw new Problem("GrowthTrack returned an incompatible routine");
+        return envelope;
+    }
+    private static boolean routineId(String id) {
+        return id != null && id.matches("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}");
+    }
+    private JSONObject routineResponse(String path) throws IOException {
+        checkLinked();
+        if (!canReadRoutines()) throw new Problem("Approve routine reading in GrowthTrack first");
+        cancelled = false;
+        Response response = authorized("GET", path, null, GrowthTrackProtocol.READ_ROUTINES);
+        if (response.status != 200) throw new Problem("Could not read GrowthTrack routines (HTTP " + response.status + ")");
+        try {
+            if (response.body == null || response.body.length() > 2_000_000) throw new JSONException("Invalid response size");
+            JSONObject envelope = new JSONObject(response.body);
+            if (!"gt-routine".equals(envelope.optString("format")) || envelope.optInt("schema_version", -1) != 1)
+                throw new JSONException("Unsupported routine format");
+            return envelope;
+        } catch (JSONException e) { throw new Problem("GrowthTrack returned an invalid routine response"); }
+    }
+
     /* ---------------------------------------------------------------- credentials */
 
     private Response authorized(String method, String path, String body) throws IOException {
+        return authorized(method, path, body, GrowthTrackProtocol.WRITE);
+    }
+    private Response authorized(String method, String path, String body, String requiredScope) throws IOException {
         checkLinked();
         JSONObject t = state.optJSONObject("tokens");
         boolean refreshed = false;
         if (clock.now() + 30_000 >= t.optLong("expires_at")) { refresh(); refreshed = true; }
+        if (!hasScope(state.optJSONObject("tokens").optString("scope"), requiredScope))
+            throw new Problem("Connect again to allow " + requiredScope);
         Response r = authenticatedRequest(method, path, body);
-        if (r.status == 401 && !refreshed) { refresh(); r = authenticatedRequest(method, path, body); }
+        if (r.status == 401 && !refreshed) {
+            refresh();
+            if (!hasScope(state.optJSONObject("tokens").optString("scope"), requiredScope))
+                throw new Problem("Connect again to allow " + requiredScope);
+            r = authenticatedRequest(method, path, body);
+        }
         if (r.status == 401 || r.status == 410) {
             loseAuthority("GrowthTrack access expired or was removed. Connect again; your sessions stay on this phone."); save();
             throw new Problem("GrowthTrack access expired or was removed. Connect again.");
         }
+        if (r.status == 403 && GrowthTrackProtocol.READ_ROUTINES.equals(requiredScope))
+            throw new Problem("GrowthTrack has not granted routine reading. Approve it again; session sync is unchanged.");
         if (r.status == 403) { put("sync_paused", true); put("message", "Sync paused: GrowthTrack has not granted " + GrowthTrackProtocol.WRITE + ". Reconnect to restore access."); save(); throw new Problem(state.optString("message")); }
         return r;
     }
