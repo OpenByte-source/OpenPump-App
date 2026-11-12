@@ -2603,6 +2603,20 @@ public final class WiringCheck {
         /* Invariants 252-253 (GrowthTrack, app phase): no GrowthTrack screen opens or stays
          * during a live run, and every GrowthTrack dialog goes through Ui.dress. */
         checkGrowthTrackFiles(SRC_DIR, violations);
+        /* Invariant 267: a shared or restored routine waits where the original did - the
+         * stage waits travel in share codes and version snapshots, and every saved routine is
+         * given them back at load and on a backup restore. */
+        checkStageWaitsFiles(SRC_DIR, violations);
+        /* Invariant 268: a restored version puts each stage back as the routine had it - its
+         * colour and markers frozen in the snapshot, an old one's role given back, the shape
+         * never compared. */
+        checkStageShapeFiles(SRC_DIR, violations);
+        /* Invariant 269: a shared routine keeps each stage's markers, under a version an older
+         * build refuses, and an old code's pulls are given back by the builder's rule. */
+        checkShareMarksFiles(SRC_DIR, violations);
+        /* Invariant 270: a builder routine already in the library gets its pulls' markers
+         * back on load and on a backup restore, by the builder-only rule. */
+        checkLoadMarksFiles(SRC_DIR, violations);
         System.out.println("WiringCheck: " + pure.size() + " source(s) scanned for the pure "
             + "invariants (28, 29, 30)");
 
@@ -28376,6 +28390,14 @@ public final class WiringCheck {
         byHandSelfTests(counts);
         /* ---- invariants 252-253 (GrowthTrack: no screen over a run; every dialog dressed) ---- */
         growthTrackSelfTests(counts);
+        /* ---- invariant 267 (a shared or restored routine waits where the original did) ---- */
+        stageWaitsSelfTests(counts);
+        /* ---- invariant 268 (a restored version puts each stage back as the routine had it) ---- */
+        stageShapeSelfTests(counts);
+        /* ---- invariant 269 (a shared routine keeps each stage's markers) ---- */
+        shareMarksSelfTests(counts);
+        /* ---- invariant 270 (a routine already in the library gets its pulls' markers back) ---- */
+        loadMarksSelfTests(counts);
 
         /* ---- blankStringLiterals ------------------------------------------------ */
 
@@ -32092,6 +32114,1012 @@ public final class WiringCheck {
             checkByHand(s2, a2, l2, v2, v);
             selfCheck(counts, changed && v.size() == 1,
                 "INV251 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
+        }
+    }
+
+    /* =====================================================================================
+     * INVARIANT 267: A SHARED OR RESTORED ROUTINE WAITS WHERE THE ORIGINAL DID.
+     * A length routine waits two ways: the hand release waits for Done once its time is up
+     * (Stage#manual) and the changeover waits for "I've swapped" from its start
+     * (Stage#awaitAck). A routine that arrives by a share code or a version restore must never
+     * start a pull the original would have waited for:
+     *   (a) the one rule (Model#giveStagesTheirWaits) gives the release and the changeover
+     *       their waits through Stage#giveHandWaitBack, which only ever adds a wait, only to a
+     *       rest, after clampRest empties its sets (invariant 29), and the changeover's from
+     *       its start - and ONLY to what the builder made (the owner, 2026-11-11): the rule
+     *       returns before it touches anything unless the stages are a trainer mint's or carry
+     *       the builder's own words (Plan#hasBuilderWords), and the load repair asks it with
+     *       the routine's trainer track, so a routine the person built is never changed;
+     *   (b) what is rebuilt - both share-code readers and a restored version - reads the waits
+     *       it carries (only ever onto a rest), then runs the one rule over every stage after
+     *       the last is added, for what was made before the waits travelled;
+     *   (c) the waits travel: both share-code writers write them, under a version an older
+     *       build refuses (packed 3, document 2), and a version's snapshot freezes, saves and
+     *       loads them;
+     *   (d) the copies carry both flags: Routine#copy, Routine#stepUpCopy, Model#plan's preset;
+     *   (e) the load (onCreate) runs the rule over every saved routine before the reshape and
+     *       before it saves, and a backup restore runs it before the restored file is saved;
+     *   (f) the Used-in screen's Undo snapshots every routine's stages exactly
+     *       (Model.copyStages, Stage#copy), so Undo never turns a rest into an empty stage or
+     *       drops a wait;
+     *   (g) "Update" and "Save as copy" from a run (AsRun#applyToStages, #buildNewRoutine,
+     *       #snapStages) rebuild each stage as it was (Stage#copy, sets replaced), keep a rest
+     *       though it holds no sets, and give an old snapshot its waits back by the one rule.
+     * ===================================================================================== */
+    static final String[][] WAIT_REBUILDS = {
+        { "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "a v1/v2 share code",
+          "st.manual=st.rest&&so.optBoolean(\"manual\",false);"
+          + "st.awaitAck=st.rest&&so.optBoolean(\"ack\",false);",
+          "giveStagesTheirWaits(r.stages);" },
+        { "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "a v3 share code",
+          "st.manual=st.rest&&man;st.awaitAck=st.rest&&ack;",
+          "giveStagesTheirWaits(r.stages);" },
+        { "Routine\\s+restoreRoutineVersion\\s*\\(", "restoreRoutineVersion", "a restored version",
+          "st.manual=ss.rest&&ss.manual;st.awaitAck=ss.rest&&ss.awaitAck;",
+          "giveStagesTheirWaits(draft.stages,snap.trainerTrack>TRAINER_TRACK_NONE);" },
+    };
+    /** (c) and (d): { signature (or OWN_TOJSON:<class>), name, statement, what it carries }. */
+    static final String[][] WAIT_CARRIES = {
+        { "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode",
+          "w.write(1,st.rest&&st.manual?1:0);w.write(1,st.rest&&st.awaitAck?1:0);",
+          "a v3 share code's waits" },
+        { "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode",
+          "w.write(4,waits?SHARE_PACKED_VERSION_WAITS:1);",
+          "a v3 share code's version, which an older build refuses" },
+        { "String\\s+toShareCodeV2\\s*\\(", "toShareCodeV2",
+          "if(st.rest&&st.manual)so.put(\"manual\",true);if(st.rest&&st.awaitAck)so.put(\"ack\",true);",
+          "a v2 share code's waits" },
+        { "String\\s+toShareCodeV2\\s*\\(", "toShareCodeV2", "o.put(\"v\",hasStageWaits()?2:1);",
+          "a v2 share code's version, which an older build refuses" },
+        { "AsRunSnapshot\\s+of\\s*\\(\\s*Routine", "AsRunSnapshot.of",
+          "st.manual=src.manual;st.awaitAck=src.awaitAck;", "a version's snapshot" },
+        { "OWN_TOJSON:AsRunSnapshot", "AsRunSnapshot.toJson",
+          "if(st.manual)so.put(\"man\",true);if(st.awaitAck)so.put(\"ack\",true);",
+          "a saved snapshot" },
+        { "static\\s+AsRunSnapshot\\s+fromJson\\s*\\(", "AsRunSnapshot.fromJson",
+          "st.manual=so.optBoolean(\"man\",false);st.awaitAck=so.optBoolean(\"ack\",false);",
+          "a loaded snapshot" },
+        { "Routine\\s+copy\\s*\\(\\s*String\\s+newId\\s*\\)", "copy", "cs.manual=src.manual;",
+          "a duplicate's by-hand flag" },
+        { "Routine\\s+copy\\s*\\(\\s*String\\s+newId\\s*\\)", "copy", "cs.awaitAck=src.awaitAck;",
+          "a duplicate's changeover wait" },
+        { "Routine\\s+stepUpCopy\\s*\\(", "stepUpCopy", "cs.manual=src.manual;",
+          "a stepped-up copy's by-hand flag" },
+        { "Routine\\s+stepUpCopy\\s*\\(", "stepUpCopy", "cs.awaitAck=src.awaitAck;",
+          "a stepped-up copy's changeover wait" },
+        { "List<Preset>\\s+plan\\s*\\(\\s*Routine\\s+r\\s*\\)", "plan", "p.manual=st.manual;",
+          "the run's by-hand step" },
+        { "List<Preset>\\s+plan\\s*\\(\\s*Routine\\s+r\\s*\\)", "plan", "p.awaitAck=st.awaitAck;",
+          "the run's wait for \"I've swapped\"" },
+    };
+
+    static void checkStageWaitsFiles(String dir, List<String> violations) throws IOException {
+        String model = runScreenRaw(dir, "Model.java", violations);
+        String act = runScreenRaw(dir, "SessionActivity.java", violations);
+        String asRun = runScreenRaw(dir, "AsRun.java", violations);
+        checkStageWaits(model, act, asRun, violations);
+    }
+
+    /** (g): { signature, name, statement that must be there }. */
+    static final String[][] RUN_SAVES = {
+        { "List<Model.Stage>\\s+applyToStages\\s*\\(", "applyToStages", "if(ids.isEmpty()&&!st.rest)continue;" },
+        { "List<Model.Stage>\\s+applyToStages\\s*\\(", "applyToStages", "Model.Stagens=st.copy();" },
+        { "Commit\\s+buildNewRoutine\\s*\\(", "buildNewRoutine", "if(ids.isEmpty()&&!st.rest)continue;" },
+        { "Commit\\s+buildNewRoutine\\s*\\(", "buildNewRoutine", "Model.Stagens=st.copy();" },
+        { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "st.manual=ss.rest&&(ss.manual||(same&&live.manual));" },
+        { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "st.awaitAck=ss.rest&&(ss.awaitAck||(same&&live.awaitAck));" },
+        { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "st.rest=ss.rest;" },
+        { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages",
+          "Model.giveStagesTheirWaits(src,run.snap.trainerTrack>Model.TRAINER_TRACK_NONE);" },
+    };
+
+    static void checkStageWaits(String model, String act, String asRun, List<String> violations) {
+        if (asRun != null) {
+            // (g) the saves from a run.
+            for (int i = 0; i < RUN_SAVES.length; i++) {
+                String b = body228(asRun, RUN_SAVES[i][0], "AsRun.java", RUN_SAVES[i][1], violations);
+                if (b != null && b.indexOf(RUN_SAVES[i][2]) < 0)
+                    violations.add("AsRun.java: invariant 267 - " + RUN_SAVES[i][1] + " no longer "
+                        + "keeps a stage as it was (" + RUN_SAVES[i][2] + ") - a save from a run "
+                        + "would drop the release or the changeover, or their waits");
+            }
+            String sb = body228(asRun, "Commit\\s+buildNewRoutine\\s*\\(", "AsRun.java",
+                "buildNewRoutine", violations);
+            String ab = body228(asRun, "List<Model.Stage>\\s+applyToStages\\s*\\(", "AsRun.java",
+                "applyToStages", violations);
+            String ss = body228(asRun, "List<Model.Stage>\\s+snapStages\\s*\\(", "AsRun.java",
+                "snapStages", violations);
+            if ((ab != null && ab.indexOf("Model.Stage.of(") >= 0)
+                    || (ss != null && ss.indexOf("Model.Stage.of(") >= 0)
+                    || (sb != null && sb.indexOf("built.add(Model.Stage.of(") >= 0))
+                violations.add("AsRun.java: invariant 267 - a save from a run rebuilds a stage from "
+                    + "its name and sets alone (Model.Stage.of) - its rest and waits would be lost");
+        }
+        if (model != null) {
+            // (a) the one rule, and the only way it adds a wait.
+            String gs = body228(model,
+                "boolean\\s+giveStagesTheirWaits\\s*\\(\\s*List<Stage>\\s+stages\\s*,\\s*boolean\\s+minted",
+                "Model.java", "giveStagesTheirWaits", violations);
+            if (gs != null && gs.indexOf("st.giveHandWaitBack(Plan.isHandRelease(st),"
+                    + "Plan.isChangeover(stages,i))") < 0)
+                violations.add("Model.java: invariant 267 - giveStagesTheirWaits no longer gives "
+                    + "the hand release (Plan.isHandRelease) and the changeover (Plan.isChangeover) "
+                    + "their waits - what carries no flags would run on into a pull");
+            if (gs != null) {
+                int guard = gs.indexOf("if(stages==null||!(minted||Plan.hasBuilderWords(stages)))"
+                    + "returnfalse;");
+                int give = gs.indexOf("st.giveHandWaitBack(");
+                if (guard < 0 || (give >= 0 && guard > give))
+                    violations.add("Model.java: invariant 267 - giveStagesTheirWaits no longer "
+                        + "returns before it touches anything unless the stages are the builder's "
+                        + "(a trainer mint, or Plan.hasBuilderWords) - a routine the person built "
+                        + "could be changed");
+            }
+            String g1 = body228(model,
+                "boolean\\s+giveStagesTheirWaits\\s*\\(\\s*List<Stage>\\s+stages\\s*\\)",
+                "Model.java", "giveStagesTheirWaits", violations);
+            if (g1 != null && !"returngiveStagesTheirWaits(stages,false);".equals(g1))
+                violations.add("Model.java: invariant 267 - giveStagesTheirWaits(stages) is no "
+                    + "longer the builder-only rule with no trainer mark (stages, false)");
+            String gr = body228(model, "int\\s+giveRoutinesTheirWaits\\s*\\(", "Model.java",
+                "giveRoutinesTheirWaits", violations);
+            if (gr != null && gr.indexOf(
+                    "giveStagesTheirWaits(r.stages,r.trainerTrack!=TRAINER_TRACK_NONE)") < 0)
+                violations.add("Model.java: invariant 267 - the load repair no longer asks the one "
+                    + "rule with the routine's trainer track - it would touch routines the person "
+                    + "built, or miss a mint");
+            String gh = body228(model, "boolean\\s+giveHandWaitBack\\s*\\(", "Model.java",
+                "giveHandWaitBack", violations);
+            if (gh != null) {
+                int guard = gh.indexOf("if(!rest||!(release||changeover))returnfalse;");
+                int clamp = gh.indexOf("clampRest();");
+                int man = gh.indexOf("manual=rest;");
+                int ack = gh.indexOf("if(changeover)awaitAck=rest;");
+                if (guard < 0 || clamp < 0 || man < 0 || ack < 0
+                        || guard > clamp || clamp > man || clamp > ack)
+                    violations.add("Model.java: invariant 267 - Stage#giveHandWaitBack no longer "
+                        + "gives only a rest its wait, after clampRest empties its sets "
+                        + "(invariant 29), and the changeover its wait from its start");
+            }
+            // (b) the rebuilds: the waits they carry, then the rule for what they do not.
+            for (int i = 0; i < WAIT_REBUILDS.length; i++) {
+                String b = body228(model, WAIT_REBUILDS[i][0], "Model.java", WAIT_REBUILDS[i][1],
+                    violations);
+                if (b == null) continue;
+                int read = b.indexOf(WAIT_REBUILDS[i][3]);
+                int added = b.lastIndexOf(".stages.add(st);");
+                int give = b.lastIndexOf(WAIT_REBUILDS[i][4]);
+                if (read < 0)
+                    violations.add("Model.java: invariant 267 - " + WAIT_REBUILDS[i][2] + " ("
+                        + WAIT_REBUILDS[i][1] + ") drops the waits it carries ("
+                        + WAIT_REBUILDS[i][3] + ") - a changeover would run as a timed rest");
+                if (give < 0 || give < added)
+                    violations.add("Model.java: invariant 267 - " + WAIT_REBUILDS[i][2] + " ("
+                        + WAIT_REBUILDS[i][1] + ") rebuilds a routine without giving every "
+                        + "stage its wait by the one rule (" + WAIT_REBUILDS[i][4]
+                        + " after the last stage is added)");
+            }
+            // (c) and (d): the waits travel, and the copies carry them.
+            for (int i = 0; i < WAIT_CARRIES.length; i++) {
+                String sig = WAIT_CARRIES[i][0], b = null;
+                if (sig.startsWith("OWN_TOJSON:")) {
+                    int[] span = ownToJson(model, sig.substring("OWN_TOJSON:".length()));
+                    if (span == null)
+                        violations.add("Model.java: invariant 267 names " + WAIT_CARRIES[i][1]
+                            + " but it is gone - renamed? Update the check deliberately");
+                    else b = flat224(model.substring(span[0], span[1]));
+                } else {
+                    b = body228(model, sig, "Model.java", WAIT_CARRIES[i][1], violations);
+                }
+                if (b != null && b.indexOf(WAIT_CARRIES[i][2]) < 0)
+                    violations.add("Model.java: invariant 267 - " + WAIT_CARRIES[i][1] + " no "
+                        + "longer keeps " + WAIT_CARRIES[i][3] + " (" + WAIT_CARRIES[i][2] + ")");
+            }
+        }
+        if (act != null) {
+            // (e) the load and a backup restore.
+            String oc = body228(act, "void\\s+onCreate\\s*\\(\\s*Bundle", "SessionActivity.java",
+                "onCreate", violations);
+            if (oc != null) {
+                int give = oc.indexOf("repaired+=model.giveRoutinesTheirWaits();");
+                int reshape = oc.indexOf("model.reshapeTractionStages();");
+                int save = oc.indexOf("if(repaired>0)Store.save(this,model);");
+                if (give < 0 || reshape < 0 || save < 0 || give > reshape || give > save)
+                    violations.add("SessionActivity.java: invariant 267 - onCreate no longer gives "
+                        + "every saved routine its stage waits (giveRoutinesTheirWaits) before the "
+                        + "reshape and the save - a routine added from an old code would run its "
+                        + "changeover as a timed rest");
+            }
+            String rb = body228(act, "void\\s+restoreFromBackup\\s*\\(", "SessionActivity.java",
+                "restoreFromBackup", violations);
+            if (rb != null) {
+                int give = rb.indexOf("restoredModel.giveRoutinesTheirWaits();");
+                int save = rb.indexOf("Store.save(this,restoredModel);");
+                if (give < 0 || save < 0 || give > save)
+                    violations.add("SessionActivity.java: invariant 267 - a backup restore no longer "
+                        + "gives every routine its stage waits before the restored file is saved");
+            }
+            // (f) the Used-in Undo's snapshot.
+            String us = body228(act, "void\\s+usedSnapshot\\s*\\(", "SessionActivity.java",
+                "usedSnapshot", violations);
+            if (us != null && (us.indexOf("Model.copyStages(r.stages)") < 0
+                    || us.indexOf("Model.Stage.of(") >= 0))
+                violations.add("SessionActivity.java: invariant 267 - the Used-in Undo no longer "
+                    + "snapshots each routine's stages exactly (Model.copyStages) - Undo would turn "
+                    + "a rest into an empty stage and drop the release's and the changeover's waits");
+        }
+    }
+
+    /** Invariant 267's self-test: the app's shapes pass, and each way a wait is lost is caught. */
+    static void stageWaitsSelfTests(int[] counts) {
+        String model =
+              "boolean giveHandWaitBack(boolean release, boolean changeover) {\n"
+            + "    if (!rest || !(release || changeover)) return false;\n"
+            + "    if (manual && (awaitAck || !changeover)) return false;\n"
+            + "    clampRest();\n"
+            + "    manual = rest;\n"
+            + "    if (changeover) awaitAck = rest;\n"
+            + "    return true;\n"
+            + "}\n"
+            + "public Routine copy(String newId) {\n"
+            + "    cs.awaitAck = src.awaitAck;\n"
+            + "    cs.manual = src.manual;\n"
+            + "}\n"
+            + "public Routine stepUpCopy(String newId, Model model) {\n"
+            + "    cs.awaitAck  = src.awaitAck;\n"
+            + "    cs.manual  = src.manual;\n"
+            + "}\n"
+            + "public String toShareCode(Model model) throws JSONException {\n"
+            + "    w.write(4, waits ? SHARE_PACKED_VERSION_WAITS : 1);\n"
+            + "    w.write(1, st.rest && st.manual ? 1 : 0);\n"
+            + "    w.write(1, st.rest && st.awaitAck ? 1 : 0);\n"
+            + "}\n"
+            + "public String toShareCodeV2(Model model) throws JSONException {\n"
+            + "    o.put(\"v\", hasStageWaits() ? 2 : 1);\n"
+            + "    if (st.rest && st.manual) so.put(\"manual\", true);\n"
+            + "    if (st.rest && st.awaitAck) so.put(\"ack\", true);\n"
+            + "}\n"
+            + "public static Decoded fromShareCode(String code) {\n"
+            + "    for (int i = 0; i < n; i++) {\n"
+            + "    st.manual = st.rest && so.optBoolean(\"manual\", false);\n"
+            + "    st.awaitAck = st.rest && so.optBoolean(\"ack\", false);\n"
+            + "    st.clampRest();\n"
+            + "    r.stages.add(st);\n"
+            + "    }\n"
+            + "    giveStagesTheirWaits(r.stages);\n"
+            + "}\n"
+            + "private static Decoded fromShareCodeV3(byte[] packed) {\n"
+            + "    for (int i = 0; i < n; i++) {\n"
+            + "    st.manual = st.rest && man;\n"
+            + "    st.awaitAck = st.rest && ack;\n"
+            + "    st.clampRest();\n"
+            + "    r.stages.add(st);\n"
+            + "    }\n"
+            + "    giveStagesTheirWaits(r.stages);\n"
+            + "}\n"
+            + "public static final class AsRunSnapshot {\n"
+            + "    public static AsRunSnapshot of(Routine r, Model m) {\n"
+            + "        st.manual = src.manual;\n"
+            + "        st.awaitAck = src.awaitAck;\n"
+            + "    }\n"
+            + "    public JSONObject toJson() throws JSONException {\n"
+            + "        if (st.manual) so.put(\"man\", true);\n"
+            + "        if (st.awaitAck) so.put(\"ack\", true);\n"
+            + "    }\n"
+            + "    public static AsRunSnapshot fromJson(JSONObject o) {\n"
+            + "        st.manual = so.optBoolean(\"man\", false);\n"
+            + "        st.awaitAck = so.optBoolean(\"ack\", false);\n"
+            + "    }\n"
+            + "}\n"
+            + "public static boolean giveStagesTheirWaits(List<Stage> stages) {\n"
+            + "    return giveStagesTheirWaits(stages, false);\n"
+            + "}\n"
+            + "public static boolean giveStagesTheirWaits(List<Stage> stages, boolean minted) {\n"
+            + "    if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;\n"
+            + "    if (st.giveHandWaitBack(Plan.isHandRelease(st), Plan.isChangeover(stages, i)))\n"
+            + "        changed = true;\n"
+            + "}\n"
+            + "public int giveRoutinesTheirWaits() {\n"
+            + "    if (r != null && giveStagesTheirWaits(r.stages, r.trainerTrack != TRAINER_TRACK_NONE))\n"
+            + "        changed++;\n"
+            + "}\n"
+            + "public Routine restoreRoutineVersion(String routineId, int idx) {\n"
+            + "    for (int i = 0; i < n; i++) {\n"
+            + "    st.manual = ss.rest && ss.manual;\n"
+            + "    st.awaitAck = ss.rest && ss.awaitAck;\n"
+            + "    st.clampRest();\n"
+            + "    draft.stages.add(st);\n"
+            + "    }\n"
+            + "    giveStagesTheirWaits(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n"
+            + "}\n"
+            + "public List<Preset> plan(Routine r) {\n"
+            + "    p.awaitAck = st.awaitAck;\n"
+            + "    p.manual = st.manual;\n"
+            + "}\n";
+        String act =
+              "protected void onCreate(Bundle b) {\n"
+            + "    repaired += model.capMintAssessments();\n"
+            + "    repaired += model.giveRoutinesTheirWaits();\n"
+            + "    repaired += model.reshapeTractionStages();\n"
+            + "    if (repaired > 0) Store.save(this, model);\n"
+            + "}\n"
+            + "private void restoreFromBackup(List<Backup.Entry> entries) {\n"
+            + "    int waited = restoredModel.giveRoutinesTheirWaits();\n"
+            + "    Store.save(this, restoredModel);\n"
+            + "}\n"
+            + "private void usedSnapshot(String label) {\n"
+            + "    List<Model.Stage> copy = Model.copyStages(r.stages);\n"
+            + "}\n";
+        String asRun =
+              "private static List<Model.Stage> snapStages(AsRun run, Model m) {\n"
+            + "    st.rest = ss.rest;\n"
+            + "    st.manual = ss.rest && (ss.manual || (same && live.manual));\n"
+            + "    st.awaitAck = ss.rest && (ss.awaitAck || (same && live.awaitAck));\n"
+            + "    Model.giveStagesTheirWaits(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);\n"
+            + "}\n"
+            + "private static List<Model.Stage> applyToStages(List<Model.Stage> stages) {\n"
+            + "    if (ids.isEmpty() && !st.rest) continue;\n"
+            + "    Model.Stage ns = st.copy();\n"
+            + "}\n"
+            + "public static Commit buildNewRoutine(List<SetChange> cs) {\n"
+            + "    if (ids.isEmpty() && !st.rest) continue;\n"
+            + "    Model.Stage ns = st.copy();\n"
+            + "}\n";
+        List<String> v = new ArrayList<String>();
+        checkStageWaits(model, act, asRun, v);
+        selfCheck(counts, v.isEmpty(), "INV267 control: the app's shapes pass (got " + v + ")");
+
+        String[][] bad = {
+            { "M", "the rule touching a routine the person built",
+              "    if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;\n",
+              "    if (stages == null) return false;\n" },
+            { "M", "the rule taking every routine for a mint",
+              "!(minted || Plan.hasBuilderWords(stages))", "!(true || Plan.hasBuilderWords(stages))" },
+            { "M", "the one-argument rule calling every routine a mint",
+              "    return giveStagesTheirWaits(stages, false);\n", "    return giveStagesTheirWaits(stages, true);\n" },
+            { "M", "the load repair not asking the trainer track",
+              "giveStagesTheirWaits(r.stages, r.trainerTrack != TRAINER_TRACK_NONE)",
+              "giveStagesTheirWaits(r.stages, true)" },
+            { "M", "the rule without the changeover",
+              "Plan.isHandRelease(st), Plan.isChangeover(stages, i))", "Plan.isHandRelease(st), false)" },
+            { "M", "the rule without the release",
+              "Plan.isHandRelease(st), Plan.isChangeover(stages, i))", "false, Plan.isChangeover(stages, i))" },
+            { "M", "a hand wait given to a stage that commands",
+              "    if (!rest || !(release || changeover)) return false;\n",
+              "    if (!(release || changeover)) return false;\n" },
+            { "M", "a hand wait before clampRest",
+              "    clampRest();\n    manual = rest;\n    if (changeover)",
+              "    manual = rest;\n    clampRest();\n    if (changeover)" },
+            { "M", "the changeover given no wait from its start",
+              "    if (changeover) awaitAck = rest;\n", "" },
+            { "M", "a v1/v2 share code dropping the waits it carries",
+              "    st.manual = st.rest && so.optBoolean(\"manual\", false);\n", "" },
+            { "M", "a v1/v2 share code dropping the changeover's wait",
+              "    st.awaitAck = st.rest && so.optBoolean(\"ack\", false);\n", "" },
+            { "M", "a v1/v2 share code without the rule",
+              "    giveStagesTheirWaits(r.stages);\n}\nprivate static Decoded fromShareCodeV3",
+              "}\nprivate static Decoded fromShareCodeV3" },
+            { "M", "a v1/v2 share code running the rule before its stages are in",
+              "    st.clampRest();\n    r.stages.add(st);\n    }\n    giveStagesTheirWaits(r.stages);\n"
+              + "}\nprivate static Decoded fromShareCodeV3",
+              "    st.clampRest();\n    giveStagesTheirWaits(r.stages);\n    r.stages.add(st);\n    }\n"
+              + "}\nprivate static Decoded fromShareCodeV3" },
+            { "M", "a v3 share code dropping the waits it carries",
+              "    st.manual = st.rest && man;\n    st.awaitAck = st.rest && ack;\n", "" },
+            { "M", "a v3 share code without the rule",
+              "    giveStagesTheirWaits(r.stages);\n}\npublic static final class AsRunSnapshot",
+              "}\npublic static final class AsRunSnapshot" },
+            { "M", "a restored version dropping the waits its snapshot froze",
+              "    st.manual = ss.rest && ss.manual;\n", "" },
+            { "M", "a restored version without the rule",
+              "    giveStagesTheirWaits(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n", "" },
+            { "M", "a restored version calling every snapshot a mint",
+              "giveStagesTheirWaits(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);",
+              "giveStagesTheirWaits(draft.stages, true);" },
+            { "M", "a duplicate dropping the by-hand flag", "    cs.manual = src.manual;\n", "" },
+            { "M", "a duplicate dropping the changeover's wait", "    cs.awaitAck = src.awaitAck;\n", "" },
+            { "M", "a stepped-up copy dropping the by-hand flag", "    cs.manual  = src.manual;\n", "" },
+            { "M", "a stepped-up copy dropping the changeover's wait", "    cs.awaitAck  = src.awaitAck;\n", "" },
+            { "M", "the plan's preset dropping the by-hand flag", "    p.manual = st.manual;\n", "" },
+            { "M", "the plan's preset dropping the changeover's wait", "    p.awaitAck = st.awaitAck;\n", "" },
+            { "M", "a v3 code not writing the waits", "    w.write(1, st.rest && st.awaitAck ? 1 : 0);\n", "" },
+            { "M", "a v3 code with the waits under a version an older build reads",
+              "w.write(4, waits ? SHARE_PACKED_VERSION_WAITS : 1);", "w.write(4, 1);" },
+            { "M", "a v2 code not writing the waits", "    if (st.rest && st.manual) so.put(\"manual\", true);\n", "" },
+            { "M", "a v2 code with the waits under a version an older build reads",
+              "o.put(\"v\", hasStageWaits() ? 2 : 1);", "o.put(\"v\", 1);" },
+            { "M", "a snapshot not freezing the waits", "        st.awaitAck = src.awaitAck;\n", "" },
+            { "M", "a snapshot not saving the waits", "        if (st.manual) so.put(\"man\", true);\n", "" },
+            { "M", "a snapshot not loading the waits", "        st.manual = so.optBoolean(\"man\", false);\n", "" },
+            { "A", "a load without the repair", "    repaired += model.giveRoutinesTheirWaits();\n", "" },
+            { "A", "a load repairing after the reshape",
+              "    repaired += model.giveRoutinesTheirWaits();\n    repaired += model.reshapeTractionStages();\n",
+              "    repaired += model.reshapeTractionStages();\n    repaired += model.giveRoutinesTheirWaits();\n" },
+            { "A", "a restore without the repair",
+              "    int waited = restoredModel.giveRoutinesTheirWaits();\n", "" },
+            { "A", "a restore repairing after the save",
+              "    int waited = restoredModel.giveRoutinesTheirWaits();\n    Store.save(this, restoredModel);\n",
+              "    Store.save(this, restoredModel);\n    int waited = restoredModel.giveRoutinesTheirWaits();\n" },
+            { "A", "a Used-in Undo that copies only names and sets",
+              "Model.copyStages(r.stages);", "Model.Stage.of(st.name, st.colour, ids);" },
+            { "R", "an Update from a run dropping the rests",
+              "applyToStages(List<Model.Stage> stages) {\n    if (ids.isEmpty() && !st.rest) continue;",
+              "applyToStages(List<Model.Stage> stages) {\n    if (ids.isEmpty()) continue;" },
+            { "R", "an Update from a run rebuilding a stage from its name and sets",
+              "applyToStages(List<Model.Stage> stages) {\n    if (ids.isEmpty() && !st.rest) continue;\n    Model.Stage ns = st.copy();",
+              "applyToStages(List<Model.Stage> stages) {\n    if (ids.isEmpty() && !st.rest) continue;\n    Model.Stage ns = Model.Stage.of(st.name, st.colour, ids);" },
+            { "R", "a Save as copy dropping the rests",
+              "buildNewRoutine(List<SetChange> cs) {\n    if (ids.isEmpty() && !st.rest) continue;",
+              "buildNewRoutine(List<SetChange> cs) {\n    if (ids.isEmpty()) continue;" },
+            { "R", "a Save as copy rebuilding a stage from its name and sets",
+              "buildNewRoutine(List<SetChange> cs) {\n    if (ids.isEmpty() && !st.rest) continue;\n    Model.Stage ns = st.copy();",
+              "buildNewRoutine(List<SetChange> cs) {\n    if (ids.isEmpty() && !st.rest) continue;\n    Model.Stage ns = Model.Stage.of(st.name, st.colour, ids);" },
+            { "R", "a run's snapshot rebuilt without its rests", "    st.rest = ss.rest;\n", "" },
+            { "R", "a run's snapshot rebuilt without its changeover wait",
+              "    st.awaitAck = ss.rest && (ss.awaitAck || (same && live.awaitAck));\n", "" },
+            { "R", "a run's old snapshot not given its waits back",
+              "    Model.giveStagesTheirWaits(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);\n", "" },
+            { "R", "a run's snapshot always called a mint",
+              "Model.giveStagesTheirWaits(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);",
+              "Model.giveStagesTheirWaits(src, true);" },
+        };
+        for (int i = 0; i < bad.length; i++) {
+            String m2 = model, a2 = act, r2 = asRun;
+            if ("M".equals(bad[i][0])) m2 = model.replace(bad[i][2], bad[i][3]);
+            else if ("R".equals(bad[i][0])) r2 = asRun.replace(bad[i][2], bad[i][3]);
+            else a2 = act.replace(bad[i][2], bad[i][3]);
+            boolean changed = !m2.equals(model) || !a2.equals(act) || !r2.equals(asRun);
+            v = new ArrayList<String>();
+            checkStageWaits(m2, a2, r2, v);
+            selfCheck(counts, changed && !v.isEmpty(),
+                "INV267 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
+        }
+    }
+
+    /* =====================================================================================
+     * INVARIANT 268: A RESTORED VERSION PUTS EACH STAGE BACK AS THE ROUTINE HAD IT.
+     * "Restore as copy" rebuilt every stage as a plain cool one, so a restored trainer
+     * routine's warm-up played as a plain ramp, its pulls lost the length marker, its work
+     * came out of net and its connected-app labels came out wrong (the emulator, 2026-11-12):
+     *   (a) the snapshot freezes the stage's whole shape (AsRunSnapshot.of: colour, the
+     *       length, fatigue, retention and climb markers, the cylinder), saves it and loads it,
+     *       the colour's presence saying the shape was recorded (MIGRATION: an old one has none);
+     *   (b) StageSnap#shapeOnto puts it back as recorded, and an old recording's role - the
+     *       warm-up's colour, the length marker - and nothing else;
+     *   (c) restoreRoutineVersion and a save from a run's stage that is no longer in the
+     *       routine (AsRun#snapStages) put the shape back through shapeOnto, and ask the
+     *       builder's rule (Model#giveStagesTheirMarks) for what an old recording cannot say,
+     *       after the last stage is in - the restore no longer paints every stage cool;
+     *   (d) the rule is the builder's only: it returns before it touches anything unless the
+     *       stages are a mint's or carry the builder's words, and gives the marker only to a
+     *       pull the builder names (Plan#isBuilderPull, never a rest);
+     *   (e) the shape is never compared: AsRunSnapshot#matchesStructure reads none of it, so
+     *       a recolour or an old recording never makes a run read as "routine edited".
+     * ===================================================================================== */
+    /** { file (M Model, R AsRun, P Plan), signature (or OWN_TOJSON:<class>), name, kind
+     *  (has / not / after: after the last `.stages.add(st);`), statement, what it keeps }. */
+    static final String[][] SHAPE_RULES = {
+        { "M", "AsRunSnapshot\\s+of\\s*\\(\\s*Routine", "AsRunSnapshot.of", "has",
+          "st.shapeKnown=true;st.colour=src.colour;st.traction=src.traction;"
+          + "st.fatigueBlock=src.fatigueBlock;st.retention=src.retention;st.climb=src.climb;"
+          + "st.cylinderId=src.cylinderId==null?\"\":src.cylinderId;",
+          "a version's snapshot freezing the stage's shape" },
+        { "M", "OWN_TOJSON:AsRunSnapshot", "AsRunSnapshot.toJson", "has",
+          "if(st.shapeKnown)so.put(\"col\",st.colour);if(st.traction)so.put(\"trac\",true);"
+          + "if(st.fatigueBlock)so.put(\"fat\",true);if(st.retention)so.put(\"ret\",true);"
+          + "if(st.climb)so.put(\"climb\",true);",
+          "a saved snapshot's shape" },
+        { "M", "OWN_TOJSON:AsRunSnapshot", "AsRunSnapshot.toJson", "has",
+          "so.put(\"cyl\",st.cylinderId);", "a saved snapshot's cylinder" },
+        { "M", "static\\s+AsRunSnapshot\\s+fromJson\\s*\\(", "AsRunSnapshot.fromJson", "has",
+          "st.shapeKnown=so.has(\"col\");st.colour=so.optInt(\"col\",0);"
+          + "st.traction=so.optBoolean(\"trac\",false);st.fatigueBlock=so.optBoolean(\"fat\",false);"
+          + "st.retention=so.optBoolean(\"ret\",false);st.climb=so.optBoolean(\"climb\",false);"
+          + "st.cylinderId=so.optString(\"cyl\",\"\");",
+          "a loaded snapshot's shape, and whether it was recorded" },
+        { "M", "boolean\\s+shapeOnto\\s*\\(", "StageSnap.shapeOnto", "has",
+          "if(shapeKnown){st.colour=colour;st.traction=traction;st.fatigueBlock=fatigueBlock;"
+          + "st.retention=retention;st.climb=climb;",
+          "the recorded shape put back" },
+        { "M", "boolean\\s+shapeOnto\\s*\\(", "StageSnap.shapeOnto", "has",
+          "if(role==ROLE_WARM)st.colour=STAGE_WARM;if(role==ROLE_TRACTION)st.traction=true;"
+          + "returnfalse;",
+          "an old recording's role, and nothing else" },
+        { "M", "Routine\\s+restoreRoutineVersion\\s*\\(", "restoreRoutineVersion", "has",
+          "if(!ss.shapeOnto(st))shapeLost=true;", "a restored stage's shape" },
+        { "M", "Routine\\s+restoreRoutineVersion\\s*\\(", "restoreRoutineVersion", "after",
+          "if(shapeLost)giveStagesTheirMarks(draft.stages,snap.trainerTrack>TRAINER_TRACK_NONE);",
+          "an old version's pulls given back by the builder's rule, asked with its track" },
+        { "M", "Routine\\s+restoreRoutineVersion\\s*\\(", "restoreRoutineVersion", "not",
+          "st.colour=STAGE_COOL;", "every restored stage painted cool" },
+        { "M", "boolean\\s+matchesStructure\\s*\\(", "matchesStructure", "not", ".colour",
+          "the colour compared - a recolour would read as an edit" },
+        { "M", "boolean\\s+matchesStructure\\s*\\(", "matchesStructure", "not", ".traction",
+          "a marker compared - an old recording would read as an edit" },
+        { "M", "boolean\\s+matchesStructure\\s*\\(", "matchesStructure", "not", "shapeKnown",
+          "whether the shape was recorded compared" },
+        { "M", "boolean\\s+giveStagesTheirMarks\\s*\\(\\s*List<Stage>\\s+stages\\s*,\\s*boolean\\s+minted",
+          "giveStagesTheirMarks", "has",
+          "if(stages==null||!(minted||Plan.hasBuilderWords(stages)))returnfalse;",
+          "the builder-only guard" },
+        { "M", "boolean\\s+giveStagesTheirMarks\\s*\\(\\s*List<Stage>\\s+stages\\s*,\\s*boolean\\s+minted",
+          "giveStagesTheirMarks", "has", "if(st==null||!Plan.isBuilderPull(st))continue;",
+          "the marker only on a pull the builder names" },
+        { "P", "boolean\\s+isBuilderPull\\s*\\(", "Plan.isBuilderPull", "has",
+          "returnst!=null&&!st.rest&&(STRAIN_NAME.equals(st.name)||FATIGUE_NAME.equals(st.name));",
+          "a pull is a stage that commands, by the builder's names" },
+        { "R", "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "has",
+          "if(!same&&!ss.shapeOnto(st))shapeLost=true;",
+          "a run's stage no longer in the routine rebuilt with its shape" },
+        { "R", "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "has",
+          "if(shapeLost)Model.giveStagesTheirMarks(src,run.snap.trainerTrack>Model.TRAINER_TRACK_NONE);",
+          "an old snapshot's pulls given back by the builder's rule, asked with its track" },
+    };
+
+    /** The rules engine of the stage-shape invariants (268 on): each rule's method body (whitespace
+     *  out) must have, must not have, or must have after its last `.stages.add(st);`, one
+     *  statement. `srcs` is indexed by the rule's file letter. */
+    static void checkShapeRules(java.util.Map<String, String> srcs, String[][] rules, String inv,
+                                List<String> violations) {
+        for (int i = 0; i < rules.length; i++) {
+            String[] r = rules[i];
+            String src = srcs.get(r[0]);
+            if (src == null) continue;
+            String file = "M".equals(r[0]) ? "Model.java" : "R".equals(r[0]) ? "AsRun.java" : "Plan.java";
+            String b = null;
+            if (r[1].startsWith("OWN_TOJSON:")) {
+                int[] span = ownToJson(src, r[1].substring("OWN_TOJSON:".length()));
+                if (span == null)
+                    violations.add(file + ": invariant " + inv + " names " + r[2]
+                        + " but it is gone - renamed? Update the check deliberately");
+                else b = flat224(src.substring(span[0], span[1]));
+            } else {
+                b = body228(src, r[1], file, r[2], violations);
+            }
+            if (b == null) continue;
+            int at = b.indexOf(r[4]);
+            if ("has".equals(r[3]) && at < 0)
+                violations.add(file + ": invariant " + inv + " - " + r[2] + " no longer keeps "
+                    + r[5] + " (" + r[4] + ")");
+            else if ("not".equals(r[3]) && at >= 0)
+                violations.add(file + ": invariant " + inv + " - " + r[2] + " has " + r[5]
+                    + " (" + r[4] + ")");
+            else if ("after".equals(r[3])
+                    && (b.lastIndexOf(r[4]) < 0 || b.lastIndexOf(r[4]) < b.lastIndexOf(".stages.add(st);")))
+                violations.add(file + ": invariant " + inv + " - " + r[2] + " no longer has "
+                    + r[5] + " (" + r[4] + ") after its last stage is added");
+        }
+    }
+
+    static java.util.Map<String, String> shapeSources(String model, String asRun, String plan) {
+        java.util.Map<String, String> m = new java.util.HashMap<String, String>();
+        if (model != null) m.put("M", model);
+        if (asRun != null) m.put("R", asRun);
+        if (plan != null) m.put("P", plan);
+        return m;
+    }
+
+    static void checkStageShapeFiles(String dir, List<String> violations) throws IOException {
+        String model = runScreenRaw(dir, "Model.java", violations);
+        String asRun = runScreenRaw(dir, "AsRun.java", violations);
+        String plan = runScreenRaw(dir, "Plan.java", violations);
+        checkShapeRules(shapeSources(model, asRun, plan), SHAPE_RULES, "268", violations);
+    }
+
+    /** Invariant 268's self-test: the app's shapes pass, and each way a shape is lost is caught. */
+    static void stageShapeSelfTests(int[] counts) {
+        String model =
+              "public static final class AsRunSnapshot {\n"
+            + "    public static AsRunSnapshot of(Routine r, Model m) {\n"
+            + "        st.shapeKnown = true;\n"
+            + "        st.colour = src.colour;\n"
+            + "        st.traction = src.traction;\n"
+            + "        st.fatigueBlock = src.fatigueBlock;\n"
+            + "        st.retention = src.retention;\n"
+            + "        st.climb = src.climb;\n"
+            + "        st.cylinderId = src.cylinderId == null ? \"\" : src.cylinderId;\n"
+            + "    }\n"
+            + "    public boolean matchesStructure(Routine r) {\n"
+            + "        if (!a.name.equals(b.name == null ? \"\" : b.name)) return false;\n"
+            + "        if (a.rest != b.rest) return false;\n"
+            + "    }\n"
+            + "    public JSONObject toJson() throws JSONException {\n"
+            + "        if (st.shapeKnown) so.put(\"col\", st.colour);\n"
+            + "        if (st.traction) so.put(\"trac\", true);\n"
+            + "        if (st.fatigueBlock) so.put(\"fat\", true);\n"
+            + "        if (st.retention) so.put(\"ret\", true);\n"
+            + "        if (st.climb) so.put(\"climb\", true);\n"
+            + "        if (st.cylinderId != null) so.put(\"cyl\", st.cylinderId);\n"
+            + "    }\n"
+            + "    public static AsRunSnapshot fromJson(JSONObject o) {\n"
+            + "        st.shapeKnown = so.has(\"col\");\n"
+            + "        st.colour = so.optInt(\"col\", 0);\n"
+            + "        st.traction = so.optBoolean(\"trac\", false);\n"
+            + "        st.fatigueBlock = so.optBoolean(\"fat\", false);\n"
+            + "        st.retention = so.optBoolean(\"ret\", false);\n"
+            + "        st.climb = so.optBoolean(\"climb\", false);\n"
+            + "        st.cylinderId = so.optString(\"cyl\", \"\");\n"
+            + "    }\n"
+            + "}\n"
+            + "public boolean shapeOnto(Stage st) {\n"
+            + "    if (shapeKnown) {\n"
+            + "        st.colour = colour;\n"
+            + "        st.traction = traction;\n"
+            + "        st.fatigueBlock = fatigueBlock;\n"
+            + "        st.retention = retention;\n"
+            + "        st.climb = climb;\n"
+            + "        return true;\n"
+            + "    }\n"
+            + "    if (role == ROLE_WARM) st.colour = STAGE_WARM;\n"
+            + "    if (role == ROLE_TRACTION) st.traction = true;\n"
+            + "    return false;\n"
+            + "}\n"
+            + "public static boolean giveStagesTheirMarks(List<Stage> stages, boolean minted) {\n"
+            + "    if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;\n"
+            + "    if (st == null || !Plan.isBuilderPull(st)) continue;\n"
+            + "    if (!st.traction) { st.traction = true; changed = true; }\n"
+            + "}\n"
+            + "public Routine restoreRoutineVersion(String routineId, int idx) {\n"
+            + "    st.colour = ss.rest ? STAGE_REST : STAGE_COOL;\n"
+            + "    if (!ss.shapeOnto(st)) shapeLost = true;\n"
+            + "    draft.stages.add(st);\n"
+            + "    if (shapeLost) giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n"
+            + "}\n";
+        String asRun =
+              "private static List<Model.Stage> snapStages(AsRun run, Model m) {\n"
+            + "    if (!same && !ss.shapeOnto(st)) shapeLost = true;\n"
+            + "    src.add(st);\n"
+            + "    if (shapeLost)\n"
+            + "        Model.giveStagesTheirMarks(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);\n"
+            + "}\n";
+        String plan =
+              "public static boolean isBuilderPull(Model.Stage st) {\n"
+            + "    return st != null && !st.rest\n"
+            + "        && (STRAIN_NAME.equals(st.name) || FATIGUE_NAME.equals(st.name));\n"
+            + "}\n";
+        List<String> v = new ArrayList<String>();
+        checkShapeRules(shapeSources(model, asRun, plan), SHAPE_RULES, "268", v);
+        selfCheck(counts, v.isEmpty(), "INV268 control: the app's shapes pass (got " + v + ")");
+
+        String[][] bad = {
+            { "M", "a snapshot not freezing the colour", "        st.colour = src.colour;\n", "" },
+            { "M", "a snapshot not freezing the length marker", "        st.traction = src.traction;\n", "" },
+            { "M", "a snapshot not freezing the cylinder",
+              "        st.cylinderId = src.cylinderId == null ? \"\" : src.cylinderId;\n", "" },
+            { "M", "a snapshot not saying its shape was recorded", "        st.shapeKnown = true;\n", "" },
+            { "M", "a snapshot not saving the colour", "        if (st.shapeKnown) so.put(\"col\", st.colour);\n", "" },
+            { "M", "a snapshot not saving the cylinder", "so.put(\"cyl\", st.cylinderId);", "" },
+            { "M", "a snapshot not loading the climb", "        st.climb = so.optBoolean(\"climb\", false);\n", "" },
+            { "M", "an old snapshot read as recorded", "st.shapeKnown = so.has(\"col\");", "st.shapeKnown = true;" },
+            { "M", "the shape not put back", "        st.fatigueBlock = fatigueBlock;\n", "" },
+            { "M", "an old recording's warm-up not given its colour",
+              "    if (role == ROLE_WARM) st.colour = STAGE_WARM;\n", "" },
+            { "M", "an old recording's pull not given its marker",
+              "    if (role == ROLE_TRACTION) st.traction = true;\n", "" },
+            { "M", "a restore not putting the shape back",
+              "    if (!ss.shapeOnto(st)) shapeLost = true;\n", "" },
+            { "M", "a restore painting every stage cool",
+              "    st.colour = ss.rest ? STAGE_REST : STAGE_COOL;\n", "    st.colour = STAGE_COOL;\n" },
+            { "M", "an old version's pulls not given back",
+              "    if (shapeLost) giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n", "" },
+            { "M", "an old version's pulls given back before its stages are in",
+              "    draft.stages.add(st);\n    if (shapeLost) giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n",
+              "    if (shapeLost) giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n    draft.stages.add(st);\n" },
+            { "M", "an old version always called a mint",
+              "giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE)",
+              "giveStagesTheirMarks(draft.stages, true)" },
+            { "M", "the structure comparing the colour",
+              "        if (a.rest != b.rest) return false;\n",
+              "        if (a.rest != b.rest) return false;\n        if (a.colour != b.colour) return false;\n" },
+            { "M", "the structure comparing a marker",
+              "        if (a.rest != b.rest) return false;\n",
+              "        if (a.rest != b.rest) return false;\n        if (a.traction != b.traction) return false;\n" },
+            { "M", "the rule touching a routine the person built",
+              "    if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;\n",
+              "    if (stages == null) return false;\n" },
+            { "M", "the rule marking any stage",
+              "    if (st == null || !Plan.isBuilderPull(st)) continue;\n", "    if (st == null) continue;\n" },
+            { "P", "a rest taken for a pull", "    return st != null && !st.rest\n", "    return st != null\n" },
+            { "R", "a run's stage no longer in the routine rebuilt without its shape",
+              "    if (!same && !ss.shapeOnto(st)) shapeLost = true;\n", "" },
+            { "R", "a run's old snapshot not given its pulls back",
+              "        Model.giveStagesTheirMarks(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);\n", "" },
+        };
+        for (int i = 0; i < bad.length; i++) {
+            String m2 = model, r2 = asRun, p2 = plan;
+            if ("M".equals(bad[i][0])) m2 = model.replace(bad[i][2], bad[i][3]);
+            else if ("R".equals(bad[i][0])) r2 = asRun.replace(bad[i][2], bad[i][3]);
+            else p2 = plan.replace(bad[i][2], bad[i][3]);
+            boolean changed = !m2.equals(model) || !r2.equals(asRun) || !p2.equals(plan);
+            v = new ArrayList<String>();
+            checkShapeRules(shapeSources(m2, r2, p2), SHAPE_RULES, "268", v);
+            selfCheck(counts, changed && !v.isEmpty(),
+                "INV268 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
+        }
+    }
+
+    /* =====================================================================================
+     * INVARIANT 269: A SHARED ROUTINE KEEPS EACH STAGE'S MARKERS.
+     * Every share code dropped Stage#traction (and the fatigue, retention and climb markers),
+     * so an imported length session's Fatigue and Strain holds counted as girth work:
+     *   (a) both writers write the four markers - the packed one as four bits per stage after
+     *       the waits, under packed version 4, the document as optional keys under version 3 -
+     *       and only for a routine that has one (hasStageMarks), so every other code is byte
+     *       for byte what it was; neither writes the cylinder (a phone's own rack id);
+     *   (b) both readers read them, the packed one only under version 4 and the document only
+     *       under version 3 (an older document that adds the keys is still stripped), and
+     *       accept those versions;
+     *   (c) a code made before the markers travelled is given the builder's pulls back by the
+     *       builder's rule (Model#giveStagesTheirMarks, the builder-only guard of 268) after
+     *       its last stage is in - a code that carries them is taken as it is;
+     *   (d) the trainer track is still stripped by both readers and at the import boundary.
+     * ===================================================================================== */
+    static final String[][] SHARE_MARK_RULES = {
+        { "M", "boolean\\s+hasStageMarks\\s*\\(", "hasStageMarks", "has",
+          "if(st!=null&&(st.traction||st.fatigueBlock||st.retention||st.climb))returntrue;",
+          "every marker making a code carry them" },
+        { "M", "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode", "has",
+          "booleanmarks=hasStageMarks();booleanwaits=marks||hasStageWaits();",
+          "version 4's wait bits whenever it carries the markers" },
+        { "M", "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode", "has",
+          "if(marks)w.write(4,SHARE_PACKED_VERSION_MARKS);", "the markers' version, which an older build refuses" },
+        { "M", "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode", "has",
+          "if(marks){w.write(1,st.traction?1:0);w.write(1,st.fatigueBlock?1:0);"
+          + "w.write(1,st.retention?1:0);w.write(1,st.climb?1:0);}",
+          "a v3 code's markers" },
+        { "M", "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode", "not", "cylinderId",
+          "the cylinder - a rack id the receiving phone does not have" },
+        { "M", "String\\s+toShareCodeV2\\s*\\(", "toShareCodeV2", "has",
+          "if(hasStageMarks())o.put(\"v\",3);", "the markers' document version, which an older build refuses" },
+        { "M", "String\\s+toShareCodeV2\\s*\\(", "toShareCodeV2", "has",
+          "if(st.traction)so.put(\"traction\",true);if(st.fatigueBlock)so.put(\"fatigue\",true);"
+          + "if(st.retention)so.put(\"retention\",true);if(st.climb)so.put(\"climb\",true);",
+          "a v2 code's markers" },
+        { "M", "String\\s+toShareCodeV2\\s*\\(", "toShareCodeV2", "not", "cylinderId",
+          "the cylinder - a rack id the receiving phone does not have" },
+        { "M", "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "has",
+          "if(docVersion!=1&&docVersion!=2&&docVersion!=3)", "document version 3 read" },
+        { "M", "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "has",
+          "booleanmarked=docVersion>=3;st.traction=marked&&so.optBoolean(\"traction\",false);"
+          + "st.fatigueBlock=marked&&so.optBoolean(\"fatigue\",false);"
+          + "st.retention=marked&&so.optBoolean(\"retention\",false);"
+          + "st.climb=marked&&so.optBoolean(\"climb\",false);",
+          "the markers a version-3 document carries, and only those" },
+        { "M", "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "after",
+          "if(docVersion<3)giveStagesTheirMarks(r.stages,false);",
+          "an old document's pulls given back by the builder's rule" },
+        { "M", "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "has",
+          "r.trainerTrack=TRAINER_TRACK_NONE;", "the trainer track stripped" },
+        { "M", "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "has",
+          "&&version!=SHARE_PACKED_VERSION_MARKS)", "packed version 4 read" },
+        { "M", "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "has",
+          "booleanmarks=version==SHARE_PACKED_VERSION_MARKS;"
+          + "booleanwaits=marks||version==SHARE_PACKED_VERSION_WAITS;",
+          "version 4 read as version 3's stream and the markers" },
+        { "M", "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "has",
+          "if(marks){st.traction=rd.read(1)==1;st.fatigueBlock=rd.read(1)==1;"
+          + "st.retention=rd.read(1)==1;st.climb=rd.read(1)==1;}",
+          "the markers a version-4 code carries" },
+        { "M", "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "after",
+          "if(!marks)giveStagesTheirMarks(r.stages,false);",
+          "an old code's pulls given back by the builder's rule" },
+        { "M", "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "has",
+          "r.trainerTrack=TRAINER_TRACK_NONE;", "the trainer track stripped" },
+        { "M", "Routine\\s+importShareCode\\s*\\(", "importShareCode", "has",
+          "d.routine.trainerTrack=TRAINER_TRACK_NONE;", "the trainer track stripped at the boundary" },
+    };
+
+    static void checkShareMarksFiles(String dir, List<String> violations) throws IOException {
+        String model = runScreenRaw(dir, "Model.java", violations);
+        checkShapeRules(shapeSources(model, null, null), SHARE_MARK_RULES, "269", violations);
+    }
+
+    /** Invariant 269's self-test: the app's shapes pass, and each way a marker is lost is caught. */
+    static void shareMarksSelfTests(int[] counts) {
+        String model =
+              "boolean hasStageMarks() {\n"
+            + "    if (st != null && (st.traction || st.fatigueBlock || st.retention || st.climb))\n"
+            + "        return true;\n"
+            + "}\n"
+            + "public String toShareCode(Model model) throws JSONException {\n"
+            + "    boolean marks = hasStageMarks();\n"
+            + "    boolean waits = marks || hasStageWaits();\n"
+            + "    if (marks) w.write(4, SHARE_PACKED_VERSION_MARKS);\n"
+            + "    else w.write(4, waits ? SHARE_PACKED_VERSION_WAITS : 1);\n"
+            + "    if (marks) {\n"
+            + "        w.write(1, st.traction ? 1 : 0);\n"
+            + "        w.write(1, st.fatigueBlock ? 1 : 0);\n"
+            + "        w.write(1, st.retention ? 1 : 0);\n"
+            + "        w.write(1, st.climb ? 1 : 0);\n"
+            + "    }\n"
+            + "}\n"
+            + "public String toShareCodeV2(Model model) throws JSONException {\n"
+            + "    if (hasStageMarks()) o.put(\"v\", 3);\n"
+            + "    else o.put(\"v\", hasStageWaits() ? 2 : 1);\n"
+            + "    if (st.traction) so.put(\"traction\", true);\n"
+            + "    if (st.fatigueBlock) so.put(\"fatigue\", true);\n"
+            + "    if (st.retention) so.put(\"retention\", true);\n"
+            + "    if (st.climb) so.put(\"climb\", true);\n"
+            + "}\n"
+            + "public static Decoded fromShareCode(String code) {\n"
+            + "    if (docVersion != 1 && docVersion != 2 && docVersion != 3)\n"
+            + "        throw new JSONException(\"unrecognised share code version\");\n"
+            + "    r.trainerTrack = TRAINER_TRACK_NONE;\n"
+            + "    boolean marked = docVersion >= 3;\n"
+            + "    st.traction = marked && so.optBoolean(\"traction\", false);\n"
+            + "    st.fatigueBlock = marked && so.optBoolean(\"fatigue\", false);\n"
+            + "    st.retention = marked && so.optBoolean(\"retention\", false);\n"
+            + "    st.climb = marked && so.optBoolean(\"climb\", false);\n"
+            + "    r.stages.add(st);\n"
+            + "    if (docVersion < 3) giveStagesTheirMarks(r.stages, false);\n"
+            + "}\n"
+            + "private static Decoded fromShareCodeV3(byte[] packed) {\n"
+            + "    if (version != 1 && version != SHARE_PACKED_VERSION_INTERIM\n"
+            + "            && version != SHARE_PACKED_VERSION_WAITS\n"
+            + "            && version != SHARE_PACKED_VERSION_MARKS)\n"
+            + "        throw new JSONException(\"unrecognised share code version\");\n"
+            + "    boolean marks = version == SHARE_PACKED_VERSION_MARKS;\n"
+            + "    boolean waits = marks || version == SHARE_PACKED_VERSION_WAITS;\n"
+            + "    r.trainerTrack = TRAINER_TRACK_NONE;\n"
+            + "    if (marks) {\n"
+            + "        st.traction = rd.read(1) == 1;\n"
+            + "        st.fatigueBlock = rd.read(1) == 1;\n"
+            + "        st.retention = rd.read(1) == 1;\n"
+            + "        st.climb = rd.read(1) == 1;\n"
+            + "    }\n"
+            + "    r.stages.add(st);\n"
+            + "    if (!marks) giveStagesTheirMarks(r.stages, false);\n"
+            + "}\n"
+            + "public Routine importShareCode(String code) throws JSONException {\n"
+            + "    d.routine.trainerTrack = TRAINER_TRACK_NONE;\n"
+            + "}\n";
+        List<String> v = new ArrayList<String>();
+        checkShapeRules(shapeSources(model, null, null), SHARE_MARK_RULES, "269", v);
+        selfCheck(counts, v.isEmpty(), "INV269 control: the app's shapes pass (got " + v + ")");
+
+        String[][] bad = {
+            { "a routine with a climb writing no markers",
+              "st.retention || st.climb))", "st.retention))" },
+            { "a version-4 code without its wait bits",
+              "    boolean waits = marks || hasStageWaits();\n", "    boolean waits = hasStageWaits();\n" },
+            { "the markers under a version an older build reads",
+              "    if (marks) w.write(4, SHARE_PACKED_VERSION_MARKS);\n", "" },
+            { "a v3 code not writing the length marker", "        w.write(1, st.traction ? 1 : 0);\n", "" },
+            { "a v3 code writing the cylinder",
+              "        w.write(1, st.climb ? 1 : 0);\n",
+              "        w.write(1, st.climb ? 1 : 0);\n        writeNameV3(w, st.cylinderId, \"\");\n" },
+            { "a v2 code's markers under a document an older build reads",
+              "    if (hasStageMarks()) o.put(\"v\", 3);\n", "" },
+            { "a v2 code not writing the fatigue marker", "    if (st.fatigueBlock) so.put(\"fatigue\", true);\n", "" },
+            { "a v2 code writing the cylinder",
+              "    if (st.climb) so.put(\"climb\", true);\n",
+              "    if (st.climb) so.put(\"climb\", true);\n    so.put(\"cyl\", st.cylinderId);\n" },
+            { "a v2 document of version 3 refused",
+              "docVersion != 2 && docVersion != 3)", "docVersion != 2)" },
+            { "a v2 code dropping the length marker it carries",
+              "    st.traction = marked && so.optBoolean(\"traction\", false);\n", "" },
+            { "an older document trusted with the markers",
+              "    boolean marked = docVersion >= 3;\n", "    boolean marked = true;\n" },
+            { "an old document's pulls not given back",
+              "    if (docVersion < 3) giveStagesTheirMarks(r.stages, false);\n", "" },
+            { "an old document's pulls given back before its stages are in",
+              "    r.stages.add(st);\n    if (docVersion < 3) giveStagesTheirMarks(r.stages, false);\n",
+              "    if (docVersion < 3) giveStagesTheirMarks(r.stages, false);\n    r.stages.add(st);\n" },
+            { "a packed version 4 refused",
+              "            && version != SHARE_PACKED_VERSION_MARKS)\n", ")\n" },
+            { "a v3 code dropping the retention marker it carries",
+              "        st.retention = rd.read(1) == 1;\n", "" },
+            { "a version-4 code read without its wait bits",
+              "    boolean waits = marks || version == SHARE_PACKED_VERSION_WAITS;\n",
+              "    boolean waits = version == SHARE_PACKED_VERSION_WAITS;\n" },
+            { "an old v3 code's pulls not given back",
+              "    if (!marks) giveStagesTheirMarks(r.stages, false);\n", "" },
+            { "the trainer track let in at the boundary",
+              "    d.routine.trainerTrack = TRAINER_TRACK_NONE;\n", "" },
+        };
+        for (int i = 0; i < bad.length; i++) {
+            String m2 = model.replace(bad[i][1], bad[i][2]);
+            boolean changed = !m2.equals(model);
+            v = new ArrayList<String>();
+            checkShapeRules(shapeSources(m2, null, null), SHARE_MARK_RULES, "269", v);
+            selfCheck(counts, changed && !v.isEmpty(),
+                "INV269 catches: " + bad[i][0] + " (changed " + changed + ", got " + v + ")");
+        }
+    }
+
+    /* =====================================================================================
+     * INVARIANT 270: A ROUTINE ALREADY IN THE LIBRARY GETS ITS PULLS' MARKERS BACK ON LOAD.
+     * A length session added from a share code or restored from a version before the markers
+     * travelled sits in the library with its Fatigue and Strain holds as girth work (the
+     * owner, 2026-11-12: repair it in 0.10.1):
+     *   (a) the repair (Model#giveRoutinesTheirMarks) asks the builder's rule
+     *       (giveStagesTheirMarks, builder-only - invariant 268) with each routine's trainer
+     *       track, so a routine the person built is never touched;
+     *   (b) the load (onCreate) runs it before the reshape (which reads the marker) and before
+     *       it saves, and a backup restore runs it before the restored file is saved.
+     * ===================================================================================== */
+    static void checkLoadMarksFiles(String dir, List<String> violations) throws IOException {
+        checkLoadMarks(runScreenRaw(dir, "Model.java", violations),
+                       runScreenRaw(dir, "SessionActivity.java", violations), violations);
+    }
+
+    static void checkLoadMarks(String model, String act, List<String> violations) {
+        if (model != null) {
+            String gr = body228(model, "int\\s+giveRoutinesTheirMarks\\s*\\(", "Model.java",
+                "giveRoutinesTheirMarks", violations);
+            if (gr != null && gr.indexOf(
+                    "giveStagesTheirMarks(r.stages,r.trainerTrack!=TRAINER_TRACK_NONE)") < 0)
+                violations.add("Model.java: invariant 270 - the load repair no longer asks the "
+                    + "builder's rule with the routine's trainer track - it would touch routines "
+                    + "the person built, or miss a mint");
+        }
+        if (act != null) {
+            String oc = body228(act, "void\\s+onCreate\\s*\\(\\s*Bundle", "SessionActivity.java",
+                "onCreate", violations);
+            if (oc != null) {
+                int give = oc.indexOf("repaired+=model.giveRoutinesTheirMarks();");
+                int reshape = oc.indexOf("model.reshapeTractionStages();");
+                int save = oc.indexOf("if(repaired>0)Store.save(this,model);");
+                if (give < 0 || reshape < 0 || save < 0 || give > reshape || give > save)
+                    violations.add("SessionActivity.java: invariant 270 - onCreate no longer gives "
+                        + "every builder routine its pulls' markers (giveRoutinesTheirMarks) before "
+                        + "the reshape and the save");
+            }
+            String rb = body228(act, "void\\s+restoreFromBackup\\s*\\(", "SessionActivity.java",
+                "restoreFromBackup", violations);
+            if (rb != null) {
+                int give = rb.indexOf("restoredModel.giveRoutinesTheirMarks();");
+                int save = rb.indexOf("Store.save(this,restoredModel);");
+                if (give < 0 || save < 0 || give > save)
+                    violations.add("SessionActivity.java: invariant 270 - a backup restore no longer "
+                        + "gives every builder routine its pulls' markers before the file is saved");
+            }
+        }
+    }
+
+    /** Invariant 270's self-test: the app's shapes pass, and each way the repair is lost is caught. */
+    static void loadMarksSelfTests(int[] counts) {
+        String model =
+              "public int giveRoutinesTheirMarks() {\n"
+            + "    if (r != null && giveStagesTheirMarks(r.stages, r.trainerTrack != TRAINER_TRACK_NONE))\n"
+            + "        changed++;\n"
+            + "}\n";
+        String act =
+              "protected void onCreate(Bundle b) {\n"
+            + "    repaired += model.giveRoutinesTheirWaits();\n"
+            + "    repaired += model.giveRoutinesTheirMarks();\n"
+            + "    repaired += model.reshapeTractionStages();\n"
+            + "    if (repaired > 0) Store.save(this, model);\n"
+            + "}\n"
+            + "private void restoreFromBackup(List<Backup.Entry> entries) {\n"
+            + "    int marked = restoredModel.giveRoutinesTheirMarks();\n"
+            + "    Store.save(this, restoredModel);\n"
+            + "}\n";
+        List<String> v = new ArrayList<String>();
+        checkLoadMarks(model, act, v);
+        selfCheck(counts, v.isEmpty(), "INV270 control: the app's shapes pass (got " + v + ")");
+        String[][] bad = {
+            { "M", "the repair taking every routine for a mint",
+              "r.trainerTrack != TRAINER_TRACK_NONE", "true" },
+            { "A", "a load without the repair", "    repaired += model.giveRoutinesTheirMarks();\n", "" },
+            { "A", "a load repairing after the reshape",
+              "    repaired += model.giveRoutinesTheirMarks();\n    repaired += model.reshapeTractionStages();\n",
+              "    repaired += model.reshapeTractionStages();\n    repaired += model.giveRoutinesTheirMarks();\n" },
+            { "A", "a restore without the repair",
+              "    int marked = restoredModel.giveRoutinesTheirMarks();\n", "" },
+            { "A", "a restore repairing after the save",
+              "    int marked = restoredModel.giveRoutinesTheirMarks();\n    Store.save(this, restoredModel);\n",
+              "    Store.save(this, restoredModel);\n    int marked = restoredModel.giveRoutinesTheirMarks();\n" },
+        };
+        for (int i = 0; i < bad.length; i++) {
+            String m2 = model, a2 = act;
+            if ("M".equals(bad[i][0])) m2 = model.replace(bad[i][2], bad[i][3]);
+            else a2 = act.replace(bad[i][2], bad[i][3]);
+            boolean changed = !m2.equals(model) || !a2.equals(act);
+            v = new ArrayList<String>();
+            checkLoadMarks(m2, a2, v);
+            selfCheck(counts, changed && !v.isEmpty(),
+                "INV270 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
         }
     }
 

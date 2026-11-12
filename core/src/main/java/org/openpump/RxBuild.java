@@ -2441,7 +2441,7 @@ public final class RxBuild {
         //    the list and there is no path from an empty stage to Proto). Its 5:00 is a guide:
         //    the run names it BY HAND and waits for Done once that time is up, derived from
         //    the manual flag (ByHand#waitsAfterClock; the owner's decision, 2026-10-07).
-        Model.Stage rel = Model.Stage.restOf("Tunica release \u2014 by hand", TUNICA_RELEASE_SEC);
+        Model.Stage rel = Model.Stage.restOf(Plan.RELEASE_NAME, TUNICA_RELEASE_SEC);
         rel.manual = true;
         r.stages.add(rel);
 
@@ -2503,7 +2503,7 @@ public final class RxBuild {
             if (fatMode != Model.Program.FAT_OFF) {
                 int fatN = TRACTION_FATIGUE_HOLDS;
                 if (fatMode == Model.Program.FAT_EXTENDED) fatN = fatN * 3 / 2;
-                Model.Stage fat = tractionStage(model, r, "Fatigue holds", "Fatigue hold",
+                Model.Stage fat = tractionStage(model, r, Plan.FATIGUE_NAME, "Fatigue hold",
                     fs, fatN, lTube);
                 fat.fatigueBlock = true;
                 r.stages.add(fat);
@@ -2516,7 +2516,7 @@ public final class RxBuild {
             Mint.SetSpec ss = Mint.tractionSet(loadLb, boreCm,
                 Mint.TRACTION_STRAIN_HOLD_SEC, Mint.TRACTION_STRAIN_REST_SEC,
                 pullHard);
-            Model.Stage strain = tractionStage(model, r, "Strain holds", "Strain hold",
+            Model.Stage strain = tractionStage(model, r, Plan.STRAIN_NAME, "Strain hold",
                 ss, Math.max(1, strainSets), lTube);
             r.stages.add(strain);
             heldStages.add(strain);
@@ -2527,7 +2527,7 @@ public final class RxBuild {
             // 4. THE CHANGEOVER. Vented and uncommanded, carrying the one sentence that
             //    says what to do and what is coming.
             Model.Stage over = Model.Stage.restOf(
-                "Swap to your girth cylinder \u2014 next is expansion at "
+                Plan.CHANGEOVER_SENTENCE
                 + Model.Fmt.p(codaKpa), CHANGEOVER_SEC);
             over.manual = true;
             /* AND IT WAITS. Spec section 4 item 4: "held, uncommanded ... waits for
@@ -2552,7 +2552,7 @@ public final class RxBuild {
                 model.rxDropKpa);
             int codaSets = girthFocus ? CODA_SETS * 2 : CODA_SETS;
             Model.Stage coda = new Model.Stage();
-            coda.name = "Expansion";
+            coda.name = Plan.CODA_NAME;
             coda.colour = Model.STAGE_WORK;
             coda.cylinderId = gTube;
             int cycle = Math.max(1, cspec.uh + cspec.lh);

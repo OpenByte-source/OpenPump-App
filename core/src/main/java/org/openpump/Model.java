@@ -3378,6 +3378,26 @@ public final class Model {
          */
         public boolean awaitsDone() { return rest && (awaitAck || manual); }
 
+        /**
+         * THE RELEASE AND THE CHANGEOVER WAIT WHEREVER THEY ARE REBUILT: what carries no stage
+         * flags (a share code or a version archived before they travelled) gives the hand
+         * release back its wait for Done, and the changeover its wait for "I've swapped" from
+         * its start - told which this is by Model#giveStagesTheirWaits, the one rule. Only
+         * ever ADDS a wait, only on a rest, and empties the rest's sets first (a manual stage
+         * holds no sets, WiringCheck invariant 29). Returns whether it changed anything.
+         */
+        boolean giveHandWaitBack(boolean release, boolean changeover) {
+            if (!rest || !(release || changeover)) return false;
+            if (manual && (awaitAck || !changeover)) return false;
+            clampRest();
+            // Written `manual = rest`, not `= true`: WiringCheck's invariant 29 checks every
+            // `.manual = true` sits on a Stage.restOf stage; this one is a rest whose sets
+            // clampRest has just emptied, which is what that rule protects.
+            manual = rest;
+            if (changeover) awaitAck = rest;
+            return true;
+        }
+
         /** Whether this stage's frames are excluded from NET TUP. Gross still counts them:
          *  the cuff was sealed and the time was real. One predicate, so a third kind of
          *  excluded stage cannot be added to one caller and forgotten at another. */
@@ -3401,6 +3421,28 @@ public final class Model {
     }
 
         public Stage() { }
+
+        /** THIS STAGE, FIELD FOR FIELD, with its own set-id list. Nothing is clamped or
+         *  inferred: an Undo or a rebuild that starts from it puts back exactly what was
+         *  there - the rest flag and its time, the release's and the changeover's waits,
+         *  the length and fatigue markers, the climb, the cylinder. A field added to Stage
+         *  must be added here (UsedUndoStagesTest reads every field reflectively). */
+        public Stage copy() {
+            Stage c = new Stage();
+            c.name = name;
+            c.colour = colour;
+            c.setIds.addAll(setIds);
+            c.rest = rest;
+            c.restSec = restSec;
+            c.fatigueBlock = fatigueBlock;
+            c.retention = retention;
+            c.cylinderId = cylinderId;
+            c.manual = manual;
+            c.traction = traction;
+            c.awaitAck = awaitAck;
+            c.climb = climb;
+            return c;
+        }
 
         public static Stage of(String name, int colour, String[] ids) {
             Stage s = new Stage();
@@ -4093,6 +4135,24 @@ public final class Model {
          *  never written - the stream is version 1's; see {@link #toShareCode}. */
         static final int SHARE_PACKED_VERSION_INTERIM = 2;
 
+        /** The packed version that carries each stage's waits - two bits after its rest
+         *  time, Stage#manual and Stage#awaitAck. Written only for a routine that has a wait,
+         *  so a code for one that has none is version 1, byte for byte what it always was; a
+         *  build before this refuses a version-3 code as unrecognised rather than run its
+         *  changeover as a timed rest. The same number and the same two bits as the next
+         *  minor version's, so a code made by either reads on both. */
+        static final int SHARE_PACKED_VERSION_WAITS = 3;
+
+        /** The packed version that carries each stage's markers as well - version 3's stream
+         *  (the two wait bits after the rest time) followed by four more bits per stage:
+         *  Stage#traction, #fatigueBlock, #retention, #climb. Written only for a routine that
+         *  has one of them, so a code for one that has none is version 1 or 3, byte for byte
+         *  what it was; a build before this refuses a version-4 code as unrecognised rather
+         *  than import a length session whose pulls would count as girth work. The next free
+         *  value of the 4-bit field: 1 the base stream, 2 an interim build's (read, never
+         *  written), 3 the waits, 4 the waits and the markers; 0 and 5-15 are unused. */
+        static final int SHARE_PACKED_VERSION_MARKS = 4;
+
         /**
          * The stage colours a v3 code writes as a 4-bit palette index instead of 32 raw
          * bits. MIRRORS Look.BLOCKS BY VALUE: Model stays free of every android-adjacent
@@ -4142,6 +4202,10 @@ public final class Model {
          * fatigue marker is meaningless (and potentially misleading, feeding a Net-TUP
          * exclusion the receiving phone never asked for) outside the trainer plan that
          * placed it.
+         *
+         * (0.10.1, superseded for the stage markers: a routine that HAS one now carries it -
+         * see {@link #hasStageMarks}. Every marker only ever takes a stage out of net, so it
+         * steals nothing on the receiving phone; the trainer track still never travels.)
          */
         /**
          * WAVE-4 WRAP — THE PACKED ENVELOPE. New codes are v3: {@link #SHARE_PREFIX_V3}
@@ -4163,7 +4227,45 @@ public final class Model {
          * packed version 2 (identical otherwise) and read version-1 codes as off; version 1
          * is written again, so a code made now imports on every build, and a version-2 code
          * still decodes, its bit kept.
+         *
+         * THE STAGES' WAITS DO TRAVEL. A routine with a stage that waits for the person
+         * (Stage#manual, Stage#awaitAck: the release, the changeover) is written as packed
+         * version 3, two bits per stage, which a build before this refuses rather than run
+         * the changeover as a timed rest; a routine with none is version 1, byte for byte what
+         * it always was.
+         *
+         * AND SO DO THE STAGE MARKERS (0.10.1). An imported length session's Fatigue and
+         * Strain holds arrived without Stage#traction - every format dropped it, and the
+         * fatigue, retention and climb markers with it - so they counted as girth work and
+         * read so to a connected app. A routine with one of them is written as packed version
+         * 4 (the waits and four marker bits per stage) or document version 3, which a build
+         * before this refuses; a routine with none is written exactly as before. Stage#
+         * cylinderId still never travels: it names a tube in the SENDER's rack, which on
+         * another phone is a missing cylinder the run would refuse to start in. A code made
+         * before the markers travelled is given the builder's pulls back on read
+         * (Model#giveStagesTheirMarks), and only when the builder made it.
          */
+        /** Whether any stage waits for the person (Stage#manual or #awaitAck, on a rest) -
+         *  what makes a share code carry the waits. */
+        boolean hasStageWaits() {
+            for (int i = 0; i < stages.size(); i++) {
+                Stage st = stages.get(i);
+                if (st != null && st.rest && (st.manual || st.awaitAck)) return true;
+            }
+            return false;
+        }
+
+        /** Whether any stage carries a marker (Stage#traction, #fatigueBlock, #retention,
+         *  #climb) - what makes a share code carry the markers. */
+        boolean hasStageMarks() {
+            for (int i = 0; i < stages.size(); i++) {
+                Stage st = stages.get(i);
+                if (st != null && (st.traction || st.fatigueBlock || st.retention || st.climb))
+                    return true;
+            }
+            return false;
+        }
+
         public String toShareCode(Model model) throws JSONException {
             if (stages.size() > 15) return toShareCodeV2(model);
             for (int i = 0; i < stages.size(); i++) {
@@ -4173,8 +4275,14 @@ public final class Model {
                     if (model.set(st.setIds.get(j)) != null) n++;
                 if (n > 15) return toShareCodeV2(model);
             }
+            // Version 4's stream is version 3's with the markers after the waits, so a code
+            // with a marker writes the wait bits too, whether or not a stage waits.
+            boolean marks = hasStageMarks();
+            boolean waits = marks || hasStageWaits();
             BitWriter w = new BitWriter();
-            w.write(4, 1);                                   // packed-format version
+            // packed-format version: 4 with the markers, 3 with the waits, else 1 as it always was
+            if (marks) w.write(4, SHARE_PACKED_VERSION_MARKS);
+            else w.write(4, waits ? SHARE_PACKED_VERSION_WAITS : 1);
             writeNameV3(w, name, "Routine");
             w.write(3, markOf(mark));
             Assess as = assess == null ? new Assess() : assess;
@@ -4199,6 +4307,16 @@ public final class Model {
                 }
                 w.write(1, st.rest ? 1 : 0);
                 w.write(12, bounded(st.restSec, 0, 4095));
+                if (waits) {
+                    w.write(1, st.rest && st.manual ? 1 : 0);
+                    w.write(1, st.rest && st.awaitAck ? 1 : 0);
+                }
+                if (marks) {
+                    w.write(1, st.traction ? 1 : 0);
+                    w.write(1, st.fatigueBlock ? 1 : 0);
+                    w.write(1, st.retention ? 1 : 0);
+                    w.write(1, st.climb ? 1 : 0);
+                }
                 List<Set> resolved = new ArrayList<Set>();
                 for (int j = 0; j < st.setIds.size(); j++) {
                     Set s = model.set(st.setIds.get(j));
@@ -4253,7 +4371,11 @@ public final class Model {
          *  pinned — old codes must import forever, so the test needs a way to MAKE one. */
         public String toShareCodeV2(Model model) throws JSONException {
             JSONObject o = new JSONObject();
-            o.put("v", 1);
+            // 2 with the waits, so a build that cannot read them refuses the code; 1 without,
+            // the document it always was. 3 with a stage marker, so a build that cannot read
+            // the markers refuses the code too.
+            if (hasStageMarks()) o.put("v", 3);
+            else o.put("v", hasStageWaits() ? 2 : 1);
             o.put("name", name);
             o.put("mark", mark);
             JSONArray stagesArr = new JSONArray();
@@ -4264,6 +4386,13 @@ public final class Model {
                 so.put("colour", st.colour);
                 so.put("rest", st.rest);
                 so.put("restSec", st.restSec);
+                if (st.rest && st.manual) so.put("manual", true);
+                if (st.rest && st.awaitAck) so.put("ack", true);
+                // The markers, each only when set, so an unmarked stage's object is unchanged.
+                if (st.traction) so.put("traction", true);
+                if (st.fatigueBlock) so.put("fatigue", true);
+                if (st.retention) so.put("retention", true);
+                if (st.climb) so.put("climb", true);
                 JSONArray setsArr = new JSONArray();
                 for (int j = 0; j < st.setIds.size(); j++) {
                     Set s = model.set(st.setIds.get(j));
@@ -4349,7 +4478,11 @@ public final class Model {
             }
             String json = new String(raw, StandardCharsets.UTF_8);
             JSONObject o = new JSONObject(json);
-            if (o.optInt("v", -1) != 1)
+            // 2 is a code that carries its stages' waits (see toShareCodeV2); a build before
+            // it refuses one rather than run it without them.
+            // 3 carries its stages' markers as well; a build before it refuses one.
+            int docVersion = o.optInt("v", -1);
+            if (docVersion != 1 && docVersion != 2 && docVersion != 3)
                 throw new JSONException("unrecognised share code version");
             JSONArray stagesArr = o.optJSONArray("stages");
             if (stagesArr == null) throw new JSONException("share code has no stages");
@@ -4376,10 +4509,15 @@ public final class Model {
                 st.colour = so.optInt("colour", STAGE_WORK);
                 st.rest = so.optBoolean("rest", false);
                 st.restSec = so.optInt("restSec", 120);
-                // Same belt-and-braces strip as trainerTrack above, for the per-stage
-                // fatigue marker: toShareCode() never writes "fatigue" either.
-                st.fatigueBlock = false;
-                st.retention = false;
+                // The markers as a version-3 code carries them; on every code before they are
+                // false, as they always were read here (a hand-made older document that adds
+                // the keys is still stripped). They used to be stripped with the trainer
+                // track; unlike it, each only ever takes a stage out of net.
+                boolean marked = docVersion >= 3;
+                st.traction = marked && so.optBoolean("traction", false);
+                st.fatigueBlock = marked && so.optBoolean("fatigue", false);
+                st.retention = marked && so.optBoolean("retention", false);
+                st.climb = marked && so.optBoolean("climb", false);
                 JSONArray setsArr = so.optJSONArray("sets");
                 if (setsArr != null) {
                     for (int j = 0; j < setsArr.length(); j++) {
@@ -4390,9 +4528,17 @@ public final class Model {
                         st.setIds.add(s.id);
                     }
                 }
+                // The waits as the code carries them - only ever on a rest.
+                st.manual = st.rest && so.optBoolean("manual", false);
+                st.awaitAck = st.rest && so.optBoolean("ack", false);
                 st.clampRest();
                 r.stages.add(st);
             }
+            // ...and what a code made before they travelled lost, by the one rule.
+            giveStagesTheirWaits(r.stages);
+            // ...and the pulls' markers, for a code made before they travelled - only what
+            // the builder made (its words); a code that carries them is taken as it is.
+            if (docVersion < 3) giveStagesTheirMarks(r.stages, false);
             // A GENUINELY EMPTY "stages":[] is not corruption — Model#removeStage has no
             // "keep at least one" guard (the same as the legacy JSON migration above it in
             // this file, which "simply starts with zero stages" rather than treating that
@@ -4415,9 +4561,15 @@ public final class Model {
         private static Decoded fromShareCodeV3(byte[] packed) throws JSONException {
             BitReader rd = new BitReader(packed);
             int version = rd.read(4);
-            // 2 is an interim build's (see toShareCode); the stream is the same.
-            if (version != 1 && version != SHARE_PACKED_VERSION_INTERIM)
+            // 2 is an interim build's (see toShareCode); the stream is the same. 3 carries
+            // each stage's waits; a build before it refuses one.
+            // 4 carries the waits and each stage's markers.
+            if (version != 1 && version != SHARE_PACKED_VERSION_INTERIM
+                    && version != SHARE_PACKED_VERSION_WAITS
+                    && version != SHARE_PACKED_VERSION_MARKS)
                 throw new JSONException("unrecognised share code version");
+            boolean marks = version == SHARE_PACKED_VERSION_MARKS;
+            boolean waits = marks || version == SHARE_PACKED_VERSION_WAITS;
             Decoded d = new Decoded();
             Routine r = new Routine();
             r.name = readNameV3(rd, "Routine");
@@ -4446,8 +4598,20 @@ public final class Model {
                 }
                 st.rest = rd.read(1) == 1;
                 st.restSec = rd.read(12);
-                st.fatigueBlock = false;
-                st.retention = false;
+                if (waits) {
+                    // The waits as the code carries them - only ever on a rest.
+                    boolean man = rd.read(1) == 1, ack = rd.read(1) == 1;
+                    st.manual = st.rest && man;
+                    st.awaitAck = st.rest && ack;
+                }
+                // The markers as the code carries them (version 4; false on every code
+                // before, as they always were read).
+                if (marks) {
+                    st.traction = rd.read(1) == 1;
+                    st.fatigueBlock = rd.read(1) == 1;
+                    st.retention = rd.read(1) == 1;
+                    st.climb = rd.read(1) == 1;
+                }
                 int nSets = rd.read(4);
                 for (int j = 0; j < nSets; j++) {
                     // Placeholder ids: importShareCode ties sets to slots BY ORDER and
@@ -4459,6 +4623,11 @@ public final class Model {
                 st.clampRest();
                 r.stages.add(st);
             }
+            // ...and what a code made before they travelled lost, by the one rule.
+            giveStagesTheirWaits(r.stages);
+            // ...and the pulls' markers, for a code made before they travelled - only what
+            // the builder made (its words); a code that carries them is taken as it is.
+            if (!marks) giveStagesTheirMarks(r.stages, false);
             d.routine = r;
             return d;
         }
@@ -4679,8 +4848,11 @@ public final class Model {
      * saved as something new. Without a snapshot both cases are unanswerable, and the app
      * would answer them by guessing.
      *
-     * The colour of a stage is deliberately NOT snapshotted: it is decoration, it does not
-     * change what was run, and a recoloured stage must not read as an edited one.
+     * The colour of a stage is deliberately NOT COMPARED: it is decoration, it does not
+     * change what was run, and a recoloured stage must not read as an edited one. It IS
+     * recorded since 0.10.1 (StageSnap#colour, with the rest of the stage's shape), but only
+     * so "Restore as copy" can put the stage back as it was - {@link #matchesStructure}
+     * still reads none of it.
      *
      * Null for a manual run (there is no routine) and for every session filed before this
      * existed — never an empty snapshot, which would claim a routine with no stages had
@@ -4721,6 +4893,36 @@ public final class Model {
              *  length work). MIGRATION: absent on every recording written before it - -1,
              *  unknown, and then only a routine that still matches the snapshot may answer. */
             public int role = ROLE_UNKNOWN;
+            /** The stage's waits, frozen at run start: Stage#manual (the release waits for
+             *  Done once its time is up) and Stage#awaitAck (the changeover waits for "I've
+             *  swapped" from its start), so a version restored as a copy waits where the
+             *  routine did. MIGRATION: absent on every recording written before - false, and
+             *  the restore gives the waits back by the builder's rule
+             *  (Model#giveStagesTheirWaits). */
+            public boolean manual, awaitAck;
+            /**
+             * THE REST OF THE STAGE'S SHAPE, frozen at run start: its colour (a warm-up is the
+             * warm-up by it - Stage#outOfNet and #roleOf read it), the length, fatigue,
+             * retention and climb markers, and the cylinder it runs in. "Restore as copy"
+             * rebuilt every stage as a plain cool one without any of them, so a restored
+             * trainer routine's warm-up played as a plain ramp, its pulls lost the length
+             * marker and its connected-app labels came out wrong (seen on the emulator,
+             * 2026-11-12). Recorded so the restore puts the stage back as the routine had it.
+             *
+             * NEVER COMPARED: {@link AsRunSnapshot#matchesStructure} reads none of these, so
+             * a recolour (decoration, as it always was) or a recording made before them can
+             * never make a run read as "routine edited".
+             *
+             * MIGRATION: absent on every recording written before - {@link #shapeKnown}
+             * false, and a rebuild falls back on what the recording does say: the
+             * {@link #role} (a warm-up's colour, the length marker) and, for a routine the
+             * builder made, the builder's rule (Model#giveStagesTheirMarks). No name is read
+             * that the rule does not already read.
+             */
+            public boolean shapeKnown;
+            public int colour;
+            public boolean traction, fatigueBlock, retention, climb;
+            public String cylinderId = "";
             public final List<String> setIds = new ArrayList<String>();
             /** One entry per setIds entry (or EMPTY on a recording written before set values
              *  were snapshotted — see {@link SetSnap}). */
@@ -4732,6 +4934,33 @@ public final class Model {
                 if (pos < 0 || pos >= sets.size()) return null;
                 SetSnap ss = sets.get(pos);
                 return ss != null && ss.known ? ss : null;
+            }
+
+            /**
+             * THIS STAGE'S SHAPE, PUT BACK ONTO `st` - what a rebuild from the snapshot (a
+             * version restored as a copy, a save from a run whose stage is no longer in the
+             * routine) gives the stage beside its name, sets and waits. As recorded when the
+             * snapshot has it; on a recording made before, only what its {@link #role} says -
+             * the warm-up's colour, the length marker - over whatever default the caller has
+             * already given `st`. Returns whether the shape was recorded, so the caller knows
+             * to ask the builder's rule (Model#giveStagesTheirMarks) for what an old recording
+             * cannot say.
+             */
+            public boolean shapeOnto(Stage st) {
+                if (shapeKnown) {
+                    st.colour = colour;
+                    st.traction = traction;
+                    st.fatigueBlock = fatigueBlock;
+                    st.retention = retention;
+                    st.climb = climb;
+                    st.cylinderId = cylinderId == null ? "" : cylinderId;
+                    return true;
+                }
+                // The role is #roleOf's reading of exactly these two facts, so this gives back
+                // what it saw and nothing more.
+                if (role == ROLE_WARM) st.colour = STAGE_WARM;
+                if (role == ROLE_TRACTION) st.traction = true;
+                return false;
             }
         }
 
@@ -4842,6 +5071,16 @@ public final class Model {
                 st.rest = src.rest;
                 st.restSec = src.restSec;
                 st.role = roleOf(src);
+                st.manual = src.manual;
+                st.awaitAck = src.awaitAck;
+                // The whole shape, so a restore puts the stage back as it was (StageSnap#shapeKnown).
+                st.shapeKnown = true;
+                st.colour = src.colour;
+                st.traction = src.traction;
+                st.fatigueBlock = src.fatigueBlock;
+                st.retention = src.retention;
+                st.climb = src.climb;
+                st.cylinderId = src.cylinderId == null ? "" : src.cylinderId;
                 st.setIds.addAll(src.setIds);
                 if (m != null)
                     for (int j = 0; j < src.setIds.size(); j++)
@@ -4905,6 +5144,17 @@ public final class Model {
                 so.put("rest", st.rest);
                 so.put("restSec", st.restSec);
                 if (st.role >= 0) so.put("role", st.role);
+                // Written only when set, so an unflagged stage's line is unchanged.
+                if (st.manual) so.put("man", true);
+                if (st.awaitAck) so.put("ack", true);
+                // The shape: the colour whenever it was recorded (its presence is what says the
+                // shape was), each marker only when set, the cylinder only when one is named.
+                if (st.shapeKnown) so.put("col", st.colour);
+                if (st.traction) so.put("trac", true);
+                if (st.fatigueBlock) so.put("fat", true);
+                if (st.retention) so.put("ret", true);
+                if (st.climb) so.put("climb", true);
+                if (st.cylinderId != null && st.cylinderId.length() > 0) so.put("cyl", st.cylinderId);
                 JSONArray ids = new JSONArray();
                 for (int j = 0; j < st.setIds.size(); j++) ids.put(st.setIds.get(j));
                 so.put("sets", ids);
@@ -4937,6 +5187,21 @@ public final class Model {
                 st.restSec = so.optInt("restSec", 0);
                 int role = so.optInt("role", ROLE_UNKNOWN);
                 st.role = role >= ROLE_WORK && role <= ROLE_TRACTION ? role : ROLE_UNKNOWN;
+                // MIGRATION: absent on every recording written before - false; a restore
+                // gives the waits back by the builder's rule (giveStagesTheirWaits).
+                st.manual = so.optBoolean("man", false);
+                st.awaitAck = so.optBoolean("ack", false);
+                // MIGRATION: absent on every recording written before the shape was kept -
+                // shapeKnown false, and a rebuild falls back on the role and the builder's
+                // rule (StageSnap#shapeOnto, Model#giveStagesTheirMarks). A marker is only
+                // ever written when set, so one absent is false either way.
+                st.shapeKnown = so.has("col");
+                st.colour = so.optInt("col", 0);
+                st.traction = so.optBoolean("trac", false);
+                st.fatigueBlock = so.optBoolean("fat", false);
+                st.retention = so.optBoolean("ret", false);
+                st.climb = so.optBoolean("climb", false);
+                st.cylinderId = so.optString("cyl", "");
                 JSONArray ids = so.optJSONArray("sets");
                 if (ids != null) for (int j = 0; j < ids.length(); j++) st.setIds.add(ids.optString(j));
                 // MIGRATION: absent on every recording written before set values were
@@ -9051,6 +9316,141 @@ public final class Model {
         return changed;
     }
 
+    /** An exact copy of `src`, one Stage#copy per stage - what the Used-in screen's Undo
+     *  puts back, so a rest stays a rest and the release and the changeover keep their
+     *  waits (UsedUndoStagesTest). */
+    public static List<Stage> copyStages(List<Stage> src) {
+        List<Stage> out = new ArrayList<Stage>();
+        if (src == null) return out;
+        for (int j = 0; j < src.size(); j++) {
+            Stage st = src.get(j);
+            out.add(st == null ? null : st.copy());
+        }
+        return out;
+    }
+
+    /**
+     * EVERY WAIT A LENGTH ROUTINE HAS, GIVEN BACK BY ONE RULE. What carries no stage flags - a
+     * share code made before they travelled, a version archived before its snapshot kept
+     * them, a routine already in the library from either - is given its waits by what the
+     * builder names and where it puts them: the hand release for Done (Plan#isHandRelease),
+     * and the changeover for "I've swapped" from its start (Plan#isChangeover, by its lead or
+     * its place before the expansion). The share-code readers, restoreRoutineVersion and the
+     * load repair (#giveRoutinesTheirWaits) all call this and nothing else, so there is no
+     * second rule to drift. Only ever ADDS a wait, so a stage that already waits is left as
+     * it is.
+     *
+     * ONLY WHAT THE BUILDER MADE (the owner, 2026-11-11): stages that do not carry the
+     * builder's own words (Plan#hasBuilderWords) are never touched - a routine the person
+     * built keeps exactly the rests they gave it. Returns whether it changed anything.
+     */
+    public static boolean giveStagesTheirWaits(List<Stage> stages) {
+        return giveStagesTheirWaits(stages, false);
+    }
+
+    /** The one rule, for stages known to be a trainer mint's (`minted`: Routine#trainerTrack
+     *  is set, which only the builder sets) or carrying the builder's words; anything else is
+     *  a routine the person built, and is left as it is. */
+    public static boolean giveStagesTheirWaits(List<Stage> stages, boolean minted) {
+        if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;
+        boolean changed = false;
+        for (int i = 0; i < stages.size(); i++) {
+            Stage st = stages.get(i);
+            if (st == null) continue;
+            if (st.giveHandWaitBack(Plan.isHandRelease(st), Plan.isChangeover(stages, i)))
+                changed = true;
+        }
+        return changed;
+    }
+
+    /**
+     * THE PULLS' MARKERS, GIVEN BACK BY THE BUILDER'S RULE. What carries no stage markers - a
+     * share code made before they travelled, a version archived before its snapshot kept them
+     * - has lost Stage#traction on the length session's pulls and Stage#fatigueBlock on its
+     * fatigue block, so they counted as girth work and read as such to a connected app. The
+     * builder (RxBuild#tractionStage) gives exactly two stages a pull's name
+     * (Plan#isBuilderPull), the names Plan#isChangeover already reads as the pulls, so they
+     * are known again by them.
+     *
+     * ONLY WHAT THE BUILDER MADE, asked exactly as the waits are (#giveStagesTheirWaits; the
+     * owner, 2026-11-11): stages that are not a trainer mint's (`minted`) and do not carry
+     * the builder's own words (Plan#hasBuilderWords) are never touched, so a stage the person
+     * named "Strain holds" in a routine of their own stays theirs. Only ever ADDS a marker,
+     * only to a stage that commands (never a rest), and both markers take a stage OUT of net,
+     * so this can never feed a gate. Returns whether it changed anything.
+     */
+    public static boolean giveStagesTheirMarks(List<Stage> stages, boolean minted) {
+        if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;
+        boolean changed = false;
+        for (int i = 0; i < stages.size(); i++) {
+            Stage st = stages.get(i);
+            if (st == null || !Plan.isBuilderPull(st)) continue;
+            if (!st.traction) { st.traction = true; changed = true; }
+            if (Plan.FATIGUE_NAME.equals(st.name) && !st.fatigueBlock) {
+                st.fatigueBlock = true;
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    /**
+     * EVERY BUILDER ROUTINE GETS ITS STAGE WAITS, NOT ONLY A LENGTH-MARKED ONE. A share code
+     * carries no trainer track, so a length routine imported before this sits in the library
+     * unmarked, its changeover a plain timed rest and its release a rest that runs on. The
+     * load (SessionActivity#onCreate) and a backup restore run this BEFORE
+     * reshapeTractionStages: the one rule (giveStagesTheirWaits) over every routine the
+     * builder made (#isBuilderRoutine) - a routine the person built is never touched. It only
+     * ever ADDS a wait, only to a rest the builder names or places (never a set, never
+     * pressure), and a stage that already waits is left as it is - so a second run changes
+     * nothing. Returns how many routines changed.
+     */
+    public int giveRoutinesTheirWaits() {
+        int changed = 0;
+        for (int ri = 0; ri < routines.size(); ri++) {
+            Routine r = routines.get(ri);
+            if (r != null && giveStagesTheirWaits(r.stages, r.trainerTrack != TRAINER_TRACK_NONE))
+                changed++;
+        }
+        return changed;
+    }
+
+    /**
+     * EVERY BUILDER ROUTINE GETS ITS PULLS' MARKERS BACK (0.10.1, the owner). A length session
+     * added from a share code, or restored from a version, before the markers travelled sits
+     * in the library with its Fatigue holds and Strain holds as plain girth work - counted
+     * into net and labelled as girth to a connected app. The load (SessionActivity#onCreate)
+     * and a backup restore run this beside #giveRoutinesTheirWaits and before the reshape:
+     * the builder's rule (giveStagesTheirMarks), asked with each routine's trainer track
+     * exactly as the waits are, so a routine the person built - whatever its stages are
+     * called - is never touched. It only ever ADDS the length marker (and the fatigue one on
+     * the fatigue block), both of which take a stage OUT of net, and a stage that already
+     * has them is left as it is, so a routine already right is unchanged byte for byte and a
+     * second run changes nothing. No run's snapshot comparison reads a marker
+     * (AsRunSnapshot#matchesStructure), so no run reads as "routine edited" because of it.
+     * Returns how many routines changed.
+     */
+    public int giveRoutinesTheirMarks() {
+        int changed = 0;
+        for (int ri = 0; ri < routines.size(); ri++) {
+            Routine r = routines.get(ri);
+            if (r != null && giveStagesTheirMarks(r.stages, r.trainerTrack != TRAINER_TRACK_NONE))
+                changed++;
+        }
+        return changed;
+    }
+
+    /**
+     * WHETHER THE TRAINER'S BUILDER MADE THIS ROUTINE - the only routines the waits are ever
+     * given back to. Either it is still a trainer mint (Routine#trainerTrack, which only the
+     * builder sets and which a share code, a duplicate and a restored copy do not carry), or
+     * its stages carry the builder's own words (Plan#hasBuilderWords: the release's name, the
+     * changeover's sentence), which they do. A routine the person built has neither.
+     */
+    public static boolean isBuilderRoutine(Routine r) {
+        return r != null && (r.trainerTrack != TRAINER_TRACK_NONE || Plan.hasBuilderWords(r.stages));
+    }
+
     /**
      * ONE-TIME IN-PLACE RESHAPE OF SAVED LENGTH MINTS (wave 3a, owner rulings). The old
      * builder wrote each traction block as per-hold sets interleaved with rest SETS, put
@@ -10242,10 +10642,11 @@ public final class Model {
         // Stage H — THE ACTUAL BOUNDARY where a foreign routine enters THIS library, so
         // this is the one place the strip is enforced no matter how it got here (round-2
         // ruling: "a foreign mint must never feed another user's gates"). fromShareCode()
-        // already leaves trainerTrack/fatigueBlock at their new-object defaults (see its
-        // own doc), so this line changes nothing today — it exists so that if either of
-        // THOSE defaults is ever loosened, the marker is still stripped exactly here,
-        // where it would otherwise start silently feeding this phone's own trainer gates.
+        // already leaves trainerTrack at its new-object default (see its own doc), so this
+        // line changes nothing today — it exists so that if that default is ever loosened,
+        // the marker is still stripped exactly here, where it would otherwise start silently
+        // feeding this phone's own trainer gates. (The stage markers DO come in since
+        // 0.10.1 - each only ever takes a stage out of net, so none of them can feed a gate.)
         d.routine.trainerTrack = TRAINER_TRACK_NONE;
         d.routine.id = newRoutineId();
         sets.addAll(d.sets);
@@ -10571,6 +10972,7 @@ public final class Model {
         if (snap == null) return null;
         Routine draft = new Routine();
         draft.name = live.name;
+        boolean shapeLost = false;
         // The snapshot never carried the assessment (shape only), so the restored copy takes
         // the LIVE routine's current assessment rather than a fresh Routine's defaults.
         draft.assess = live.assess.copy();
@@ -10578,12 +10980,17 @@ public final class Model {
             AsRunSnapshot.StageSnap ss = snap.stages.get(i);
             Stage st = new Stage();
             st.name = ss.name == null || ss.name.length() == 0 ? "Stage" : ss.name;
-            // Colour was never part of the snapshot (AsRunSnapshot deliberately does not
-            // carry it — decoration, not shape) — a restored stage takes the ordinary
-            // "born here" default, exactly what a freshly added stage gets.
-            st.colour = STAGE_COOL;
             st.rest = ss.rest;
             st.restSec = ss.restSec;
+            // THE STAGE AS THE ROUTINE HAD IT: its colour, the length, fatigue, retention and
+            // climb markers and its cylinder, as the snapshot froze them (StageSnap#shapeOnto).
+            // A snapshot made before it kept them gives back what its role says over the
+            // defaults a restore always gave - a rest drawn as a rest, any other stage the
+            // ordinary "born here" colour a freshly added stage gets (which keeps an old
+            // cool-down or retention hold out of net, as it was) - and the builder's rule
+            // after the loop gives a mint's pulls their markers.
+            st.colour = ss.rest ? STAGE_REST : STAGE_COOL;
+            if (!ss.shapeOnto(st)) shapeLost = true;
             if (!ss.rest) {
                 for (int j = 0; j < ss.setIds.size(); j++) {
                     AsRunSnapshot.SetSnap sv = ss.setAt(j);
@@ -10596,9 +11003,20 @@ public final class Model {
                     st.setIds.add(nid);
                 }
             }
+            // The waits as the snapshot froze them - only ever on a rest.
+            st.manual = ss.rest && ss.manual;
+            st.awaitAck = ss.rest && ss.awaitAck;
             st.clampRest();
             draft.stages.add(st);
         }
+        // ...and what a snapshot archived before they were kept lost, by the one rule.
+        // Only what the builder made: the snapshot's own trainer track says so as the live
+        // one does (a mint whose release and changeover were renamed); a person's routine has
+        // none and is never given a wait.
+        giveStagesTheirWaits(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);
+        // ...and the pulls' markers an old snapshot could not say, by the builder's rule,
+        // asked the same way: only what the builder made.
+        if (shapeLost) giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);
         // Routine#copy is reused verbatim for the deep-copy-under-a-new-id machinery it
         // already gives every other duplicate in this app — its own "+ copy" suffix is
         // then overwritten with a name that says which version this came from, so the

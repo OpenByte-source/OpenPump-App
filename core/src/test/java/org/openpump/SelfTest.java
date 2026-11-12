@@ -10484,7 +10484,7 @@ public final class SelfTest {
                 + "pushed to the end");
         }
 
-        /* ---------------- share code strips trainerTrack and fatigueBlock ---------------- */
+        /* ------- share code strips trainerTrack; the fatigue marker travels (0.10.1) ------- */
         {
             Model src = new Model();
             src.ceilKpa = 40;
@@ -10509,8 +10509,11 @@ public final class SelfTest {
                 eq(dec.routine.trainerTrack, Model.TRAINER_TRACK_NONE,
                    "fromShareCode strips trainerTrack — the decoded routine counts toward "
                    + "no track, whatever the sender's own routine was marked");
-                check(!dec.routine.stages.get(0).fatigueBlock,
-                    "fromShareCode strips the per-stage fatigue marker too");
+                // 0.10.1: the stage markers travel (the owner: an imported routine has the
+                // flags the shared one had). A fatigue marker only ever takes a stage OUT of
+                // net, so unlike the track it can feed nothing; the track is still stripped.
+                check(dec.routine.stages.get(0).fatigueBlock,
+                    "fromShareCode keeps the per-stage fatigue marker the sender's stage had");
 
                 Model dst = new Model();
                 dst.ceilKpa = 40;
@@ -10519,8 +10522,10 @@ public final class SelfTest {
                    "importShareCode's own routine — now actually living in a second "
                    + "library — counts toward no track: a foreign mint must never feed "
                    + "this phone's own trainer gates");
-                check(!imported.stages.get(0).fatigueBlock,
-                    "...and carries no fatigue marker into the receiving library either");
+                check(imported.stages.get(0).fatigueBlock,
+                    "...and carries it into the receiving library, out of net there too");
+                check(imported.stages.get(0).outOfNet(),
+                    "...where it keeps the stage out of net: it never adds to a gate");
             } catch (org.json.JSONException e) {
                 check(false, "fromShareCode/importShareCode round trip without throwing: " + e);
             }

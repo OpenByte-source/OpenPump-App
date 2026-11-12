@@ -2387,6 +2387,154 @@ public class Migrate {
         if (!mbOldOk || !mbRestOk || !mbTripOk || !mbOddOk)
             System.out.println("FAIL: the month-12 break does not load, survive or hold");
 
+        /* A LENGTH ROUTINE ADDED FROM A SHARE CODE OR A RESTORED VERSION BEFORE THE WAITS
+         * TRAVELLED. A share code carries no trainer track, so it sits in the library unmarked:
+         * its release and its changeover are plain timed rests that pull on by themselves. The
+         * load (and a backup restore) gives every routine the builder made its waits by the one rule - the release
+         * waits for Done, the changeover for "I've swapped" from its start - and touches nothing
+         * else: a hand-built rest keeps its clock, every pull keeps its sets and pressure, and a
+         * second pass changes nothing. A routine the person built is never touched. */
+        String impJson = "{\"ceil\":40,\"unit\":\"inHg\",\"sets\":["
+          + "{\"id\":\"if1\",\"name\":\"Strain hold ×3\",\"fromPlan\":true,\"ramp\":false,"
+          + "\"up\":8,\"lo\":0,\"uh\":300,\"lh\":30,\"sp\":75,\"dur\":990,"
+          + "\"up2\":8,\"lo2\":0,\"sp2\":75,\"steps\":2},"
+          + "{\"id\":\"ic1\",\"name\":\"Expansion\",\"fromPlan\":true,\"ramp\":false,"
+          + "\"up\":10,\"lo\":0,\"uh\":90,\"lh\":30,\"sp\":75,\"dur\":600,"
+          + "\"up2\":10,\"lo2\":0,\"sp2\":75,\"steps\":2}],"
+          + "\"routines\":[{\"id\":\"ir1\",\"name\":\"Shared length\",\"runs\":3,\"done\":3,"
+          + "\"stages\":[{\"name\":\"" + org.openpump.Plan.RELEASE_NAME + "\",\"rest\":true,"
+          + "\"restSec\":60,\"sets\":[]},"
+          + "{\"name\":\"Strain holds\",\"traction\":true,\"sets\":[\"if1\"]},"
+          + "{\"name\":\"Swap now\",\"rest\":true,\"restSec\":120,\"sets\":[]},"
+          + "{\"name\":\"Expansion\",\"sets\":[\"ic1\"]},"
+          + "{\"name\":\"Cool off\",\"rest\":true,\"restSec\":90,\"sets\":[]}]},"
+          // ...and a routine the person built in the same shape, in their own words: never touched.
+          + "{\"id\":\"ir2\",\"name\":\"My two tubes\",\"stages\":["
+          + "{\"name\":\"Release\",\"rest\":true,\"restSec\":60,\"sets\":[]},"
+          + "{\"name\":\"Strain holds\",\"sets\":[\"if1\"]},"
+          + "{\"name\":\"Swap now\",\"rest\":true,\"restSec\":120,\"sets\":[]},"
+          + "{\"name\":\"Expansion\",\"sets\":[\"ic1\"]}]}]}";
+        Model im = Model.fromJson(impJson);
+        Model.Routine ir = im.routine("ir1");
+        boolean impBefore = ir != null && ir.trainerTrack != org.openpump.Plan.TRACK_LENGTH
+            && ir.stages.size() == 5 && !ir.stages.get(0).manual && !ir.stages.get(2).manual
+            && !ir.stages.get(2).awaitAck;
+        String impPullsBefore = ir == null ? "" : im.set("if1").toJson().toString()
+            + im.set("ic1").toJson().toString();
+        int impFixed = im.giveRoutinesTheirWaits();
+        int impLength = im.reshapeTractionStages();                  // not length-marked: nothing
+        boolean impOk = impBefore && impFixed == 1 && impLength == 0 && ir.stages.size() == 5
+            && ir.stages.get(0).manual && !ir.stages.get(0).awaitAck   // release waits for Done
+            && ir.stages.get(2).manual && ir.stages.get(2).awaitAck    // changeover: "I've swapped"
+            && !ir.stages.get(4).manual && !ir.stages.get(4).awaitAck  // hand-built rest: as it was
+            && ir.stages.get(4).restSec == 90
+            && ir.stages.get(1).setIds.size() == 1 && ir.stages.get(3).setIds.size() == 1
+            && impPullsBefore.equals(im.set("if1").toJson().toString()
+                + im.set("ic1").toJson().toString())
+            && ir.runs == 3 && "Shared length".equals(ir.name)
+            && !im.routine("ir2").stages.get(0).manual                 // the person's own: as built
+            && !im.routine("ir2").stages.get(2).manual && !im.routine("ir2").stages.get(2).awaitAck
+            && im.giveRoutinesTheirWaits() == 0;                       // idempotent
+        Model imBack = Model.fromJson(im.toJson());
+        Model.Routine irBack = imBack.routine("ir1");
+        boolean impTripOk = irBack != null && irBack.stages.get(0).manual
+            && irBack.stages.get(2).manual && irBack.stages.get(2).awaitAck
+            && !irBack.stages.get(4).manual && imBack.giveRoutinesTheirWaits() == 0;
+        System.out.println("imported changeover: " + impFixed + " routine(s), "
+            + (impOk ? "waits given, nothing else touched" : "WRONG")
+            + ", after a save " + (impTripOk ? "kept" : "LOST"));
+        if (!impOk || !impTripOk)
+            System.out.println("FAIL: an imported routine's changeover or release does not wait after the load");
+
+        /* A version's snapshot keeps each stage's waits ("man" and "ack", written only when
+         * set). One archived before reads them as false - and its restore gives them back by
+         * the builder's rule (StageWaitsCarryTest) - and a stage with no wait writes nothing
+         * new. */
+        Model.AsRunSnapshot waitSnapOld = Model.AsRunSnapshot.fromJson(new org.json.JSONObject(
+            "{\"rid\":\"r\",\"stages\":[{\"name\":\"Swap\",\"rest\":true,\"restSec\":120,\"sets\":[]}]}"));
+        boolean waitSnapOldOk = waitSnapOld != null && waitSnapOld.stages.size() == 1
+            && !waitSnapOld.stages.get(0).manual && !waitSnapOld.stages.get(0).awaitAck
+            && !waitSnapOld.toJson().toString().contains("\"man\"")
+            && !waitSnapOld.toJson().toString().contains("\"ack\"");
+        waitSnapOld.stages.get(0).manual = true;
+        waitSnapOld.stages.get(0).awaitAck = true;
+        Model.AsRunSnapshot waitSnapBack = Model.AsRunSnapshot.fromJson(waitSnapOld.toJson());
+        boolean waitSnapTripOk = waitSnapBack.stages.get(0).manual && waitSnapBack.stages.get(0).awaitAck;
+        System.out.println("stage waits snapshot: old " + (waitSnapOldOk ? "none, nothing new written" : "WRONG")
+            + ", after a save " + (waitSnapTripOk ? "kept" : "LOST"));
+        if (!waitSnapOldOk || !waitSnapTripOk)
+            System.out.println("FAIL: a version's stage waits do not load or survive");
+
+        /* A version's snapshot keeps each stage's whole shape (0.10.1): "col" always, the
+         * markers "trac" / "fat" / "ret" / "climb" and the cylinder "cyl" only when set. One
+         * archived before has no "col" - its shape reads as not recorded, every marker false,
+         * and its restore falls back on the role it did record (StageShapeCarryTest); saving it
+         * again writes nothing new. A recorded shape survives a save. */
+        Model.AsRunSnapshot shapeSnapOld = Model.AsRunSnapshot.fromJson(new org.json.JSONObject(
+            "{\"rid\":\"r\",\"stages\":[{\"name\":\"Strain holds\",\"rest\":false,\"restSec\":0,"
+            + "\"role\":2,\"sets\":[\"s1\"]}]}"));
+        Model.AsRunSnapshot.StageSnap shapeOld = shapeSnapOld == null ? null : shapeSnapOld.stages.get(0);
+        String shapeOldJson = shapeSnapOld == null ? "" : shapeSnapOld.toJson().toString();
+        boolean shapeSnapOldOk = shapeOld != null && !shapeOld.shapeKnown && !shapeOld.traction
+            && !shapeOld.fatigueBlock && !shapeOld.retention && !shapeOld.climb
+            && "".equals(shapeOld.cylinderId)
+            && shapeOld.role == Model.AsRunSnapshot.ROLE_TRACTION
+            && !shapeOldJson.contains("\"col\"") && !shapeOldJson.contains("\"trac\"")
+            && !shapeOldJson.contains("\"cyl\"");
+        Model.Stage shapeLive = Model.Stage.of("Strain holds", Model.STAGE_WARM, new String[]{ "s1" });
+        shapeLive.traction = true; shapeLive.fatigueBlock = true; shapeLive.retention = true;
+        shapeLive.climb = true; shapeLive.cylinderId = "cylL";
+        Model.Routine shapeR = new Model.Routine();
+        shapeR.id = "r"; shapeR.stages.add(shapeLive);
+        Model.AsRunSnapshot shapeBack = Model.AsRunSnapshot.fromJson(
+            new org.json.JSONObject(Model.AsRunSnapshot.of(shapeR, null).toJson().toString()));
+        Model.AsRunSnapshot.StageSnap shapeSb = shapeBack.stages.get(0);
+        boolean shapeSnapTripOk = shapeSb.shapeKnown && shapeSb.colour == Model.STAGE_WARM && shapeSb.traction
+            && shapeSb.fatigueBlock && shapeSb.retention && shapeSb.climb && "cylL".equals(shapeSb.cylinderId);
+        System.out.println("stage shape snapshot: old " + (shapeSnapOldOk ? "not recorded, nothing new written" : "WRONG")
+            + ", after a save " + (shapeSnapTripOk ? "kept" : "LOST"));
+        if (!shapeSnapOldOk || !shapeSnapTripOk)
+            System.out.println("FAIL: a version's stage shape does not load or survive");
+
+        /* A LENGTH SESSION ADDED FROM A SHARE CODE BEFORE THE MARKERS TRAVELLED (0.10.1). Its
+         * Fatigue and Strain holds sit in the library as girth work. The load gives them their
+         * length marker (and the fatigue one) by the builder's rule - the routine carries the
+         * builder's release - and touches nothing else; a routine the person built with the
+         * same stage names is left exactly as it was, and a second pass changes nothing. */
+        String mkJson = "{\"ceil\":40,\"unit\":\"inHg\",\"sets\":["
+          + "{\"id\":\"mf1\",\"name\":\"Fatigue hold ×9\",\"fromPlan\":true,\"ramp\":false,"
+          + "\"up\":8,\"lo\":0,\"uh\":60,\"lh\":30,\"sp\":75,\"dur\":810,"
+          + "\"up2\":8,\"lo2\":0,\"sp2\":75,\"steps\":2}],"
+          + "\"routines\":[{\"id\":\"mr1\",\"name\":\"Shared length\",\"runs\":2,\"done\":2,"
+          + "\"stages\":[{\"name\":\"" + org.openpump.Plan.RELEASE_NAME + "\",\"rest\":true,"
+          + "\"restSec\":300,\"manual\":true,\"sets\":[]},"
+          + "{\"name\":\"Fatigue holds\",\"sets\":[\"mf1\"]},"
+          + "{\"name\":\"Strain holds\",\"sets\":[\"mf1\"]}]},"
+          + "{\"id\":\"mr2\",\"name\":\"Mine\",\"stages\":["
+          + "{\"name\":\"Fatigue holds\",\"sets\":[\"mf1\"]},"
+          + "{\"name\":\"Strain holds\",\"sets\":[\"mf1\"]}]}]}";
+        Model mk = Model.fromJson(mkJson);
+        Model.Routine mk1 = mk.routine("mr1"), mk2 = mk.routine("mr2");
+        String mkMine = mk2 == null ? "" : mk2.toJson().toString();
+        boolean mkBefore = mk1 != null && mk2 != null && !mk1.stages.get(1).traction
+            && !mk1.stages.get(2).traction;
+        int mkFixed = mk.giveRoutinesTheirMarks();
+        boolean mkOk = mkBefore && mkFixed == 1
+            && mk1.stages.get(1).traction && mk1.stages.get(1).fatigueBlock
+            && mk1.stages.get(2).traction && !mk1.stages.get(2).fatigueBlock
+            && !mk1.stages.get(0).traction && mk1.runs == 2 && mk1.stages.size() == 3
+            && mkMine.equals(mk2.toJson().toString())                   // the person's: untouched
+            && mk.giveRoutinesTheirMarks() == 0;                         // idempotent
+        Model mkBack = Model.fromJson(mk.toJson());
+        Model.Routine mkB = mkBack.routine("mr1");
+        boolean mkTripOk = mkB != null && mkB.stages.get(1).traction && mkB.stages.get(1).fatigueBlock
+            && mkB.stages.get(2).traction && mkBack.giveRoutinesTheirMarks() == 0;
+        System.out.println("imported pulls: " + mkFixed + " routine(s), "
+            + (mkOk ? "markers given, nothing else touched" : "WRONG")
+            + ", after a save " + (mkTripOk ? "kept" : "LOST"));
+        if (!mkOk || !mkTripOk)
+            System.out.println("FAIL: an imported length session's pulls are not length holds after the load");
+
         boolean ok = capOk && reshapeOk && roundB2Ok && roundB2Trip
                   && mbOldOk && mbRestOk && mbTripOk && mbOddOk
                   && dqOldOk && dqTripOk && dqOddOk
@@ -2450,7 +2598,9 @@ public class Migrate {
                   && joinOldOk && joinTripOk && joinOddOk
                   && holdsOldOk && holdsTripOk && holdsOddOk
                   && placeOldOk && placeTripOk && placeOddOk
-                  && brakeOldOk && brakeTripOk && brakeOddOk;
+                  && brakeOldOk && brakeTripOk && brakeOddOk
+                  && impOk && impTripOk && waitSnapOldOk && waitSnapTripOk
+                  && shapeSnapOldOk && shapeSnapTripOk && mkOk && mkTripOk;
         System.out.println(ok ? "MIGRATION OK" : "MIGRATION BROKEN");
         System.exit(ok ? 0 : 1);
     }

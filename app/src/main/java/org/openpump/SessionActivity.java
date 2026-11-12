@@ -530,6 +530,13 @@ public class SessionActivity extends Activity
         // Wave 1 §4: existing trainer mints' check pulls capped in place, length mints
         // moved to after — idempotent, keeps id/name/history/signatures.
         repaired += model.capMintAssessments();
+        // Every routine's stage waits by the one rule - a length routine added from a share
+        // code, or restored from a version, before the waits travelled carries no track and
+        // ran its changeover as a timed rest. Only ever adds a wait; before the reshape.
+        repaired += model.giveRoutinesTheirWaits();
+        // ...and its Fatigue and Strain holds their length marker by the builder's rule (0.10.1)
+        // - only a routine the trainer made, only ever adding; before the reshape, which reads it.
+        repaired += model.giveRoutinesTheirMarks();
         // Wave 3a: saved length mints reshaped in place — one set per traction block,
         // gaps a release to 0, no inter-block rest, no retention hold.
         repaired += model.reshapeTractionStages();
@@ -33832,12 +33839,7 @@ public class SessionActivity extends Activity
         usedUndoSnap = new java.util.LinkedHashMap<String, UsedUndoState>();
         for (int i = 0; i < model.routines.size(); i++) {
             Model.Routine r = model.routines.get(i);
-            List<Model.Stage> copy = new ArrayList<Model.Stage>();
-            for (int j = 0; j < r.stages.size(); j++) {
-                Model.Stage st = r.stages.get(j);
-                copy.add(Model.Stage.of(st.name, st.colour,
-                        st.setIds.toArray(new String[st.setIds.size()])));
-            }
+            List<Model.Stage> copy = Model.copyStages(r.stages);
             // TASK 6 — see UsedUndoState's own doc for why a shallow copy of `history`
             // is enough and why versionSince/versionRuns ride along too.
             usedUndoSnap.put(r.id, new UsedUndoState(copy,
@@ -35754,6 +35756,13 @@ public class SessionActivity extends Activity
             return;
         }
 
+        // Every routine's stage waits, as onCreate gives them, now rather than only from the
+        // next launch - so a run started straight after the restore cannot pull without them.
+        int waited = restoredModel.giveRoutinesTheirWaits();
+        if (waited > 0) log("--- restore: " + waited + " routine(s) given their stage waits ---");
+        // ...and the pulls' markers, as onCreate gives them (builder-only, only ever adding).
+        int marked = restoredModel.giveRoutinesTheirMarks();
+        if (marked > 0) log("--- restore: " + marked + " routine(s) given their pulls' markers ---");
         File photosDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         // A backup from an older app id (PumpDebug) points its photos at that app's
         // folder; the files land in THIS one, so the paths follow them.

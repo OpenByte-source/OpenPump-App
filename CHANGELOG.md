@@ -4,7 +4,7 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [0.10.1] — unreleased
+## [0.10.1] — 2026-11-12
 
 Installs over 0.10.0; nothing to back up or move.
 
@@ -50,6 +50,34 @@ Installs over 0.10.0; nothing to back up or move.
   GrowthTrack now give the same seconds.
 - In the routine editor, a set made with "+ New set" from a stage is added to that stage when
   you save it.
+- A routine added from a share code, or a version restored as a copy, now waits where the
+  original did: the changeover waits for **I've swapped** and the tunica release for **Done**.
+  Before, both arrived as plain timed rests, so the expansion could start pulling in the wrong
+  cylinder. A routine already in your library from a code or a restore gets the same waits when
+  the app opens, or when a backup is restored; only routines the trainer made are changed, never
+  one you built yourself. A code made from a routine with these waits needs
+  this version or later to add it; an older version says it does not recognise the code. A code
+  made by an older version still adds, with its waits given back.
+- **Undo** in a set's **Used in** screen puts every routine back exactly as it was. Before, it
+  turned rests, including the changeover, into empty stages, and dropped the waits for
+  **Done** and **I've swapped**.
+- Saving a run's changes to its routine (**Update**), or as a new routine (**Save as copy**),
+  keeps the tunica release and the changeover, with their waits. Before, both were left out of
+  the saved routine, so the expansion followed the pulls with no tube swap. Length holds also
+  keep their cylinder.
+- A version restored as a copy keeps each stage as it was: its colour, the warm-up, the length
+  holds, the fatigue, retention and climb stages, and the cylinder. Before, every stage came
+  back as a plain stage, so the warm-up played as an ordinary ramp, the work was labelled
+  wrongly and GrowthTrack read it wrongly. A version saved by an older version gets back its
+  warm-up and its length holds.
+- A routine added from a share code keeps its Fatigue holds and Strain holds as length holds,
+  and its fatigue, retention and climb stages. Before, they arrived as ordinary girth work. A
+  code from a routine with these stages needs this version or later to add it; an older version
+  says it does not recognise the code. A code made by an older version still adds, with the
+  length holds given back to a length session the trainer made.
+- A length session already in your library from a share code or a restore gets its Fatigue holds
+  and Strain holds back as length holds when the app opens, or when a backup is restored. Only
+  routines the trainer made are changed, never one you built yourself.
 
 ## [0.10.0] — 2026-10-07
 
