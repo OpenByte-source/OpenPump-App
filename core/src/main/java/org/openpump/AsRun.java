@@ -1097,7 +1097,7 @@ public final class AsRun {
         if (d.manual || d.mode != MODE_UPDATE) return false;
         Model.Routine r = m.routine(d.routineId);
         if (r == null || r.stages.isEmpty()) return false;
-        return applyToStages(r.stages, blocks, d, wouldBeIds(d, blocks)).isEmpty();
+        return runsNothing(applyToStages(r.stages, blocks, d, wouldBeIds(d, blocks)));
     }
 
     /** The per-block "this becomes a new set" decision of {@link #commit}'s step 1, as
@@ -1703,7 +1703,8 @@ public final class AsRun {
      *    set all of whose blocks are off, keeps its original id; a changed set with blocks on
      *    is REPLACED at its position by those blocks' new sets, in order; a skipped set with
      *    "drop" checked is removed; a stage with dropStage set, or left empty, is removed
-     *    (never an empty stage); a non-empty draft routineName renames the routine;
+     *    (never an empty stage; a rest, which holds no sets, stays as it was, with its wait);
+     *    a non-empty draft routineName renames the routine;
      *  - ROUTINE, routine run: a NEW routine with the structure the run started with (the
      *    snapshot) and the same changes applied, named from the draft;
      *  - ROUTINE, manual run: a NEW routine with one stage "Work" holding the on-blocks' new
@@ -1726,7 +1727,7 @@ public final class AsRun {
         if (d.mode == MODE_ROUTINE && !run.manual) {
             // Same rule for a NEW routine, whose stages come from the run's snapshot: never
             // file a routine with nothing in it.
-            if (applyToStages(snapStages(run, m), blocks, d, wouldBeIds(d, blocks)).isEmpty())
+            if (runsNothing(applyToStages(snapStages(run, m), blocks, d, wouldBeIds(d, blocks))))
                 throw new IllegalStateException("empty");
         }
         // 1. sets
@@ -1787,23 +1788,51 @@ public final class AsRun {
 
     /** The structure a NEW routine is spliced from: the one the run STARTED with (the
      *  snapshot), falling back to the routine as it stands now, colours borrowed from the
-     *  current routine where they still line up. */
+     *  current routine where they still line up.
+     *
+     *  EVERY STAGE AS IT WAS, RESTS AND WAITS INCLUDED. A stage is the snapshot's - its name,
+     *  its sets, whether it is a rest and for how long, and its waits (the release's for Done,
+     *  the changeover's for "I've swapped") - and, where the current routine's stage at the
+     *  same place is the same stage (same name, rest or not), it keeps that stage's other
+     *  facts too: the length and fatigue markers, the climb, the cylinder. A snapshot made
+     *  before the waits were kept is given them back by the one rule
+     *  (Model#giveStagesTheirWaits). This used to rebuild a stage from its name and sets alone,
+     *  so a rest arrived as an empty stage and was left out. */
     private static List<Model.Stage> snapStages(AsRun run, Model m) {
         Model.Routine cur = m.routine(run.routineId);
         List<Model.Stage> src = new ArrayList<Model.Stage>();
         if (run.snap != null) {
             for (int i = 0; i < run.snap.stages.size(); i++) {
                 Model.AsRunSnapshot.StageSnap ss = run.snap.stages.get(i);
-                int colour = cur != null && i < cur.stages.size() ? cur.stages.get(i).colour : Model.STAGE_WORK;
-                src.add(Model.Stage.of(ss.name, colour, ss.setIds.toArray(new String[ss.setIds.size()])));
+                Model.Stage live = cur != null && i < cur.stages.size() ? cur.stages.get(i) : null;
+                boolean same = live != null && live.rest == ss.rest && eq(live.name, ss.name);
+                Model.Stage st = same ? live.copy() : new Model.Stage();
+                st.name = ss.name;
+                st.colour = live != null ? live.colour : Model.STAGE_WORK;
+                st.setIds.clear();
+                st.setIds.addAll(ss.setIds);
+                st.rest = ss.rest;
+                st.restSec = ss.restSec;
+                // The snapshot's waits - and the live stage's, where it is the same stage: a
+                // wait is only ever added, never taken away, and only ever on a rest.
+                st.manual = ss.rest && (ss.manual || (same && live.manual));
+                st.awaitAck = ss.rest && (ss.awaitAck || (same && live.awaitAck));
+                st.clampRest();
+                src.add(st);
             }
+            Model.giveStagesTheirWaits(src);
         } else if (cur != null) {
-            for (int i = 0; i < cur.stages.size(); i++) {
-                Model.Stage st = cur.stages.get(i);
-                src.add(Model.Stage.of(st.name, st.colour, st.setIds.toArray(new String[st.setIds.size()])));
-            }
+            src.addAll(Model.copyStages(cur.stages));
         }
         return src;
+    }
+
+    /** Whether `stages` would run nothing: no stage that holds a set. Rests alone are not a
+     *  routine - "never file a routine with nothing in it" is about what runs. */
+    private static boolean runsNothing(List<Model.Stage> stages) {
+        for (int i = 0; i < stages.size(); i++)
+            if (!stages.get(i).rest && !stages.get(i).setIds.isEmpty()) return false;
+        return true;
     }
 
     /** The splice (§5): stages rebuilt with the draft applied; see {@link #commit}. */
@@ -1830,8 +1859,14 @@ public final class AsRun {
                 if (ons.isEmpty()) ids.add(setId);      // unchanged, never ran, or all off: keeps its id
                 else ids.addAll(ons);
             }
-            if (ids.isEmpty()) continue;                // never leave an empty stage behind
-            out.add(Model.Stage.of(st.name, st.colour, ids.toArray(new String[ids.size()])));
+            // Never leave an empty stage behind - but a REST holds no sets by design: it stays,
+            // with its time and its wait (the release, the changeover).
+            if (ids.isEmpty() && !st.rest) continue;
+            // The stage as it was, every field, with only its sets replaced.
+            Model.Stage ns = st.copy();
+            ns.setIds.clear();
+            ns.setIds.addAll(ids);
+            out.add(ns);
         }
         return out;
     }
@@ -2060,7 +2095,8 @@ public final class AsRun {
     /**
      * ITEM 11's "Save as a new routine": the planned stages copied, with each USED
      * changed set replaced by a NEW COPY carrying the final values (fromRun stamped),
-     * dropped skipped occurrences omitted, and emptied stages omitted. A manual run
+     * dropped skipped occurrences omitted, and emptied stages omitted (a rest stays, with its
+     * wait). A manual run
      * becomes one "Work" stage of new sets. Returns a Commit whose routineId is null
      * when nothing would give the routine a single stage — then NOTHING was created.
      */
@@ -2137,10 +2173,14 @@ public final class AsRun {
                 }
                 ids.add(id);
             }
-            if (ids.isEmpty()) continue;
-            built.add(Model.Stage.of(st.name, st.colour, ids.toArray(new String[ids.size()])));
+            // A rest holds no sets by design: it stays, with its time and its wait.
+            if (ids.isEmpty() && !st.rest) continue;
+            Model.Stage ns = st.copy();
+            ns.setIds.clear();
+            ns.setIds.addAll(ids);
+            built.add(ns);
         }
-        if (built.isEmpty()) return out;
+        if (runsNothing(built)) return out;
         for (int i = 0; i < made.size(); i++) { m.sets.add(made.get(i)); out.createdSetIds.add(made.get(i).id); }
         Model.Routine nr = m.newRoutine(m.newRoutineId(), name);
         nr.stages.addAll(built);

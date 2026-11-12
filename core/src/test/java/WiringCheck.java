@@ -32122,7 +32122,10 @@ public final class WiringCheck {
      *       before it saves, and a backup restore runs it before the restored file is saved;
      *   (f) the Used-in screen's Undo snapshots every routine's stages exactly
      *       (Model.copyStages, Stage#copy), so Undo never turns a rest into an empty stage or
-     *       drops a wait.
+     *       drops a wait;
+     *   (g) "Update" and "Save as copy" from a run (AsRun#applyToStages, #buildNewRoutine,
+     *       #snapStages) rebuild each stage as it was (Stage#copy, sets replaced), keep a rest
+     *       though it holds no sets, and give an old snapshot its waits back by the one rule.
      * ===================================================================================== */
     static final String[][] WAIT_REBUILDS = {
         { "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "a v1/v2 share code",
@@ -32174,10 +32177,44 @@ public final class WiringCheck {
     static void checkStageWaitsFiles(String dir, List<String> violations) throws IOException {
         String model = runScreenRaw(dir, "Model.java", violations);
         String act = runScreenRaw(dir, "SessionActivity.java", violations);
-        checkStageWaits(model, act, violations);
+        String asRun = runScreenRaw(dir, "AsRun.java", violations);
+        checkStageWaits(model, act, asRun, violations);
     }
 
-    static void checkStageWaits(String model, String act, List<String> violations) {
+    /** (g): { signature, name, statement that must be there }. */
+    static final String[][] RUN_SAVES = {
+        { "List<Model.Stage>\\s+applyToStages\\s*\\(", "applyToStages", "if(ids.isEmpty()&&!st.rest)continue;" },
+        { "List<Model.Stage>\\s+applyToStages\\s*\\(", "applyToStages", "Model.Stagens=st.copy();" },
+        { "Commit\\s+buildNewRoutine\\s*\\(", "buildNewRoutine", "if(ids.isEmpty()&&!st.rest)continue;" },
+        { "Commit\\s+buildNewRoutine\\s*\\(", "buildNewRoutine", "Model.Stagens=st.copy();" },
+        { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "st.manual=ss.rest&&(ss.manual||(same&&live.manual));" },
+        { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "st.awaitAck=ss.rest&&(ss.awaitAck||(same&&live.awaitAck));" },
+        { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "st.rest=ss.rest;" },
+        { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "Model.giveStagesTheirWaits(src);" },
+    };
+
+    static void checkStageWaits(String model, String act, String asRun, List<String> violations) {
+        if (asRun != null) {
+            // (g) the saves from a run.
+            for (int i = 0; i < RUN_SAVES.length; i++) {
+                String b = body228(asRun, RUN_SAVES[i][0], "AsRun.java", RUN_SAVES[i][1], violations);
+                if (b != null && b.indexOf(RUN_SAVES[i][2]) < 0)
+                    violations.add("AsRun.java: invariant 267 - " + RUN_SAVES[i][1] + " no longer "
+                        + "keeps a stage as it was (" + RUN_SAVES[i][2] + ") - a save from a run "
+                        + "would drop the release or the changeover, or their waits");
+            }
+            String sb = body228(asRun, "Commit\\s+buildNewRoutine\\s*\\(", "AsRun.java",
+                "buildNewRoutine", violations);
+            String ab = body228(asRun, "List<Model.Stage>\\s+applyToStages\\s*\\(", "AsRun.java",
+                "applyToStages", violations);
+            String ss = body228(asRun, "List<Model.Stage>\\s+snapStages\\s*\\(", "AsRun.java",
+                "snapStages", violations);
+            if ((ab != null && ab.indexOf("Model.Stage.of(") >= 0)
+                    || (ss != null && ss.indexOf("Model.Stage.of(") >= 0)
+                    || (sb != null && sb.indexOf("built.add(Model.Stage.of(") >= 0))
+                violations.add("AsRun.java: invariant 267 - a save from a run rebuilds a stage from "
+                    + "its name and sets alone (Model.Stage.of) - its rest and waits would be lost");
+        }
         if (model != null) {
             // (a) the one rule, and the only way it adds a wait.
             String gs = body228(model, "boolean\\s+giveStagesTheirWaits\\s*\\(", "Model.java",
@@ -32361,8 +32398,23 @@ public final class WiringCheck {
             + "private void usedSnapshot(String label) {\n"
             + "    List<Model.Stage> copy = Model.copyStages(r.stages);\n"
             + "}\n";
+        String asRun =
+              "private static List<Model.Stage> snapStages(AsRun run, Model m) {\n"
+            + "    st.rest = ss.rest;\n"
+            + "    st.manual = ss.rest && (ss.manual || (same && live.manual));\n"
+            + "    st.awaitAck = ss.rest && (ss.awaitAck || (same && live.awaitAck));\n"
+            + "    Model.giveStagesTheirWaits(src);\n"
+            + "}\n"
+            + "private static List<Model.Stage> applyToStages(List<Model.Stage> stages) {\n"
+            + "    if (ids.isEmpty() && !st.rest) continue;\n"
+            + "    Model.Stage ns = st.copy();\n"
+            + "}\n"
+            + "public static Commit buildNewRoutine(List<SetChange> cs) {\n"
+            + "    if (ids.isEmpty() && !st.rest) continue;\n"
+            + "    Model.Stage ns = st.copy();\n"
+            + "}\n";
         List<String> v = new ArrayList<String>();
-        checkStageWaits(model, act, v);
+        checkStageWaits(model, act, asRun, v);
         selfCheck(counts, v.isEmpty(), "INV267 control: the app's shapes pass (got " + v + ")");
 
         String[][] bad = {
@@ -32425,14 +32477,31 @@ public final class WiringCheck {
               "    Store.save(this, restoredModel);\n    int waited = restoredModel.giveRoutinesTheirWaits();\n" },
             { "A", "a Used-in Undo that copies only names and sets",
               "Model.copyStages(r.stages);", "Model.Stage.of(st.name, st.colour, ids);" },
+            { "R", "an Update from a run dropping the rests",
+              "applyToStages(List<Model.Stage> stages) {\n    if (ids.isEmpty() && !st.rest) continue;",
+              "applyToStages(List<Model.Stage> stages) {\n    if (ids.isEmpty()) continue;" },
+            { "R", "an Update from a run rebuilding a stage from its name and sets",
+              "applyToStages(List<Model.Stage> stages) {\n    if (ids.isEmpty() && !st.rest) continue;\n    Model.Stage ns = st.copy();",
+              "applyToStages(List<Model.Stage> stages) {\n    if (ids.isEmpty() && !st.rest) continue;\n    Model.Stage ns = Model.Stage.of(st.name, st.colour, ids);" },
+            { "R", "a Save as copy dropping the rests",
+              "buildNewRoutine(List<SetChange> cs) {\n    if (ids.isEmpty() && !st.rest) continue;",
+              "buildNewRoutine(List<SetChange> cs) {\n    if (ids.isEmpty()) continue;" },
+            { "R", "a Save as copy rebuilding a stage from its name and sets",
+              "buildNewRoutine(List<SetChange> cs) {\n    if (ids.isEmpty() && !st.rest) continue;\n    Model.Stage ns = st.copy();",
+              "buildNewRoutine(List<SetChange> cs) {\n    if (ids.isEmpty() && !st.rest) continue;\n    Model.Stage ns = Model.Stage.of(st.name, st.colour, ids);" },
+            { "R", "a run's snapshot rebuilt without its rests", "    st.rest = ss.rest;\n", "" },
+            { "R", "a run's snapshot rebuilt without its changeover wait",
+              "    st.awaitAck = ss.rest && (ss.awaitAck || (same && live.awaitAck));\n", "" },
+            { "R", "a run's old snapshot not given its waits back", "    Model.giveStagesTheirWaits(src);\n", "" },
         };
         for (int i = 0; i < bad.length; i++) {
-            String m2 = model, a2 = act;
+            String m2 = model, a2 = act, r2 = asRun;
             if ("M".equals(bad[i][0])) m2 = model.replace(bad[i][2], bad[i][3]);
+            else if ("R".equals(bad[i][0])) r2 = asRun.replace(bad[i][2], bad[i][3]);
             else a2 = act.replace(bad[i][2], bad[i][3]);
-            boolean changed = !m2.equals(model) || !a2.equals(act);
+            boolean changed = !m2.equals(model) || !a2.equals(act) || !r2.equals(asRun);
             v = new ArrayList<String>();
-            checkStageWaits(m2, a2, v);
+            checkStageWaits(m2, a2, r2, v);
             selfCheck(counts, changed && !v.isEmpty(),
                 "INV267 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
         }

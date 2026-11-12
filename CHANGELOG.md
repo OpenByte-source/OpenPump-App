@@ -60,6 +60,10 @@ Installs over 0.10.0; nothing to back up or move.
 - **Undo** in a set's **Used in** screen puts every routine back exactly as it was. Before, it
   turned rests, including the changeover, into empty stages, and dropped the waits for
   **Done** and **I've swapped**.
+- Saving a run's changes to its routine (**Update**), or as a new routine (**Save as copy**),
+  keeps the tunica release and the changeover, with their waits. Before, both were left out of
+  the saved routine, so the expansion followed the pulls with no tube swap. Length holds also
+  keep their cylinder.
 
 ## [0.10.0] — 2026-10-07
 
