@@ -1,0 +1,2871 @@
+[
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000001",
+      "external_id": "11111111-1111-4111-8111-000000000001",
+      "name": "GT Length Pumping Starter (Static)",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1530,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping Starter (Static)",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 5
+            }
+          ]
+        },
+        {
+          "position": 2,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping Starter (Static)",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 8
+            }
+          ]
+        },
+        {
+          "position": 3,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping Starter (Static) - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 4,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping Starter (Static)",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 9
+            }
+          ]
+        },
+        {
+          "position": 5,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping Starter (Static) - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 6,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping Starter (Static)",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 7,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping Starter (Static) - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 8,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping Starter (Static)",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 11
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000002",
+      "external_id": "11111111-1111-4111-8111-000000000002",
+      "name": "GT Interval Pumping",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1390,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 2,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 3,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 4,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 5,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 6,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 7,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 8,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 9,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 10,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 11,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 12,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 13,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 14,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 15,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 16,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 17,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 18,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 19,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 20,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 21,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 22,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 23,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 24,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 25,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 26,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 27,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 28,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 29,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 30,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 31,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 32,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 33,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 34,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 35,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 36,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 37,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 38,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 39,
+          "method_slug": "interval_pumping",
+          "exercise_name": "Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 10
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000003",
+      "external_id": "11111111-1111-4111-8111-000000000003",
+      "name": "GT Length Pumping Intervals",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1780,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 5
+            }
+          ]
+        },
+        {
+          "position": 2,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 3,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 4,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 5,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 6,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 7,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 8,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 9,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 10,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 11,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 12,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 13,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 14,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 15,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 16,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 17,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 18,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 19,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 20,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 21,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals - low-pressure interval",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 22,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 240,
+          "pattern": [
+            {
+              "duration_seconds": 240,
+              "pressure_inhg": 8
+            }
+          ]
+        },
+        {
+          "position": 23,
+          "method_slug": "length_pumping_interval",
+          "exercise_name": "Length Pumping Intervals",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 240,
+          "pattern": [
+            {
+              "duration_seconds": 240,
+              "pressure_inhg": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000004",
+      "external_id": "11111111-1111-4111-8111-000000000004",
+      "name": "GT RIP 15s/5s",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1195,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "rip",
+          "exercise_name": "RIP - Rapid Interval Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 1195,
+          "pattern": [
+            {
+              "duration_seconds": 15,
+              "pressure_inhg": 12.5
+            },
+            {
+              "duration_seconds": 5,
+              "pressure_inhg": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000005",
+      "external_id": "11111111-1111-4111-8111-000000000005",
+      "name": "GT Basic Static Pumping",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1380,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "static_pumping",
+          "exercise_name": "Basic Static Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 2,
+          "method_slug": "static_pumping",
+          "exercise_name": "Basic Static Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 3,
+          "method_slug": "static_pumping",
+          "exercise_name": "Basic Static Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 4,
+          "method_slug": "static_pumping",
+          "exercise_name": "Basic Static Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 5,
+          "method_slug": "static_pumping",
+          "exercise_name": "Basic Static Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 6,
+          "method_slug": "static_pumping",
+          "exercise_name": "Basic Static Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 60,
+          "pattern": [
+            {
+              "duration_seconds": 60,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 7,
+          "method_slug": "static_pumping",
+          "exercise_name": "Basic Static Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000006",
+      "external_id": "11111111-1111-4111-8111-000000000006",
+      "name": "GT Length Pumping RIP Builder",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1560,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping RIP Builder",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 5
+            }
+          ]
+        },
+        {
+          "position": 2,
+          "method_slug": "length_pumping_rip",
+          "exercise_name": "Length Pumping RIP Builder",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 240,
+          "pattern": [
+            {
+              "duration_seconds": 15,
+              "pressure_inhg": 8
+            },
+            {
+              "duration_seconds": 3,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 3,
+          "method_slug": "length_pumping_rip",
+          "exercise_name": "Length Pumping RIP Builder",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 240,
+          "pattern": [
+            {
+              "duration_seconds": 15,
+              "pressure_inhg": 10
+            },
+            {
+              "duration_seconds": 3,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 4,
+          "method_slug": "length_pumping_rip",
+          "exercise_name": "Length Pumping RIP Builder",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 240,
+          "pattern": [
+            {
+              "duration_seconds": 15,
+              "pressure_inhg": 12
+            },
+            {
+              "duration_seconds": 3,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 5,
+          "method_slug": "length_pumping_rip",
+          "exercise_name": "Length Pumping RIP Builder",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 240,
+          "pattern": [
+            {
+              "duration_seconds": 15,
+              "pressure_inhg": 14
+            },
+            {
+              "duration_seconds": 3,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 6,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping RIP Builder",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000007",
+      "external_id": "11111111-1111-4111-8111-000000000007",
+      "name": "GT Length Pumping + High-Pressure Milking",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1620,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping + High-Pressure Milking",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 5
+            }
+          ]
+        },
+        {
+          "position": 2,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping + High-Pressure Milking",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 8
+            }
+          ]
+        },
+        {
+          "position": 3,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping + High-Pressure Milking",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 4,
+          "method_slug": "length_pumping_hp_milking",
+          "exercise_name": "Length Pumping + High-Pressure Milking",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 120,
+          "pattern": [
+            {
+              "duration_seconds": 1,
+              "pressure_inhg": 12
+            },
+            {
+              "duration_seconds": 1,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 5,
+          "method_slug": "length_pumping_hp_milking",
+          "exercise_name": "Length Pumping + High-Pressure Milking",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 120,
+          "pattern": [
+            {
+              "duration_seconds": 1,
+              "pressure_inhg": 14
+            },
+            {
+              "duration_seconds": 1,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 6,
+          "method_slug": "length_pumping_hp_milking",
+          "exercise_name": "Length Pumping + High-Pressure Milking",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 120,
+          "pattern": [
+            {
+              "duration_seconds": 1,
+              "pressure_inhg": 16
+            },
+            {
+              "duration_seconds": 1,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 7,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping + High-Pressure Milking",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 8,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping + High-Pressure Milking",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 9,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping + High-Pressure Milking",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 10,
+          "method_slug": "length_pumping_static",
+          "exercise_name": "Length Pumping + High-Pressure Milking",
+          "exercise_type": "length",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 90,
+          "pattern": [
+            {
+              "duration_seconds": 90,
+              "pressure_inhg": 10
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000008",
+      "external_id": "11111111-1111-4111-8111-000000000008",
+      "name": "GT Karl's EQ/Recovery Pumping - Milking + Static",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1830,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "static_pumping",
+          "exercise_name": "Karl's EQ/Recovery Pumping - Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 6
+            }
+          ]
+        },
+        {
+          "position": 2,
+          "method_slug": "static_pumping",
+          "exercise_name": "Karl's EQ/Recovery Pumping - Milking + Static - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 3,
+          "method_slug": "rip",
+          "exercise_name": "Karl's EQ/Recovery Pumping - Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 6,
+              "pressure_inhg": 6
+            },
+            {
+              "duration_seconds": 3,
+              "pressure_inhg": 0
+            }
+          ]
+        },
+        {
+          "position": 4,
+          "method_slug": "static_pumping",
+          "exercise_name": "Karl's EQ/Recovery Pumping - Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 6
+            }
+          ]
+        },
+        {
+          "position": 5,
+          "method_slug": "static_pumping",
+          "exercise_name": "Karl's EQ/Recovery Pumping - Milking + Static - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 6,
+          "method_slug": "rip",
+          "exercise_name": "Karl's EQ/Recovery Pumping - Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 6,
+              "pressure_inhg": 6
+            },
+            {
+              "duration_seconds": 3,
+              "pressure_inhg": 0
+            }
+          ]
+        },
+        {
+          "position": 7,
+          "method_slug": "static_pumping",
+          "exercise_name": "Karl's EQ/Recovery Pumping - Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 6
+            }
+          ]
+        },
+        {
+          "position": 8,
+          "method_slug": "static_pumping",
+          "exercise_name": "Karl's EQ/Recovery Pumping - Milking + Static - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 9,
+          "method_slug": "rip",
+          "exercise_name": "Karl's EQ/Recovery Pumping - Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 6,
+              "pressure_inhg": 6
+            },
+            {
+              "duration_seconds": 3,
+              "pressure_inhg": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000009",
+      "external_id": "11111111-1111-4111-8111-000000000009",
+      "name": "GT PACT recovery pumping Milking + Static",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1830,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT recovery pumping Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 8
+            }
+          ]
+        },
+        {
+          "position": 2,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT recovery pumping Milking + Static - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 3,
+          "method_slug": "rip",
+          "exercise_name": "PACT recovery pumping Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 6,
+              "pressure_inhg": 8
+            },
+            {
+              "duration_seconds": 3,
+              "pressure_inhg": 0
+            }
+          ]
+        },
+        {
+          "position": 4,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT recovery pumping Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 8
+            }
+          ]
+        },
+        {
+          "position": 5,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT recovery pumping Milking + Static - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 6,
+          "method_slug": "rip",
+          "exercise_name": "PACT recovery pumping Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 6,
+              "pressure_inhg": 8
+            },
+            {
+              "duration_seconds": 3,
+              "pressure_inhg": 0
+            }
+          ]
+        },
+        {
+          "position": 7,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT recovery pumping Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 8
+            }
+          ]
+        },
+        {
+          "position": 8,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT recovery pumping Milking + Static - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 9,
+          "method_slug": "rip",
+          "exercise_name": "PACT recovery pumping Milking + Static",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 6,
+              "pressure_inhg": 8
+            },
+            {
+              "duration_seconds": 3,
+              "pressure_inhg": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000010",
+      "external_id": "11111111-1111-4111-8111-000000000010",
+      "name": "GT Milking",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1797,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "milking",
+          "exercise_name": "Milking",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 1797,
+          "pattern": [
+            {
+              "duration_seconds": 5,
+              "pressure_inhg": 7
+            },
+            {
+              "duration_seconds": 3,
+              "pressure_inhg": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000011",
+      "external_id": "11111111-1111-4111-8111-000000000011",
+      "name": "GT PACT Conditioning 1 - Monday + Tuesday",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1230,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT Conditioning 1 - Monday + Tuesday",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 7
+            }
+          ]
+        },
+        {
+          "position": 2,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT Conditioning 1 - Monday + Tuesday - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 3,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT Conditioning 1 - Monday + Tuesday",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 7
+            }
+          ]
+        },
+        {
+          "position": 4,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT Conditioning 1 - Monday + Tuesday - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 5,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT Conditioning 1 - Monday + Tuesday",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 7
+            }
+          ]
+        },
+        {
+          "position": 6,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT Conditioning 1 - Monday + Tuesday - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 10,
+          "pattern": [
+            {
+              "duration_seconds": 10,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 7,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT Conditioning 1 - Monday + Tuesday",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 7
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000012",
+      "external_id": "11111111-1111-4111-8111-000000000012",
+      "name": "GT PACT Conditioning 2 - Wednesday + Thursday",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 1560,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT Conditioning 2 - Wednesday + Thursday",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 7
+            }
+          ]
+        },
+        {
+          "position": 2,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT Conditioning 2 - Wednesday + Thursday - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 3,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT Conditioning 2 - Wednesday + Thursday",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 9
+            }
+          ]
+        },
+        {
+          "position": 4,
+          "method_slug": "static_pumping",
+          "exercise_name": "PACT Conditioning 2 - Wednesday + Thursday - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 5,
+          "method_slug": "rip",
+          "exercise_name": "PACT Conditioning 2 - Wednesday + Thursday",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 15,
+              "pressure_inhg": 9
+            },
+            {
+              "duration_seconds": 4,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 6,
+          "method_slug": "rip",
+          "exercise_name": "PACT Conditioning 2 - Wednesday + Thursday",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 15,
+              "pressure_inhg": 10
+            },
+            {
+              "duration_seconds": 4,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 7,
+          "method_slug": "rip",
+          "exercise_name": "PACT Conditioning 2 - Wednesday + Thursday",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 15,
+              "pressure_inhg": 11
+            },
+            {
+              "duration_seconds": 4,
+              "pressure_inhg": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "format": "gt-routine",
+    "schema_version": 1,
+    "execution_contract": "openpump-pattern-v1",
+    "required_capabilities": [
+      "pattern"
+    ],
+    "routine": {
+      "id": "11111111-1111-4111-8111-000000000013",
+      "external_id": "11111111-1111-4111-8111-000000000013",
+      "name": "GT Marathon Sleeved Pumping",
+      "category": "mixed",
+      "access": "own",
+      "revision": "2026-11-12T00:00:00Z",
+      "estimated_duration_s": 7200,
+      "steps": [
+        {
+          "position": 1,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 2,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 3,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 4,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 5,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 6,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 7,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 8,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 9,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 10,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 11,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 12,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 13,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 14,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 15,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 16,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 17,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 18,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 19,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 20,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 21,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 22,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 23,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 24,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 25,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 26,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 27,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 28,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 29,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 30,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 31,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 32,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 33,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 34,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 35,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 36,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 37,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 38,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 39,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 40,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 41,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 300,
+          "pattern": [
+            {
+              "duration_seconds": 300,
+              "pressure_inhg": 10
+            }
+          ]
+        },
+        {
+          "position": 42,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping - low-pressure interval",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 30,
+          "pattern": [
+            {
+              "duration_seconds": 30,
+              "pressure_inhg": 2
+            }
+          ]
+        },
+        {
+          "position": 43,
+          "method_slug": "sleeved_pumping",
+          "exercise_name": "Marathon Sleeved Pumping",
+          "exercise_type": "girth",
+          "sets": 1,
+          "rest_seconds_between_sets": 0,
+          "work_seconds_per_set": 270,
+          "pattern": [
+            {
+              "duration_seconds": 270,
+              "pressure_inhg": 10
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

@@ -67,6 +67,23 @@ final class GrowthTrackManager {
         return standalone;
     }
     void run(final Work work, final Listener listener) { dispatch(work, listener, null); }
+    /** Explicit user action only. The returned URL still requires normal browser consent. */
+    void beginRoutineConsent(Listener listener) {
+        run(new Work() { @Override public Object run(GrowthTrackClient ready) throws Exception {
+            return ready.beginWithRoutines();
+        } }, listener);
+    }
+    void listRoutines(Listener listener) {
+        run(new Work() { @Override public Object run(GrowthTrackClient ready) throws Exception {
+            return ready.listExecutableRoutines();
+        } }, listener);
+    }
+    void downloadRoutine(final String id, Listener listener) {
+        run(new Work() { @Override public Object run(GrowthTrackClient ready) throws Exception {
+            return ready.downloadExecutableRoutine(id);
+        } }, listener);
+    }
+
     private void dispatch(final Work work, final Listener listener, final SyncRequest request) {
         final long ticket = http.ticket();
         worker.execute(new Runnable() { @Override public void run() {

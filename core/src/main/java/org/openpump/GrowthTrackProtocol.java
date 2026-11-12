@@ -18,9 +18,12 @@ public final class GrowthTrackProtocol {
     public static final String CLIENT_ID = "gtc_bfa5809efbd314f246dd5d0f";
     public static final String REDIRECT = "gt-openpump://oauth/callback";
     public static final String CONNECTED_APPS = "https://pe-growth-track.com/connected-apps";
-    /** The one scope OpenPump asks for. Routine reading (routines:read) was removed with the
-     *  routine previews (owner decision 6, 19 Oct 2026); it may come back in a later release. */
+    /** Session transfer remains the default. Routine reading requires separate explicit consent. */
     public static final String WRITE = "sessions:write";
+    public static final String READ_ROUTINES = "routines:read";
+    public static final String WITH_ROUTINES = WRITE + " " + READ_ROUTINES;
+    public static final String EXECUTION_CONTRACT = "openpump-pattern-v1";
+    public static final String ROUTINES_PATH = "/partner-routines?execution=" + EXECUTION_CONTRACT;
     public static final int MAX_BYTES = 1_000_000;
     // Below both the older pilot's 100 and the current handler's 500-session limit.
     public static final int BATCH_SIZE = 100;
@@ -41,7 +44,7 @@ public final class GrowthTrackProtocol {
             if (!state.matches("[a-f0-9]{64}") || !verifier.matches("[A-Za-z0-9._~-]{43,128}"))
                 throw new JSONException("Invalid saved authorization");
             String scope = o.getString("scope");
-            if (!WRITE.equals(scope)) throw new JSONException("Invalid saved scope");
+            if (!WRITE.equals(scope) && !WITH_ROUTINES.equals(scope)) throw new JSONException("Invalid saved scope");
             return new Pending(state, verifier, scope, o.getLong("created_at"));
         }
         public String authorizeUrl() {
@@ -53,10 +56,11 @@ public final class GrowthTrackProtocol {
         }
     }
 
-    public static Pending pending(long now) {
+    public static Pending pending(long now) { return pending(now, false); }
+    public static Pending pending(long now, boolean routines) {
         SecureRandom random = new SecureRandom();
         byte[] a = new byte[32], b = new byte[32]; random.nextBytes(a); random.nextBytes(b);
-        return new Pending(hex(a), hex(b), WRITE, now);
+        return new Pending(hex(a), hex(b), routines ? WITH_ROUTINES : WRITE, now);
     }
     /** THE CONNECTION'S OWN ID (small fix): a fresh random value made when an account is
      *  connected, never the OAuth state - that one went to the server in the authorize URL and

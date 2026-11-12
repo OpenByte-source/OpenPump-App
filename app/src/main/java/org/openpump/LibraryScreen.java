@@ -506,6 +506,8 @@ final class LibraryScreen {
         adds.setGravity(Gravity.CENTER_VERTICAL);
         a.body.addView(adds, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        Button gtImport = Ui.big(a, adds, "Import from GrowthTrack", Ui.ACCENT);
+        gtImport.setOnClickListener(new GrowthTrackActivity.OpenTap(a, 0, GrowthTrackReturn.FROM_SETTINGS));
         Button add = Ui.big(a, adds, "+ New routine", Ui.ACCENT);
         LinearLayout.LayoutParams addLp = (LinearLayout.LayoutParams) add.getLayoutParams();
         addLp.width = 0;
