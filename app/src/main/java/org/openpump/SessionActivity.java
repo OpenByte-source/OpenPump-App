@@ -530,6 +530,10 @@ public class SessionActivity extends Activity
         // Wave 1 §4: existing trainer mints' check pulls capped in place, length mints
         // moved to after — idempotent, keeps id/name/history/signatures.
         repaired += model.capMintAssessments();
+        // Every routine's stage waits by the one rule - a length routine added from a share
+        // code, or restored from a version, before the waits travelled carries no track and
+        // ran its changeover as a timed rest. Only ever adds a wait; before the reshape.
+        repaired += model.giveRoutinesTheirWaits();
         // Wave 3a: saved length mints reshaped in place — one set per traction block,
         // gaps a release to 0, no inter-block rest, no retention hold.
         repaired += model.reshapeTractionStages();
@@ -35754,6 +35758,10 @@ public class SessionActivity extends Activity
             return;
         }
 
+        // Every routine's stage waits, as onCreate gives them, now rather than only from the
+        // next launch - so a run started straight after the restore cannot pull without them.
+        int waited = restoredModel.giveRoutinesTheirWaits();
+        if (waited > 0) log("--- restore: " + waited + " routine(s) given their stage waits ---");
         File photosDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         // A backup from an older app id (PumpDebug) points its photos at that app's
         // folder; the files land in THIS one, so the paths follow them.

@@ -76,7 +76,12 @@ class ShareCodeAssessTest {
     }
 
     @Test void anUnknownPackedVersionIsStillRefused() {
-        String v3 = withVersion(OLD_V3, 3);
-        assertThrows(JSONException.class, () -> Model.Routine.fromShareCode(v3));
+        // EXPECTATION CHANGED (StageWaitsCarryTest): packed version 3 is now the code that
+        // carries the stages' waits (Model.Routine#SHARE_PACKED_VERSION_WAITS), so the first
+        // unknown version is 4 - and the top of the field, 15, is refused too.
+        String v4 = withVersion(OLD_V3, 4);
+        assertThrows(JSONException.class, () -> Model.Routine.fromShareCode(v4));
+        String v15 = withVersion(OLD_V3, 15);
+        assertThrows(JSONException.class, () -> Model.Routine.fromShareCode(v15));
     }
 }

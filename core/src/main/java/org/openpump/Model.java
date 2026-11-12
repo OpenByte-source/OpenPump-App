@@ -3378,6 +3378,26 @@ public final class Model {
          */
         public boolean awaitsDone() { return rest && (awaitAck || manual); }
 
+        /**
+         * THE RELEASE AND THE CHANGEOVER WAIT WHEREVER THEY ARE REBUILT: what carries no stage
+         * flags (a share code or a version archived before they travelled) gives the hand
+         * release back its wait for Done, and the changeover its wait for "I've swapped" from
+         * its start - told which this is by Model#giveStagesTheirWaits, the one rule. Only
+         * ever ADDS a wait, only on a rest, and empties the rest's sets first (a manual stage
+         * holds no sets, WiringCheck invariant 29). Returns whether it changed anything.
+         */
+        boolean giveHandWaitBack(boolean release, boolean changeover) {
+            if (!rest || !(release || changeover)) return false;
+            if (manual && (awaitAck || !changeover)) return false;
+            clampRest();
+            // Written `manual = rest`, not `= true`: WiringCheck's invariant 29 checks every
+            // `.manual = true` sits on a Stage.restOf stage; this one is a rest whose sets
+            // clampRest has just emptied, which is what that rule protects.
+            manual = rest;
+            if (changeover) awaitAck = rest;
+            return true;
+        }
+
         /** Whether this stage's frames are excluded from NET TUP. Gross still counts them:
          *  the cuff was sealed and the time was real. One predicate, so a third kind of
          *  excluded stage cannot be added to one caller and forgotten at another. */
@@ -4093,6 +4113,14 @@ public final class Model {
          *  never written - the stream is version 1's; see {@link #toShareCode}. */
         static final int SHARE_PACKED_VERSION_INTERIM = 2;
 
+        /** The packed version that carries each stage's waits - two bits after its rest
+         *  time, Stage#manual and Stage#awaitAck. Written only for a routine that has a wait,
+         *  so a code for one that has none is version 1, byte for byte what it always was; a
+         *  build before this refuses a version-3 code as unrecognised rather than run its
+         *  changeover as a timed rest. The same number and the same two bits as the next
+         *  minor version's, so a code made by either reads on both. */
+        static final int SHARE_PACKED_VERSION_WAITS = 3;
+
         /**
          * The stage colours a v3 code writes as a 4-bit palette index instead of 32 raw
          * bits. MIRRORS Look.BLOCKS BY VALUE: Model stays free of every android-adjacent
@@ -4163,7 +4191,24 @@ public final class Model {
          * packed version 2 (identical otherwise) and read version-1 codes as off; version 1
          * is written again, so a code made now imports on every build, and a version-2 code
          * still decodes, its bit kept.
+         *
+         * THE STAGES' WAITS DO TRAVEL. A routine with a stage that waits for the person
+         * (Stage#manual, Stage#awaitAck: the release, the changeover) is written as packed
+         * version 3, two bits per stage, which a build before this refuses rather than run
+         * the changeover as a timed rest; a routine with none is version 1, byte for byte what
+         * it always was. Stage#traction does not travel: it is the trainer's marker, like the
+         * fatigue one it would be read against without.
          */
+        /** Whether any stage waits for the person (Stage#manual or #awaitAck, on a rest) -
+         *  what makes a share code carry the waits. */
+        boolean hasStageWaits() {
+            for (int i = 0; i < stages.size(); i++) {
+                Stage st = stages.get(i);
+                if (st != null && st.rest && (st.manual || st.awaitAck)) return true;
+            }
+            return false;
+        }
+
         public String toShareCode(Model model) throws JSONException {
             if (stages.size() > 15) return toShareCodeV2(model);
             for (int i = 0; i < stages.size(); i++) {
@@ -4173,8 +4218,10 @@ public final class Model {
                     if (model.set(st.setIds.get(j)) != null) n++;
                 if (n > 15) return toShareCodeV2(model);
             }
+            boolean waits = hasStageWaits();
             BitWriter w = new BitWriter();
-            w.write(4, 1);                                   // packed-format version
+            // packed-format version: 3 with the waits, else 1 as it always was
+            w.write(4, waits ? SHARE_PACKED_VERSION_WAITS : 1);
             writeNameV3(w, name, "Routine");
             w.write(3, markOf(mark));
             Assess as = assess == null ? new Assess() : assess;
@@ -4199,6 +4246,10 @@ public final class Model {
                 }
                 w.write(1, st.rest ? 1 : 0);
                 w.write(12, bounded(st.restSec, 0, 4095));
+                if (waits) {
+                    w.write(1, st.rest && st.manual ? 1 : 0);
+                    w.write(1, st.rest && st.awaitAck ? 1 : 0);
+                }
                 List<Set> resolved = new ArrayList<Set>();
                 for (int j = 0; j < st.setIds.size(); j++) {
                     Set s = model.set(st.setIds.get(j));
@@ -4253,7 +4304,9 @@ public final class Model {
          *  pinned — old codes must import forever, so the test needs a way to MAKE one. */
         public String toShareCodeV2(Model model) throws JSONException {
             JSONObject o = new JSONObject();
-            o.put("v", 1);
+            // 2 with the waits, so a build that cannot read them refuses the code; 1 without,
+            // the document it always was.
+            o.put("v", hasStageWaits() ? 2 : 1);
             o.put("name", name);
             o.put("mark", mark);
             JSONArray stagesArr = new JSONArray();
@@ -4264,6 +4317,8 @@ public final class Model {
                 so.put("colour", st.colour);
                 so.put("rest", st.rest);
                 so.put("restSec", st.restSec);
+                if (st.rest && st.manual) so.put("manual", true);
+                if (st.rest && st.awaitAck) so.put("ack", true);
                 JSONArray setsArr = new JSONArray();
                 for (int j = 0; j < st.setIds.size(); j++) {
                     Set s = model.set(st.setIds.get(j));
@@ -4349,7 +4404,10 @@ public final class Model {
             }
             String json = new String(raw, StandardCharsets.UTF_8);
             JSONObject o = new JSONObject(json);
-            if (o.optInt("v", -1) != 1)
+            // 2 is a code that carries its stages' waits (see toShareCodeV2); a build before
+            // it refuses one rather than run it without them.
+            int docVersion = o.optInt("v", -1);
+            if (docVersion != 1 && docVersion != 2)
                 throw new JSONException("unrecognised share code version");
             JSONArray stagesArr = o.optJSONArray("stages");
             if (stagesArr == null) throw new JSONException("share code has no stages");
@@ -4390,9 +4448,14 @@ public final class Model {
                         st.setIds.add(s.id);
                     }
                 }
+                // The waits as the code carries them - only ever on a rest.
+                st.manual = st.rest && so.optBoolean("manual", false);
+                st.awaitAck = st.rest && so.optBoolean("ack", false);
                 st.clampRest();
                 r.stages.add(st);
             }
+            // ...and what a code made before they travelled lost, by the one rule.
+            giveStagesTheirWaits(r.stages);
             // A GENUINELY EMPTY "stages":[] is not corruption — Model#removeStage has no
             // "keep at least one" guard (the same as the legacy JSON migration above it in
             // this file, which "simply starts with zero stages" rather than treating that
@@ -4415,8 +4478,10 @@ public final class Model {
         private static Decoded fromShareCodeV3(byte[] packed) throws JSONException {
             BitReader rd = new BitReader(packed);
             int version = rd.read(4);
-            // 2 is an interim build's (see toShareCode); the stream is the same.
-            if (version != 1 && version != SHARE_PACKED_VERSION_INTERIM)
+            // 2 is an interim build's (see toShareCode); the stream is the same. 3 carries
+            // each stage's waits; a build before it refuses one.
+            if (version != 1 && version != SHARE_PACKED_VERSION_INTERIM
+                    && version != SHARE_PACKED_VERSION_WAITS)
                 throw new JSONException("unrecognised share code version");
             Decoded d = new Decoded();
             Routine r = new Routine();
@@ -4446,6 +4511,12 @@ public final class Model {
                 }
                 st.rest = rd.read(1) == 1;
                 st.restSec = rd.read(12);
+                if (version == SHARE_PACKED_VERSION_WAITS) {
+                    // The waits as the code carries them - only ever on a rest.
+                    boolean man = rd.read(1) == 1, ack = rd.read(1) == 1;
+                    st.manual = st.rest && man;
+                    st.awaitAck = st.rest && ack;
+                }
                 st.fatigueBlock = false;
                 st.retention = false;
                 int nSets = rd.read(4);
@@ -4459,6 +4530,8 @@ public final class Model {
                 st.clampRest();
                 r.stages.add(st);
             }
+            // ...and what a code made before they travelled lost, by the one rule.
+            giveStagesTheirWaits(r.stages);
             d.routine = r;
             return d;
         }
@@ -4721,6 +4794,13 @@ public final class Model {
              *  length work). MIGRATION: absent on every recording written before it - -1,
              *  unknown, and then only a routine that still matches the snapshot may answer. */
             public int role = ROLE_UNKNOWN;
+            /** The stage's waits, frozen at run start: Stage#manual (the release waits for
+             *  Done once its time is up) and Stage#awaitAck (the changeover waits for "I've
+             *  swapped" from its start), so a version restored as a copy waits where the
+             *  routine did. MIGRATION: absent on every recording written before - false, and
+             *  the restore gives the waits back by the builder's rule
+             *  (Model#giveStagesTheirWaits). */
+            public boolean manual, awaitAck;
             public final List<String> setIds = new ArrayList<String>();
             /** One entry per setIds entry (or EMPTY on a recording written before set values
              *  were snapshotted — see {@link SetSnap}). */
@@ -4842,6 +4922,8 @@ public final class Model {
                 st.rest = src.rest;
                 st.restSec = src.restSec;
                 st.role = roleOf(src);
+                st.manual = src.manual;
+                st.awaitAck = src.awaitAck;
                 st.setIds.addAll(src.setIds);
                 if (m != null)
                     for (int j = 0; j < src.setIds.size(); j++)
@@ -4905,6 +4987,9 @@ public final class Model {
                 so.put("rest", st.rest);
                 so.put("restSec", st.restSec);
                 if (st.role >= 0) so.put("role", st.role);
+                // Written only when set, so an unflagged stage's line is unchanged.
+                if (st.manual) so.put("man", true);
+                if (st.awaitAck) so.put("ack", true);
                 JSONArray ids = new JSONArray();
                 for (int j = 0; j < st.setIds.size(); j++) ids.put(st.setIds.get(j));
                 so.put("sets", ids);
@@ -4937,6 +5022,10 @@ public final class Model {
                 st.restSec = so.optInt("restSec", 0);
                 int role = so.optInt("role", ROLE_UNKNOWN);
                 st.role = role >= ROLE_WORK && role <= ROLE_TRACTION ? role : ROLE_UNKNOWN;
+                // MIGRATION: absent on every recording written before - false; a restore
+                // gives the waits back by the builder's rule (giveStagesTheirWaits).
+                st.manual = so.optBoolean("man", false);
+                st.awaitAck = so.optBoolean("ack", false);
                 JSONArray ids = so.optJSONArray("sets");
                 if (ids != null) for (int j = 0; j < ids.length(); j++) st.setIds.add(ids.optString(j));
                 // MIGRATION: absent on every recording written before set values were
@@ -9052,6 +9141,48 @@ public final class Model {
     }
 
     /**
+     * EVERY WAIT A LENGTH ROUTINE HAS, GIVEN BACK BY ONE RULE. What carries no stage flags - a
+     * share code made before they travelled, a version archived before its snapshot kept
+     * them, a routine already in the library from either - is given its waits by what the
+     * builder names and where it puts them: the hand release for Done (Plan#isHandRelease),
+     * and the changeover for "I've swapped" from its start (Plan#isChangeover, by its lead or
+     * its place before the expansion). The share-code readers, restoreRoutineVersion and the
+     * load repair (#giveRoutinesTheirWaits) all call this and nothing else, so there is no
+     * second rule to drift. Only ever ADDS a wait, so a stage that already waits, and a
+     * hand-built rest the builder never made, are left as they are. Returns whether it
+     * changed anything.
+     */
+    public static boolean giveStagesTheirWaits(List<Stage> stages) {
+        boolean changed = false;
+        for (int i = 0; i < stages.size(); i++) {
+            Stage st = stages.get(i);
+            if (st == null) continue;
+            if (st.giveHandWaitBack(Plan.isHandRelease(st), Plan.isChangeover(stages, i)))
+                changed = true;
+        }
+        return changed;
+    }
+
+    /**
+     * EVERY SAVED ROUTINE GETS ITS STAGE WAITS, NOT ONLY A LENGTH-MARKED ONE. A share code
+     * carries no trainer track, so a length routine imported before this sits in the library
+     * unmarked, its changeover a plain timed rest and its release a rest that runs on. The
+     * load (SessionActivity#onCreate) and a backup restore run this BEFORE
+     * reshapeTractionStages: the one rule (giveStagesTheirWaits) over every routine. It only
+     * ever ADDS a wait, only to a rest the builder names or places (never a set, never
+     * pressure), and a stage that already waits is left as it is - so a second run changes
+     * nothing. Returns how many routines changed.
+     */
+    public int giveRoutinesTheirWaits() {
+        int changed = 0;
+        for (int ri = 0; ri < routines.size(); ri++) {
+            Routine r = routines.get(ri);
+            if (r != null && giveStagesTheirWaits(r.stages)) changed++;
+        }
+        return changed;
+    }
+
+    /**
      * ONE-TIME IN-PLACE RESHAPE OF SAVED LENGTH MINTS (wave 3a, owner rulings). The old
      * builder wrote each traction block as per-hold sets interleaved with rest SETS, put
      * a 30 s rest stage between the two blocks, and appended a 10-minute retention hold.
@@ -10596,9 +10727,14 @@ public final class Model {
                     st.setIds.add(nid);
                 }
             }
+            // The waits as the snapshot froze them - only ever on a rest.
+            st.manual = ss.rest && ss.manual;
+            st.awaitAck = ss.rest && ss.awaitAck;
             st.clampRest();
             draft.stages.add(st);
         }
+        // ...and what a snapshot archived before they were kept lost, by the one rule.
+        giveStagesTheirWaits(draft.stages);
         // Routine#copy is reused verbatim for the deep-copy-under-a-new-id machinery it
         // already gives every other duplicate in this app — its own "+ copy" suffix is
         // then overwritten with a name that says which version this came from, so the

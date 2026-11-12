@@ -2603,6 +2603,10 @@ public final class WiringCheck {
         /* Invariants 252-253 (GrowthTrack, app phase): no GrowthTrack screen opens or stays
          * during a live run, and every GrowthTrack dialog goes through Ui.dress. */
         checkGrowthTrackFiles(SRC_DIR, violations);
+        /* Invariant 267: a shared or restored routine waits where the original did - the
+         * stage waits travel in share codes and version snapshots, and every saved routine is
+         * given them back at load and on a backup restore. */
+        checkStageWaitsFiles(SRC_DIR, violations);
         System.out.println("WiringCheck: " + pure.size() + " source(s) scanned for the pure "
             + "invariants (28, 29, 30)");
 
@@ -28376,6 +28380,8 @@ public final class WiringCheck {
         byHandSelfTests(counts);
         /* ---- invariants 252-253 (GrowthTrack: no screen over a run; every dialog dressed) ---- */
         growthTrackSelfTests(counts);
+        /* ---- invariant 267 (a shared or restored routine waits where the original did) ---- */
+        stageWaitsSelfTests(counts);
 
         /* ---- blankStringLiterals ------------------------------------------------ */
 
@@ -32092,6 +32098,327 @@ public final class WiringCheck {
             checkByHand(s2, a2, l2, v2, v);
             selfCheck(counts, changed && v.size() == 1,
                 "INV251 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
+        }
+    }
+
+    /* =====================================================================================
+     * INVARIANT 267: A SHARED OR RESTORED ROUTINE WAITS WHERE THE ORIGINAL DID.
+     * A length routine waits two ways: the hand release waits for Done once its time is up
+     * (Stage#manual) and the changeover waits for "I've swapped" from its start
+     * (Stage#awaitAck). A routine that arrives by a share code or a version restore must never
+     * start a pull the original would have waited for:
+     *   (a) the one rule (Model#giveStagesTheirWaits) gives the release and the changeover
+     *       their waits through Stage#giveHandWaitBack, which only ever adds a wait, only to a
+     *       rest, after clampRest empties its sets (invariant 29), and the changeover's from
+     *       its start;
+     *   (b) what is rebuilt - both share-code readers and a restored version - reads the waits
+     *       it carries (only ever onto a rest), then runs the one rule over every stage after
+     *       the last is added, for what was made before the waits travelled;
+     *   (c) the waits travel: both share-code writers write them, under a version an older
+     *       build refuses (packed 3, document 2), and a version's snapshot freezes, saves and
+     *       loads them;
+     *   (d) the copies carry both flags: Routine#copy, Routine#stepUpCopy, Model#plan's preset;
+     *   (e) the load (onCreate) runs the rule over every saved routine before the reshape and
+     *       before it saves, and a backup restore runs it before the restored file is saved.
+     * ===================================================================================== */
+    static final String[][] WAIT_REBUILDS = {
+        { "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "a v1/v2 share code",
+          "st.manual=st.rest&&so.optBoolean(\"manual\",false);"
+          + "st.awaitAck=st.rest&&so.optBoolean(\"ack\",false);",
+          "giveStagesTheirWaits(r.stages);" },
+        { "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "a v3 share code",
+          "st.manual=st.rest&&man;st.awaitAck=st.rest&&ack;",
+          "giveStagesTheirWaits(r.stages);" },
+        { "Routine\\s+restoreRoutineVersion\\s*\\(", "restoreRoutineVersion", "a restored version",
+          "st.manual=ss.rest&&ss.manual;st.awaitAck=ss.rest&&ss.awaitAck;",
+          "giveStagesTheirWaits(draft.stages);" },
+    };
+    /** (c) and (d): { signature (or OWN_TOJSON:<class>), name, statement, what it carries }. */
+    static final String[][] WAIT_CARRIES = {
+        { "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode",
+          "w.write(1,st.rest&&st.manual?1:0);w.write(1,st.rest&&st.awaitAck?1:0);",
+          "a v3 share code's waits" },
+        { "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode",
+          "w.write(4,waits?SHARE_PACKED_VERSION_WAITS:1);",
+          "a v3 share code's version, which an older build refuses" },
+        { "String\\s+toShareCodeV2\\s*\\(", "toShareCodeV2",
+          "if(st.rest&&st.manual)so.put(\"manual\",true);if(st.rest&&st.awaitAck)so.put(\"ack\",true);",
+          "a v2 share code's waits" },
+        { "String\\s+toShareCodeV2\\s*\\(", "toShareCodeV2", "o.put(\"v\",hasStageWaits()?2:1);",
+          "a v2 share code's version, which an older build refuses" },
+        { "AsRunSnapshot\\s+of\\s*\\(\\s*Routine", "AsRunSnapshot.of",
+          "st.manual=src.manual;st.awaitAck=src.awaitAck;", "a version's snapshot" },
+        { "OWN_TOJSON:AsRunSnapshot", "AsRunSnapshot.toJson",
+          "if(st.manual)so.put(\"man\",true);if(st.awaitAck)so.put(\"ack\",true);",
+          "a saved snapshot" },
+        { "static\\s+AsRunSnapshot\\s+fromJson\\s*\\(", "AsRunSnapshot.fromJson",
+          "st.manual=so.optBoolean(\"man\",false);st.awaitAck=so.optBoolean(\"ack\",false);",
+          "a loaded snapshot" },
+        { "Routine\\s+copy\\s*\\(\\s*String\\s+newId\\s*\\)", "copy", "cs.manual=src.manual;",
+          "a duplicate's by-hand flag" },
+        { "Routine\\s+copy\\s*\\(\\s*String\\s+newId\\s*\\)", "copy", "cs.awaitAck=src.awaitAck;",
+          "a duplicate's changeover wait" },
+        { "Routine\\s+stepUpCopy\\s*\\(", "stepUpCopy", "cs.manual=src.manual;",
+          "a stepped-up copy's by-hand flag" },
+        { "Routine\\s+stepUpCopy\\s*\\(", "stepUpCopy", "cs.awaitAck=src.awaitAck;",
+          "a stepped-up copy's changeover wait" },
+        { "List<Preset>\\s+plan\\s*\\(\\s*Routine\\s+r\\s*\\)", "plan", "p.manual=st.manual;",
+          "the run's by-hand step" },
+        { "List<Preset>\\s+plan\\s*\\(\\s*Routine\\s+r\\s*\\)", "plan", "p.awaitAck=st.awaitAck;",
+          "the run's wait for \"I've swapped\"" },
+    };
+
+    static void checkStageWaitsFiles(String dir, List<String> violations) throws IOException {
+        String model = runScreenRaw(dir, "Model.java", violations);
+        String act = runScreenRaw(dir, "SessionActivity.java", violations);
+        checkStageWaits(model, act, violations);
+    }
+
+    static void checkStageWaits(String model, String act, List<String> violations) {
+        if (model != null) {
+            // (a) the one rule, and the only way it adds a wait.
+            String gs = body228(model, "boolean\\s+giveStagesTheirWaits\\s*\\(", "Model.java",
+                "giveStagesTheirWaits", violations);
+            if (gs != null && gs.indexOf("st.giveHandWaitBack(Plan.isHandRelease(st),"
+                    + "Plan.isChangeover(stages,i))") < 0)
+                violations.add("Model.java: invariant 267 - giveStagesTheirWaits no longer gives "
+                    + "the hand release (Plan.isHandRelease) and the changeover (Plan.isChangeover) "
+                    + "their waits - what carries no flags would run on into a pull");
+            String gh = body228(model, "boolean\\s+giveHandWaitBack\\s*\\(", "Model.java",
+                "giveHandWaitBack", violations);
+            if (gh != null) {
+                int guard = gh.indexOf("if(!rest||!(release||changeover))returnfalse;");
+                int clamp = gh.indexOf("clampRest();");
+                int man = gh.indexOf("manual=rest;");
+                int ack = gh.indexOf("if(changeover)awaitAck=rest;");
+                if (guard < 0 || clamp < 0 || man < 0 || ack < 0
+                        || guard > clamp || clamp > man || clamp > ack)
+                    violations.add("Model.java: invariant 267 - Stage#giveHandWaitBack no longer "
+                        + "gives only a rest its wait, after clampRest empties its sets "
+                        + "(invariant 29), and the changeover its wait from its start");
+            }
+            // (b) the rebuilds: the waits they carry, then the rule for what they do not.
+            for (int i = 0; i < WAIT_REBUILDS.length; i++) {
+                String b = body228(model, WAIT_REBUILDS[i][0], "Model.java", WAIT_REBUILDS[i][1],
+                    violations);
+                if (b == null) continue;
+                int read = b.indexOf(WAIT_REBUILDS[i][3]);
+                int added = b.lastIndexOf(".stages.add(st);");
+                int give = b.lastIndexOf(WAIT_REBUILDS[i][4]);
+                if (read < 0)
+                    violations.add("Model.java: invariant 267 - " + WAIT_REBUILDS[i][2] + " ("
+                        + WAIT_REBUILDS[i][1] + ") drops the waits it carries ("
+                        + WAIT_REBUILDS[i][3] + ") - a changeover would run as a timed rest");
+                if (give < 0 || give < added)
+                    violations.add("Model.java: invariant 267 - " + WAIT_REBUILDS[i][2] + " ("
+                        + WAIT_REBUILDS[i][1] + ") rebuilds a routine without giving every "
+                        + "stage its wait by the one rule (" + WAIT_REBUILDS[i][4]
+                        + " after the last stage is added)");
+            }
+            // (c) and (d): the waits travel, and the copies carry them.
+            for (int i = 0; i < WAIT_CARRIES.length; i++) {
+                String sig = WAIT_CARRIES[i][0], b = null;
+                if (sig.startsWith("OWN_TOJSON:")) {
+                    int[] span = ownToJson(model, sig.substring("OWN_TOJSON:".length()));
+                    if (span == null)
+                        violations.add("Model.java: invariant 267 names " + WAIT_CARRIES[i][1]
+                            + " but it is gone - renamed? Update the check deliberately");
+                    else b = flat224(model.substring(span[0], span[1]));
+                } else {
+                    b = body228(model, sig, "Model.java", WAIT_CARRIES[i][1], violations);
+                }
+                if (b != null && b.indexOf(WAIT_CARRIES[i][2]) < 0)
+                    violations.add("Model.java: invariant 267 - " + WAIT_CARRIES[i][1] + " no "
+                        + "longer keeps " + WAIT_CARRIES[i][3] + " (" + WAIT_CARRIES[i][2] + ")");
+            }
+        }
+        if (act != null) {
+            // (e) the load and a backup restore.
+            String oc = body228(act, "void\\s+onCreate\\s*\\(\\s*Bundle", "SessionActivity.java",
+                "onCreate", violations);
+            if (oc != null) {
+                int give = oc.indexOf("repaired+=model.giveRoutinesTheirWaits();");
+                int reshape = oc.indexOf("model.reshapeTractionStages();");
+                int save = oc.indexOf("if(repaired>0)Store.save(this,model);");
+                if (give < 0 || reshape < 0 || save < 0 || give > reshape || give > save)
+                    violations.add("SessionActivity.java: invariant 267 - onCreate no longer gives "
+                        + "every saved routine its stage waits (giveRoutinesTheirWaits) before the "
+                        + "reshape and the save - a routine added from an old code would run its "
+                        + "changeover as a timed rest");
+            }
+            String rb = body228(act, "void\\s+restoreFromBackup\\s*\\(", "SessionActivity.java",
+                "restoreFromBackup", violations);
+            if (rb != null) {
+                int give = rb.indexOf("restoredModel.giveRoutinesTheirWaits();");
+                int save = rb.indexOf("Store.save(this,restoredModel);");
+                if (give < 0 || save < 0 || give > save)
+                    violations.add("SessionActivity.java: invariant 267 - a backup restore no longer "
+                        + "gives every routine its stage waits before the restored file is saved");
+            }
+        }
+    }
+
+    /** Invariant 267's self-test: the app's shapes pass, and each way a wait is lost is caught. */
+    static void stageWaitsSelfTests(int[] counts) {
+        String model =
+              "boolean giveHandWaitBack(boolean release, boolean changeover) {\n"
+            + "    if (!rest || !(release || changeover)) return false;\n"
+            + "    if (manual && (awaitAck || !changeover)) return false;\n"
+            + "    clampRest();\n"
+            + "    manual = rest;\n"
+            + "    if (changeover) awaitAck = rest;\n"
+            + "    return true;\n"
+            + "}\n"
+            + "public Routine copy(String newId) {\n"
+            + "    cs.awaitAck = src.awaitAck;\n"
+            + "    cs.manual = src.manual;\n"
+            + "}\n"
+            + "public Routine stepUpCopy(String newId, Model model) {\n"
+            + "    cs.awaitAck  = src.awaitAck;\n"
+            + "    cs.manual  = src.manual;\n"
+            + "}\n"
+            + "public String toShareCode(Model model) throws JSONException {\n"
+            + "    w.write(4, waits ? SHARE_PACKED_VERSION_WAITS : 1);\n"
+            + "    w.write(1, st.rest && st.manual ? 1 : 0);\n"
+            + "    w.write(1, st.rest && st.awaitAck ? 1 : 0);\n"
+            + "}\n"
+            + "public String toShareCodeV2(Model model) throws JSONException {\n"
+            + "    o.put(\"v\", hasStageWaits() ? 2 : 1);\n"
+            + "    if (st.rest && st.manual) so.put(\"manual\", true);\n"
+            + "    if (st.rest && st.awaitAck) so.put(\"ack\", true);\n"
+            + "}\n"
+            + "public static Decoded fromShareCode(String code) {\n"
+            + "    for (int i = 0; i < n; i++) {\n"
+            + "    st.manual = st.rest && so.optBoolean(\"manual\", false);\n"
+            + "    st.awaitAck = st.rest && so.optBoolean(\"ack\", false);\n"
+            + "    st.clampRest();\n"
+            + "    r.stages.add(st);\n"
+            + "    }\n"
+            + "    giveStagesTheirWaits(r.stages);\n"
+            + "}\n"
+            + "private static Decoded fromShareCodeV3(byte[] packed) {\n"
+            + "    for (int i = 0; i < n; i++) {\n"
+            + "    st.manual = st.rest && man;\n"
+            + "    st.awaitAck = st.rest && ack;\n"
+            + "    st.clampRest();\n"
+            + "    r.stages.add(st);\n"
+            + "    }\n"
+            + "    giveStagesTheirWaits(r.stages);\n"
+            + "}\n"
+            + "public static final class AsRunSnapshot {\n"
+            + "    public static AsRunSnapshot of(Routine r, Model m) {\n"
+            + "        st.manual = src.manual;\n"
+            + "        st.awaitAck = src.awaitAck;\n"
+            + "    }\n"
+            + "    public JSONObject toJson() throws JSONException {\n"
+            + "        if (st.manual) so.put(\"man\", true);\n"
+            + "        if (st.awaitAck) so.put(\"ack\", true);\n"
+            + "    }\n"
+            + "    public static AsRunSnapshot fromJson(JSONObject o) {\n"
+            + "        st.manual = so.optBoolean(\"man\", false);\n"
+            + "        st.awaitAck = so.optBoolean(\"ack\", false);\n"
+            + "    }\n"
+            + "}\n"
+            + "public static boolean giveStagesTheirWaits(List<Stage> stages) {\n"
+            + "    if (st.giveHandWaitBack(Plan.isHandRelease(st), Plan.isChangeover(stages, i)))\n"
+            + "        changed = true;\n"
+            + "}\n"
+            + "public Routine restoreRoutineVersion(String routineId, int idx) {\n"
+            + "    for (int i = 0; i < n; i++) {\n"
+            + "    st.manual = ss.rest && ss.manual;\n"
+            + "    st.awaitAck = ss.rest && ss.awaitAck;\n"
+            + "    st.clampRest();\n"
+            + "    draft.stages.add(st);\n"
+            + "    }\n"
+            + "    giveStagesTheirWaits(draft.stages);\n"
+            + "}\n"
+            + "public List<Preset> plan(Routine r) {\n"
+            + "    p.awaitAck = st.awaitAck;\n"
+            + "    p.manual = st.manual;\n"
+            + "}\n";
+        String act =
+              "protected void onCreate(Bundle b) {\n"
+            + "    repaired += model.capMintAssessments();\n"
+            + "    repaired += model.giveRoutinesTheirWaits();\n"
+            + "    repaired += model.reshapeTractionStages();\n"
+            + "    if (repaired > 0) Store.save(this, model);\n"
+            + "}\n"
+            + "private void restoreFromBackup(List<Backup.Entry> entries) {\n"
+            + "    int waited = restoredModel.giveRoutinesTheirWaits();\n"
+            + "    Store.save(this, restoredModel);\n"
+            + "}\n";
+        List<String> v = new ArrayList<String>();
+        checkStageWaits(model, act, v);
+        selfCheck(counts, v.isEmpty(), "INV267 control: the app's shapes pass (got " + v + ")");
+
+        String[][] bad = {
+            { "M", "the rule without the changeover",
+              "Plan.isHandRelease(st), Plan.isChangeover(stages, i))", "Plan.isHandRelease(st), false)" },
+            { "M", "the rule without the release",
+              "Plan.isHandRelease(st), Plan.isChangeover(stages, i))", "false, Plan.isChangeover(stages, i))" },
+            { "M", "a hand wait given to a stage that commands",
+              "    if (!rest || !(release || changeover)) return false;\n",
+              "    if (!(release || changeover)) return false;\n" },
+            { "M", "a hand wait before clampRest",
+              "    clampRest();\n    manual = rest;\n    if (changeover)",
+              "    manual = rest;\n    clampRest();\n    if (changeover)" },
+            { "M", "the changeover given no wait from its start",
+              "    if (changeover) awaitAck = rest;\n", "" },
+            { "M", "a v1/v2 share code dropping the waits it carries",
+              "    st.manual = st.rest && so.optBoolean(\"manual\", false);\n", "" },
+            { "M", "a v1/v2 share code dropping the changeover's wait",
+              "    st.awaitAck = st.rest && so.optBoolean(\"ack\", false);\n", "" },
+            { "M", "a v1/v2 share code without the rule",
+              "    giveStagesTheirWaits(r.stages);\n}\nprivate static Decoded fromShareCodeV3",
+              "}\nprivate static Decoded fromShareCodeV3" },
+            { "M", "a v1/v2 share code running the rule before its stages are in",
+              "    st.clampRest();\n    r.stages.add(st);\n    }\n    giveStagesTheirWaits(r.stages);\n"
+              + "}\nprivate static Decoded fromShareCodeV3",
+              "    st.clampRest();\n    giveStagesTheirWaits(r.stages);\n    r.stages.add(st);\n    }\n"
+              + "}\nprivate static Decoded fromShareCodeV3" },
+            { "M", "a v3 share code dropping the waits it carries",
+              "    st.manual = st.rest && man;\n    st.awaitAck = st.rest && ack;\n", "" },
+            { "M", "a v3 share code without the rule",
+              "    giveStagesTheirWaits(r.stages);\n}\npublic static final class AsRunSnapshot",
+              "}\npublic static final class AsRunSnapshot" },
+            { "M", "a restored version dropping the waits its snapshot froze",
+              "    st.manual = ss.rest && ss.manual;\n", "" },
+            { "M", "a restored version without the rule",
+              "    giveStagesTheirWaits(draft.stages);\n", "" },
+            { "M", "a duplicate dropping the by-hand flag", "    cs.manual = src.manual;\n", "" },
+            { "M", "a duplicate dropping the changeover's wait", "    cs.awaitAck = src.awaitAck;\n", "" },
+            { "M", "a stepped-up copy dropping the by-hand flag", "    cs.manual  = src.manual;\n", "" },
+            { "M", "a stepped-up copy dropping the changeover's wait", "    cs.awaitAck  = src.awaitAck;\n", "" },
+            { "M", "the plan's preset dropping the by-hand flag", "    p.manual = st.manual;\n", "" },
+            { "M", "the plan's preset dropping the changeover's wait", "    p.awaitAck = st.awaitAck;\n", "" },
+            { "M", "a v3 code not writing the waits", "    w.write(1, st.rest && st.awaitAck ? 1 : 0);\n", "" },
+            { "M", "a v3 code with the waits under a version an older build reads",
+              "w.write(4, waits ? SHARE_PACKED_VERSION_WAITS : 1);", "w.write(4, 1);" },
+            { "M", "a v2 code not writing the waits", "    if (st.rest && st.manual) so.put(\"manual\", true);\n", "" },
+            { "M", "a v2 code with the waits under a version an older build reads",
+              "o.put(\"v\", hasStageWaits() ? 2 : 1);", "o.put(\"v\", 1);" },
+            { "M", "a snapshot not freezing the waits", "        st.awaitAck = src.awaitAck;\n", "" },
+            { "M", "a snapshot not saving the waits", "        if (st.manual) so.put(\"man\", true);\n", "" },
+            { "M", "a snapshot not loading the waits", "        st.manual = so.optBoolean(\"man\", false);\n", "" },
+            { "A", "a load without the repair", "    repaired += model.giveRoutinesTheirWaits();\n", "" },
+            { "A", "a load repairing after the reshape",
+              "    repaired += model.giveRoutinesTheirWaits();\n    repaired += model.reshapeTractionStages();\n",
+              "    repaired += model.reshapeTractionStages();\n    repaired += model.giveRoutinesTheirWaits();\n" },
+            { "A", "a restore without the repair",
+              "    int waited = restoredModel.giveRoutinesTheirWaits();\n", "" },
+            { "A", "a restore repairing after the save",
+              "    int waited = restoredModel.giveRoutinesTheirWaits();\n    Store.save(this, restoredModel);\n",
+              "    Store.save(this, restoredModel);\n    int waited = restoredModel.giveRoutinesTheirWaits();\n" },
+        };
+        for (int i = 0; i < bad.length; i++) {
+            String m2 = model, a2 = act;
+            if ("M".equals(bad[i][0])) m2 = model.replace(bad[i][2], bad[i][3]);
+            else a2 = act.replace(bad[i][2], bad[i][3]);
+            boolean changed = !m2.equals(model) || !a2.equals(act);
+            v = new ArrayList<String>();
+            checkStageWaits(m2, a2, v);
+            selfCheck(counts, changed && !v.isEmpty(),
+                "INV267 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
         }
     }
 

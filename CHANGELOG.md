@@ -50,6 +50,13 @@ Installs over 0.10.0; nothing to back up or move.
   GrowthTrack now give the same seconds.
 - In the routine editor, a set made with "+ New set" from a stage is added to that stage when
   you save it.
+- A routine added from a share code, or a version restored as a copy, now waits where the
+  original did: the changeover waits for **I've swapped** and the tunica release for **Done**.
+  Before, both arrived as plain timed rests, so the expansion could start pulling in the wrong
+  cylinder. A routine already in your library from a code or a restore gets the same waits when
+  the app opens, or when a backup is restored. A code made from a routine with these waits needs
+  this version or later to add it; an older version says it does not recognise the code. A code
+  made by an older version still adds, with its waits given back.
 
 ## [0.10.0] — 2026-10-07
 

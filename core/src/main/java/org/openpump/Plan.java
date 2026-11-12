@@ -3520,4 +3520,38 @@ public final class Plan {
         for (int i = 0; i < GIRTH_INTERVAL_L2.length; i++) all.add(GIRTH_INTERVAL_L2[i]);
         return all;
     }
+
+    /* ---- THE STAGE WAITS, KNOWN WITHOUT THEIR FLAGS ----
+     * A share code or a version archived before the waits travelled carries no stage flag, so
+     * the release and the changeover are known by what the builder
+     * (RxBuild#tractionRoutineFromRx) names them - and the changeover, whose name carries the
+     * coda's pressure, by its lead or by its place: the rest between the last pull and the
+     * expansion. Read only by Model#giveStagesTheirWaits, which only ever ADDS a wait. */
+
+    /** The builder's name for the tunica release (block 1). */
+    public static final String RELEASE_NAME = "Tunica release — by hand";
+    /** How the builder's changeover name starts (block 4); the coda's pressure follows. */
+    public static final String CHANGEOVER_LEAD = "Swap to your girth cylinder";
+    /** The builder's names for the pulls in front of the changeover, and the coda after it. */
+    public static final String STRAIN_NAME = "Strain holds", FATIGUE_NAME = "Fatigue holds",
+        CODA_NAME = "Expansion";
+
+    /** Is `st` the hand tunica release, by the builder's name? */
+    public static boolean isHandRelease(Model.Stage st) {
+        return st != null && st.rest && RELEASE_NAME.equals(st.name);
+    }
+
+    /** Is stage `i` the changeover: a rest named as the builder names it, or - renamed - the
+     *  rest that stands between a pull and the expansion coda, where only the tube swap goes. */
+    public static boolean isChangeover(java.util.List<Model.Stage> stages, int i) {
+        if (stages == null || i < 0 || i >= stages.size()) return false;
+        Model.Stage st = stages.get(i);
+        if (st == null || !st.rest) return false;
+        if (st.name != null && st.name.startsWith(CHANGEOVER_LEAD)) return true;
+        if (i == 0 || i + 1 >= stages.size()) return false;
+        Model.Stage prev = stages.get(i - 1), next = stages.get(i + 1);
+        boolean pull = prev != null && !prev.rest && (prev.traction
+            || STRAIN_NAME.equals(prev.name) || FATIGUE_NAME.equals(prev.name));
+        return pull && next != null && !next.rest && CODA_NAME.equals(next.name);
+    }
 }
