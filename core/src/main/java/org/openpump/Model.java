@@ -5492,6 +5492,8 @@ public final class Model {
             o.put("setsPlanned", setsPlanned);
             o.put("signal", signal);
             o.put("peak", peakKpa == null ? "" : String.valueOf(peakKpa.doubleValue()));
+            // kPa·s, always: every screen shows it through Fmt.dose in the chosen unit, so
+            // a record's 1462.45 is the summary's "1097 cmHg·s" (DoseOneFigureTest).
             o.put("dose", String.valueOf(doseKpaS));
             o.put("pd", presetsDone);
             o.put("pp", presetsPlanned);
