@@ -4143,6 +4143,16 @@ public final class Model {
          *  minor version's, so a code made by either reads on both. */
         static final int SHARE_PACKED_VERSION_WAITS = 3;
 
+        /** The packed version that carries each stage's markers as well - version 3's stream
+         *  (the two wait bits after the rest time) followed by four more bits per stage:
+         *  Stage#traction, #fatigueBlock, #retention, #climb. Written only for a routine that
+         *  has one of them, so a code for one that has none is version 1 or 3, byte for byte
+         *  what it was; a build before this refuses a version-4 code as unrecognised rather
+         *  than import a length session whose pulls would count as girth work. The next free
+         *  value of the 4-bit field: 1 the base stream, 2 an interim build's (read, never
+         *  written), 3 the waits, 4 the waits and the markers; 0 and 5-15 are unused. */
+        static final int SHARE_PACKED_VERSION_MARKS = 4;
+
         /**
          * The stage colours a v3 code writes as a 4-bit palette index instead of 32 raw
          * bits. MIRRORS Look.BLOCKS BY VALUE: Model stays free of every android-adjacent
@@ -4192,6 +4202,10 @@ public final class Model {
          * fatigue marker is meaningless (and potentially misleading, feeding a Net-TUP
          * exclusion the receiving phone never asked for) outside the trainer plan that
          * placed it.
+         *
+         * (0.10.1, superseded for the stage markers: a routine that HAS one now carries it -
+         * see {@link #hasStageMarks}. Every marker only ever takes a stage out of net, so it
+         * steals nothing on the receiving phone; the trainer track still never travels.)
          */
         /**
          * WAVE-4 WRAP — THE PACKED ENVELOPE. New codes are v3: {@link #SHARE_PREFIX_V3}
@@ -4218,8 +4232,18 @@ public final class Model {
          * (Stage#manual, Stage#awaitAck: the release, the changeover) is written as packed
          * version 3, two bits per stage, which a build before this refuses rather than run
          * the changeover as a timed rest; a routine with none is version 1, byte for byte what
-         * it always was. Stage#traction does not travel: it is the trainer's marker, like the
-         * fatigue one it would be read against without.
+         * it always was.
+         *
+         * AND SO DO THE STAGE MARKERS (0.10.1). An imported length session's Fatigue and
+         * Strain holds arrived without Stage#traction - every format dropped it, and the
+         * fatigue, retention and climb markers with it - so they counted as girth work and
+         * read so to a connected app. A routine with one of them is written as packed version
+         * 4 (the waits and four marker bits per stage) or document version 3, which a build
+         * before this refuses; a routine with none is written exactly as before. Stage#
+         * cylinderId still never travels: it names a tube in the SENDER's rack, which on
+         * another phone is a missing cylinder the run would refuse to start in. A code made
+         * before the markers travelled is given the builder's pulls back on read
+         * (Model#giveStagesTheirMarks), and only when the builder made it.
          */
         /** Whether any stage waits for the person (Stage#manual or #awaitAck, on a rest) -
          *  what makes a share code carry the waits. */
@@ -4227,6 +4251,17 @@ public final class Model {
             for (int i = 0; i < stages.size(); i++) {
                 Stage st = stages.get(i);
                 if (st != null && st.rest && (st.manual || st.awaitAck)) return true;
+            }
+            return false;
+        }
+
+        /** Whether any stage carries a marker (Stage#traction, #fatigueBlock, #retention,
+         *  #climb) - what makes a share code carry the markers. */
+        boolean hasStageMarks() {
+            for (int i = 0; i < stages.size(); i++) {
+                Stage st = stages.get(i);
+                if (st != null && (st.traction || st.fatigueBlock || st.retention || st.climb))
+                    return true;
             }
             return false;
         }
@@ -4240,10 +4275,14 @@ public final class Model {
                     if (model.set(st.setIds.get(j)) != null) n++;
                 if (n > 15) return toShareCodeV2(model);
             }
-            boolean waits = hasStageWaits();
+            // Version 4's stream is version 3's with the markers after the waits, so a code
+            // with a marker writes the wait bits too, whether or not a stage waits.
+            boolean marks = hasStageMarks();
+            boolean waits = marks || hasStageWaits();
             BitWriter w = new BitWriter();
-            // packed-format version: 3 with the waits, else 1 as it always was
-            w.write(4, waits ? SHARE_PACKED_VERSION_WAITS : 1);
+            // packed-format version: 4 with the markers, 3 with the waits, else 1 as it always was
+            if (marks) w.write(4, SHARE_PACKED_VERSION_MARKS);
+            else w.write(4, waits ? SHARE_PACKED_VERSION_WAITS : 1);
             writeNameV3(w, name, "Routine");
             w.write(3, markOf(mark));
             Assess as = assess == null ? new Assess() : assess;
@@ -4271,6 +4310,12 @@ public final class Model {
                 if (waits) {
                     w.write(1, st.rest && st.manual ? 1 : 0);
                     w.write(1, st.rest && st.awaitAck ? 1 : 0);
+                }
+                if (marks) {
+                    w.write(1, st.traction ? 1 : 0);
+                    w.write(1, st.fatigueBlock ? 1 : 0);
+                    w.write(1, st.retention ? 1 : 0);
+                    w.write(1, st.climb ? 1 : 0);
                 }
                 List<Set> resolved = new ArrayList<Set>();
                 for (int j = 0; j < st.setIds.size(); j++) {
@@ -4327,8 +4372,10 @@ public final class Model {
         public String toShareCodeV2(Model model) throws JSONException {
             JSONObject o = new JSONObject();
             // 2 with the waits, so a build that cannot read them refuses the code; 1 without,
-            // the document it always was.
-            o.put("v", hasStageWaits() ? 2 : 1);
+            // the document it always was. 3 with a stage marker, so a build that cannot read
+            // the markers refuses the code too.
+            if (hasStageMarks()) o.put("v", 3);
+            else o.put("v", hasStageWaits() ? 2 : 1);
             o.put("name", name);
             o.put("mark", mark);
             JSONArray stagesArr = new JSONArray();
@@ -4341,6 +4388,11 @@ public final class Model {
                 so.put("restSec", st.restSec);
                 if (st.rest && st.manual) so.put("manual", true);
                 if (st.rest && st.awaitAck) so.put("ack", true);
+                // The markers, each only when set, so an unmarked stage's object is unchanged.
+                if (st.traction) so.put("traction", true);
+                if (st.fatigueBlock) so.put("fatigue", true);
+                if (st.retention) so.put("retention", true);
+                if (st.climb) so.put("climb", true);
                 JSONArray setsArr = new JSONArray();
                 for (int j = 0; j < st.setIds.size(); j++) {
                     Set s = model.set(st.setIds.get(j));
@@ -4428,8 +4480,9 @@ public final class Model {
             JSONObject o = new JSONObject(json);
             // 2 is a code that carries its stages' waits (see toShareCodeV2); a build before
             // it refuses one rather than run it without them.
+            // 3 carries its stages' markers as well; a build before it refuses one.
             int docVersion = o.optInt("v", -1);
-            if (docVersion != 1 && docVersion != 2)
+            if (docVersion != 1 && docVersion != 2 && docVersion != 3)
                 throw new JSONException("unrecognised share code version");
             JSONArray stagesArr = o.optJSONArray("stages");
             if (stagesArr == null) throw new JSONException("share code has no stages");
@@ -4456,10 +4509,15 @@ public final class Model {
                 st.colour = so.optInt("colour", STAGE_WORK);
                 st.rest = so.optBoolean("rest", false);
                 st.restSec = so.optInt("restSec", 120);
-                // Same belt-and-braces strip as trainerTrack above, for the per-stage
-                // fatigue marker: toShareCode() never writes "fatigue" either.
-                st.fatigueBlock = false;
-                st.retention = false;
+                // The markers as a version-3 code carries them; on every code before they are
+                // false, as they always were read here (a hand-made older document that adds
+                // the keys is still stripped). They used to be stripped with the trainer
+                // track; unlike it, each only ever takes a stage out of net.
+                boolean marked = docVersion >= 3;
+                st.traction = marked && so.optBoolean("traction", false);
+                st.fatigueBlock = marked && so.optBoolean("fatigue", false);
+                st.retention = marked && so.optBoolean("retention", false);
+                st.climb = marked && so.optBoolean("climb", false);
                 JSONArray setsArr = so.optJSONArray("sets");
                 if (setsArr != null) {
                     for (int j = 0; j < setsArr.length(); j++) {
@@ -4478,6 +4536,9 @@ public final class Model {
             }
             // ...and what a code made before they travelled lost, by the one rule.
             giveStagesTheirWaits(r.stages);
+            // ...and the pulls' markers, for a code made before they travelled - only what
+            // the builder made (its words); a code that carries them is taken as it is.
+            if (docVersion < 3) giveStagesTheirMarks(r.stages, false);
             // A GENUINELY EMPTY "stages":[] is not corruption — Model#removeStage has no
             // "keep at least one" guard (the same as the legacy JSON migration above it in
             // this file, which "simply starts with zero stages" rather than treating that
@@ -4502,9 +4563,13 @@ public final class Model {
             int version = rd.read(4);
             // 2 is an interim build's (see toShareCode); the stream is the same. 3 carries
             // each stage's waits; a build before it refuses one.
+            // 4 carries the waits and each stage's markers.
             if (version != 1 && version != SHARE_PACKED_VERSION_INTERIM
-                    && version != SHARE_PACKED_VERSION_WAITS)
+                    && version != SHARE_PACKED_VERSION_WAITS
+                    && version != SHARE_PACKED_VERSION_MARKS)
                 throw new JSONException("unrecognised share code version");
+            boolean marks = version == SHARE_PACKED_VERSION_MARKS;
+            boolean waits = marks || version == SHARE_PACKED_VERSION_WAITS;
             Decoded d = new Decoded();
             Routine r = new Routine();
             r.name = readNameV3(rd, "Routine");
@@ -4533,14 +4598,20 @@ public final class Model {
                 }
                 st.rest = rd.read(1) == 1;
                 st.restSec = rd.read(12);
-                if (version == SHARE_PACKED_VERSION_WAITS) {
+                if (waits) {
                     // The waits as the code carries them - only ever on a rest.
                     boolean man = rd.read(1) == 1, ack = rd.read(1) == 1;
                     st.manual = st.rest && man;
                     st.awaitAck = st.rest && ack;
                 }
-                st.fatigueBlock = false;
-                st.retention = false;
+                // The markers as the code carries them (version 4; false on every code
+                // before, as they always were read).
+                if (marks) {
+                    st.traction = rd.read(1) == 1;
+                    st.fatigueBlock = rd.read(1) == 1;
+                    st.retention = rd.read(1) == 1;
+                    st.climb = rd.read(1) == 1;
+                }
                 int nSets = rd.read(4);
                 for (int j = 0; j < nSets; j++) {
                     // Placeholder ids: importShareCode ties sets to slots BY ORDER and
@@ -4554,6 +4625,9 @@ public final class Model {
             }
             // ...and what a code made before they travelled lost, by the one rule.
             giveStagesTheirWaits(r.stages);
+            // ...and the pulls' markers, for a code made before they travelled - only what
+            // the builder made (its words); a code that carries them is taken as it is.
+            if (!marks) giveStagesTheirMarks(r.stages, false);
             d.routine = r;
             return d;
         }
@@ -10543,10 +10617,11 @@ public final class Model {
         // Stage H — THE ACTUAL BOUNDARY where a foreign routine enters THIS library, so
         // this is the one place the strip is enforced no matter how it got here (round-2
         // ruling: "a foreign mint must never feed another user's gates"). fromShareCode()
-        // already leaves trainerTrack/fatigueBlock at their new-object defaults (see its
-        // own doc), so this line changes nothing today — it exists so that if either of
-        // THOSE defaults is ever loosened, the marker is still stripped exactly here,
-        // where it would otherwise start silently feeding this phone's own trainer gates.
+        // already leaves trainerTrack at its new-object default (see its own doc), so this
+        // line changes nothing today — it exists so that if that default is ever loosened,
+        // the marker is still stripped exactly here, where it would otherwise start silently
+        // feeding this phone's own trainer gates. (The stage markers DO come in since
+        // 0.10.1 - each only ever takes a stage out of net, so none of them can feed a gate.)
         d.routine.trainerTrack = TRAINER_TRACK_NONE;
         d.routine.id = newRoutineId();
         sets.addAll(d.sets);

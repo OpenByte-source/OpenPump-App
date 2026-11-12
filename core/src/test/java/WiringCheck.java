@@ -2611,6 +2611,9 @@ public final class WiringCheck {
          * colour and markers frozen in the snapshot, an old one's role given back, the shape
          * never compared. */
         checkStageShapeFiles(SRC_DIR, violations);
+        /* Invariant 269: a shared routine keeps each stage's markers, under a version an older
+         * build refuses, and an old code's pulls are given back by the builder's rule. */
+        checkShareMarksFiles(SRC_DIR, violations);
         System.out.println("WiringCheck: " + pure.size() + " source(s) scanned for the pure "
             + "invariants (28, 29, 30)");
 
@@ -28388,6 +28391,8 @@ public final class WiringCheck {
         stageWaitsSelfTests(counts);
         /* ---- invariant 268 (a restored version puts each stage back as the routine had it) ---- */
         stageShapeSelfTests(counts);
+        /* ---- invariant 269 (a shared routine keeps each stage's markers) ---- */
+        shareMarksSelfTests(counts);
 
         /* ---- blankStringLiterals ------------------------------------------------ */
 
@@ -32825,6 +32830,195 @@ public final class WiringCheck {
             checkShapeRules(shapeSources(m2, r2, p2), SHAPE_RULES, "268", v);
             selfCheck(counts, changed && !v.isEmpty(),
                 "INV268 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
+        }
+    }
+
+    /* =====================================================================================
+     * INVARIANT 269: A SHARED ROUTINE KEEPS EACH STAGE'S MARKERS.
+     * Every share code dropped Stage#traction (and the fatigue, retention and climb markers),
+     * so an imported length session's Fatigue and Strain holds counted as girth work:
+     *   (a) both writers write the four markers - the packed one as four bits per stage after
+     *       the waits, under packed version 4, the document as optional keys under version 3 -
+     *       and only for a routine that has one (hasStageMarks), so every other code is byte
+     *       for byte what it was; neither writes the cylinder (a phone's own rack id);
+     *   (b) both readers read them, the packed one only under version 4 and the document only
+     *       under version 3 (an older document that adds the keys is still stripped), and
+     *       accept those versions;
+     *   (c) a code made before the markers travelled is given the builder's pulls back by the
+     *       builder's rule (Model#giveStagesTheirMarks, the builder-only guard of 268) after
+     *       its last stage is in - a code that carries them is taken as it is;
+     *   (d) the trainer track is still stripped by both readers and at the import boundary.
+     * ===================================================================================== */
+    static final String[][] SHARE_MARK_RULES = {
+        { "M", "boolean\\s+hasStageMarks\\s*\\(", "hasStageMarks", "has",
+          "if(st!=null&&(st.traction||st.fatigueBlock||st.retention||st.climb))returntrue;",
+          "every marker making a code carry them" },
+        { "M", "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode", "has",
+          "booleanmarks=hasStageMarks();booleanwaits=marks||hasStageWaits();",
+          "version 4's wait bits whenever it carries the markers" },
+        { "M", "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode", "has",
+          "if(marks)w.write(4,SHARE_PACKED_VERSION_MARKS);", "the markers' version, which an older build refuses" },
+        { "M", "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode", "has",
+          "if(marks){w.write(1,st.traction?1:0);w.write(1,st.fatigueBlock?1:0);"
+          + "w.write(1,st.retention?1:0);w.write(1,st.climb?1:0);}",
+          "a v3 code's markers" },
+        { "M", "String\\s+toShareCode\\s*\\(\\s*Model", "toShareCode", "not", "cylinderId",
+          "the cylinder - a rack id the receiving phone does not have" },
+        { "M", "String\\s+toShareCodeV2\\s*\\(", "toShareCodeV2", "has",
+          "if(hasStageMarks())o.put(\"v\",3);", "the markers' document version, which an older build refuses" },
+        { "M", "String\\s+toShareCodeV2\\s*\\(", "toShareCodeV2", "has",
+          "if(st.traction)so.put(\"traction\",true);if(st.fatigueBlock)so.put(\"fatigue\",true);"
+          + "if(st.retention)so.put(\"retention\",true);if(st.climb)so.put(\"climb\",true);",
+          "a v2 code's markers" },
+        { "M", "String\\s+toShareCodeV2\\s*\\(", "toShareCodeV2", "not", "cylinderId",
+          "the cylinder - a rack id the receiving phone does not have" },
+        { "M", "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "has",
+          "if(docVersion!=1&&docVersion!=2&&docVersion!=3)", "document version 3 read" },
+        { "M", "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "has",
+          "booleanmarked=docVersion>=3;st.traction=marked&&so.optBoolean(\"traction\",false);"
+          + "st.fatigueBlock=marked&&so.optBoolean(\"fatigue\",false);"
+          + "st.retention=marked&&so.optBoolean(\"retention\",false);"
+          + "st.climb=marked&&so.optBoolean(\"climb\",false);",
+          "the markers a version-3 document carries, and only those" },
+        { "M", "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "after",
+          "if(docVersion<3)giveStagesTheirMarks(r.stages,false);",
+          "an old document's pulls given back by the builder's rule" },
+        { "M", "Decoded\\s+fromShareCode\\s*\\(", "fromShareCode", "has",
+          "r.trainerTrack=TRAINER_TRACK_NONE;", "the trainer track stripped" },
+        { "M", "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "has",
+          "&&version!=SHARE_PACKED_VERSION_MARKS)", "packed version 4 read" },
+        { "M", "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "has",
+          "booleanmarks=version==SHARE_PACKED_VERSION_MARKS;"
+          + "booleanwaits=marks||version==SHARE_PACKED_VERSION_WAITS;",
+          "version 4 read as version 3's stream and the markers" },
+        { "M", "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "has",
+          "if(marks){st.traction=rd.read(1)==1;st.fatigueBlock=rd.read(1)==1;"
+          + "st.retention=rd.read(1)==1;st.climb=rd.read(1)==1;}",
+          "the markers a version-4 code carries" },
+        { "M", "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "after",
+          "if(!marks)giveStagesTheirMarks(r.stages,false);",
+          "an old code's pulls given back by the builder's rule" },
+        { "M", "Decoded\\s+fromShareCodeV3\\s*\\(", "fromShareCodeV3", "has",
+          "r.trainerTrack=TRAINER_TRACK_NONE;", "the trainer track stripped" },
+        { "M", "Routine\\s+importShareCode\\s*\\(", "importShareCode", "has",
+          "d.routine.trainerTrack=TRAINER_TRACK_NONE;", "the trainer track stripped at the boundary" },
+    };
+
+    static void checkShareMarksFiles(String dir, List<String> violations) throws IOException {
+        String model = runScreenRaw(dir, "Model.java", violations);
+        checkShapeRules(shapeSources(model, null, null), SHARE_MARK_RULES, "269", violations);
+    }
+
+    /** Invariant 269's self-test: the app's shapes pass, and each way a marker is lost is caught. */
+    static void shareMarksSelfTests(int[] counts) {
+        String model =
+              "boolean hasStageMarks() {\n"
+            + "    if (st != null && (st.traction || st.fatigueBlock || st.retention || st.climb))\n"
+            + "        return true;\n"
+            + "}\n"
+            + "public String toShareCode(Model model) throws JSONException {\n"
+            + "    boolean marks = hasStageMarks();\n"
+            + "    boolean waits = marks || hasStageWaits();\n"
+            + "    if (marks) w.write(4, SHARE_PACKED_VERSION_MARKS);\n"
+            + "    else w.write(4, waits ? SHARE_PACKED_VERSION_WAITS : 1);\n"
+            + "    if (marks) {\n"
+            + "        w.write(1, st.traction ? 1 : 0);\n"
+            + "        w.write(1, st.fatigueBlock ? 1 : 0);\n"
+            + "        w.write(1, st.retention ? 1 : 0);\n"
+            + "        w.write(1, st.climb ? 1 : 0);\n"
+            + "    }\n"
+            + "}\n"
+            + "public String toShareCodeV2(Model model) throws JSONException {\n"
+            + "    if (hasStageMarks()) o.put(\"v\", 3);\n"
+            + "    else o.put(\"v\", hasStageWaits() ? 2 : 1);\n"
+            + "    if (st.traction) so.put(\"traction\", true);\n"
+            + "    if (st.fatigueBlock) so.put(\"fatigue\", true);\n"
+            + "    if (st.retention) so.put(\"retention\", true);\n"
+            + "    if (st.climb) so.put(\"climb\", true);\n"
+            + "}\n"
+            + "public static Decoded fromShareCode(String code) {\n"
+            + "    if (docVersion != 1 && docVersion != 2 && docVersion != 3)\n"
+            + "        throw new JSONException(\"unrecognised share code version\");\n"
+            + "    r.trainerTrack = TRAINER_TRACK_NONE;\n"
+            + "    boolean marked = docVersion >= 3;\n"
+            + "    st.traction = marked && so.optBoolean(\"traction\", false);\n"
+            + "    st.fatigueBlock = marked && so.optBoolean(\"fatigue\", false);\n"
+            + "    st.retention = marked && so.optBoolean(\"retention\", false);\n"
+            + "    st.climb = marked && so.optBoolean(\"climb\", false);\n"
+            + "    r.stages.add(st);\n"
+            + "    if (docVersion < 3) giveStagesTheirMarks(r.stages, false);\n"
+            + "}\n"
+            + "private static Decoded fromShareCodeV3(byte[] packed) {\n"
+            + "    if (version != 1 && version != SHARE_PACKED_VERSION_INTERIM\n"
+            + "            && version != SHARE_PACKED_VERSION_WAITS\n"
+            + "            && version != SHARE_PACKED_VERSION_MARKS)\n"
+            + "        throw new JSONException(\"unrecognised share code version\");\n"
+            + "    boolean marks = version == SHARE_PACKED_VERSION_MARKS;\n"
+            + "    boolean waits = marks || version == SHARE_PACKED_VERSION_WAITS;\n"
+            + "    r.trainerTrack = TRAINER_TRACK_NONE;\n"
+            + "    if (marks) {\n"
+            + "        st.traction = rd.read(1) == 1;\n"
+            + "        st.fatigueBlock = rd.read(1) == 1;\n"
+            + "        st.retention = rd.read(1) == 1;\n"
+            + "        st.climb = rd.read(1) == 1;\n"
+            + "    }\n"
+            + "    r.stages.add(st);\n"
+            + "    if (!marks) giveStagesTheirMarks(r.stages, false);\n"
+            + "}\n"
+            + "public Routine importShareCode(String code) throws JSONException {\n"
+            + "    d.routine.trainerTrack = TRAINER_TRACK_NONE;\n"
+            + "}\n";
+        List<String> v = new ArrayList<String>();
+        checkShapeRules(shapeSources(model, null, null), SHARE_MARK_RULES, "269", v);
+        selfCheck(counts, v.isEmpty(), "INV269 control: the app's shapes pass (got " + v + ")");
+
+        String[][] bad = {
+            { "a routine with a climb writing no markers",
+              "st.retention || st.climb))", "st.retention))" },
+            { "a version-4 code without its wait bits",
+              "    boolean waits = marks || hasStageWaits();\n", "    boolean waits = hasStageWaits();\n" },
+            { "the markers under a version an older build reads",
+              "    if (marks) w.write(4, SHARE_PACKED_VERSION_MARKS);\n", "" },
+            { "a v3 code not writing the length marker", "        w.write(1, st.traction ? 1 : 0);\n", "" },
+            { "a v3 code writing the cylinder",
+              "        w.write(1, st.climb ? 1 : 0);\n",
+              "        w.write(1, st.climb ? 1 : 0);\n        writeNameV3(w, st.cylinderId, \"\");\n" },
+            { "a v2 code's markers under a document an older build reads",
+              "    if (hasStageMarks()) o.put(\"v\", 3);\n", "" },
+            { "a v2 code not writing the fatigue marker", "    if (st.fatigueBlock) so.put(\"fatigue\", true);\n", "" },
+            { "a v2 code writing the cylinder",
+              "    if (st.climb) so.put(\"climb\", true);\n",
+              "    if (st.climb) so.put(\"climb\", true);\n    so.put(\"cyl\", st.cylinderId);\n" },
+            { "a v2 document of version 3 refused",
+              "docVersion != 2 && docVersion != 3)", "docVersion != 2)" },
+            { "a v2 code dropping the length marker it carries",
+              "    st.traction = marked && so.optBoolean(\"traction\", false);\n", "" },
+            { "an older document trusted with the markers",
+              "    boolean marked = docVersion >= 3;\n", "    boolean marked = true;\n" },
+            { "an old document's pulls not given back",
+              "    if (docVersion < 3) giveStagesTheirMarks(r.stages, false);\n", "" },
+            { "an old document's pulls given back before its stages are in",
+              "    r.stages.add(st);\n    if (docVersion < 3) giveStagesTheirMarks(r.stages, false);\n",
+              "    if (docVersion < 3) giveStagesTheirMarks(r.stages, false);\n    r.stages.add(st);\n" },
+            { "a packed version 4 refused",
+              "            && version != SHARE_PACKED_VERSION_MARKS)\n", ")\n" },
+            { "a v3 code dropping the retention marker it carries",
+              "        st.retention = rd.read(1) == 1;\n", "" },
+            { "a version-4 code read without its wait bits",
+              "    boolean waits = marks || version == SHARE_PACKED_VERSION_WAITS;\n",
+              "    boolean waits = version == SHARE_PACKED_VERSION_WAITS;\n" },
+            { "an old v3 code's pulls not given back",
+              "    if (!marks) giveStagesTheirMarks(r.stages, false);\n", "" },
+            { "the trainer track let in at the boundary",
+              "    d.routine.trainerTrack = TRAINER_TRACK_NONE;\n", "" },
+        };
+        for (int i = 0; i < bad.length; i++) {
+            String m2 = model.replace(bad[i][1], bad[i][2]);
+            boolean changed = !m2.equals(model);
+            v = new ArrayList<String>();
+            checkShapeRules(shapeSources(m2, null, null), SHARE_MARK_RULES, "269", v);
+            selfCheck(counts, changed && !v.isEmpty(),
+                "INV269 catches: " + bad[i][0] + " (changed " + changed + ", got " + v + ")");
         }
     }
 

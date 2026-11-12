@@ -86,7 +86,11 @@ class StageWaitsCarryTest {
 
     static Model.Routine stripped(Model m, Model.Routine r) {
         Model.Routine c = r.copy(m.newRoutineId());
-        for (Model.Stage st : c.stages) { st.manual = false; st.awaitAck = false; }
+        // ...and the markers, which no code carried before 0.10.1 either (StageShapeCarryTest).
+        for (Model.Stage st : c.stages) {
+            st.manual = false; st.awaitAck = false;
+            st.traction = false; st.fatigueBlock = false; st.retention = false; st.climb = false;
+        }
         m.routines.add(c);
         return c;
     }
@@ -150,9 +154,16 @@ class StageWaitsCarryTest {
     @Test void aCodeWithWaitsIsOneAnOlderBuildRefusesRatherThanRunsWithoutThem() throws Exception {
         Model m = owner();
         Model.Routine r = top(m);
-        assertEquals(3, packedVersion(r.toShareCode(m)),
-            "packed version 3: a build that cannot read the waits says the code is unrecognised");
-        assertEquals(2, v2Json(r.toShareCodeV2(m)).getInt("v"), "and v2's document says version 2");
+        // The length session also carries its pulls' markers since 0.10.1: version 4 and
+        // document 3, which a build that cannot read the waits refuses just the same.
+        assertEquals(4, packedVersion(r.toShareCode(m)),
+            "packed version 4: a build that cannot read the waits says the code is unrecognised");
+        assertEquals(3, v2Json(r.toShareCodeV2(m)).getInt("v"), "and v2's document says version 3");
+        Model w = new Model();
+        Model.Routine waits = StageShapeCarryTest.waitsOnly(w);
+        assertEquals(3, packedVersion(waits.toShareCode(w)),
+            "packed version 3: the waits and no marker");
+        assertEquals(2, v2Json(waits.toShareCodeV2(w)).getInt("v"), "and v2's document says version 2");
         Model small = small(new Model());
         assertEquals(1, packedVersion(small.routines.get(0).toShareCode(small)),
             "a routine with no wait keeps version 1, which every build reads");

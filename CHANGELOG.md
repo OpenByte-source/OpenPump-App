@@ -70,6 +70,11 @@ Installs over 0.10.0; nothing to back up or move.
   back as a plain stage, so the warm-up played as an ordinary ramp, the work was labelled
   wrongly and GrowthTrack read it wrongly. A version saved by an older version gets back its
   warm-up and its length holds.
+- A routine added from a share code keeps its Fatigue holds and Strain holds as length holds,
+  and its fatigue, retention and climb stages. Before, they arrived as ordinary girth work. A
+  code from a routine with these stages needs this version or later to add it; an older version
+  says it does not recognise the code. A code made by an older version still adds, with the
+  length holds given back to a length session the trainer made.
 
 ## [0.10.0] — 2026-10-07
 
