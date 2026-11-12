@@ -65,6 +65,11 @@ Installs over 0.10.0; nothing to back up or move.
   keeps the tunica release and the changeover, with their waits. Before, both were left out of
   the saved routine, so the expansion followed the pulls with no tube swap. Length holds also
   keep their cylinder.
+- A version restored as a copy keeps each stage as it was: its colour, the warm-up, the length
+  holds, the fatigue, retention and climb stages, and the cylinder. Before, every stage came
+  back as a plain stage, so the warm-up played as an ordinary ramp, the work was labelled
+  wrongly and GrowthTrack read it wrongly. A version saved by an older version gets back its
+  warm-up and its length holds.
 
 ## [0.10.0] — 2026-10-07
 

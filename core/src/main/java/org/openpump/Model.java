@@ -4774,8 +4774,11 @@ public final class Model {
      * saved as something new. Without a snapshot both cases are unanswerable, and the app
      * would answer them by guessing.
      *
-     * The colour of a stage is deliberately NOT snapshotted: it is decoration, it does not
-     * change what was run, and a recoloured stage must not read as an edited one.
+     * The colour of a stage is deliberately NOT COMPARED: it is decoration, it does not
+     * change what was run, and a recoloured stage must not read as an edited one. It IS
+     * recorded since 0.10.1 (StageSnap#colour, with the rest of the stage's shape), but only
+     * so "Restore as copy" can put the stage back as it was - {@link #matchesStructure}
+     * still reads none of it.
      *
      * Null for a manual run (there is no routine) and for every session filed before this
      * existed — never an empty snapshot, which would claim a routine with no stages had
@@ -4823,6 +4826,29 @@ public final class Model {
              *  the restore gives the waits back by the builder's rule
              *  (Model#giveStagesTheirWaits). */
             public boolean manual, awaitAck;
+            /**
+             * THE REST OF THE STAGE'S SHAPE, frozen at run start: its colour (a warm-up is the
+             * warm-up by it - Stage#outOfNet and #roleOf read it), the length, fatigue,
+             * retention and climb markers, and the cylinder it runs in. "Restore as copy"
+             * rebuilt every stage as a plain cool one without any of them, so a restored
+             * trainer routine's warm-up played as a plain ramp, its pulls lost the length
+             * marker and its connected-app labels came out wrong (seen on the emulator,
+             * 2026-11-12). Recorded so the restore puts the stage back as the routine had it.
+             *
+             * NEVER COMPARED: {@link AsRunSnapshot#matchesStructure} reads none of these, so
+             * a recolour (decoration, as it always was) or a recording made before them can
+             * never make a run read as "routine edited".
+             *
+             * MIGRATION: absent on every recording written before - {@link #shapeKnown}
+             * false, and a rebuild falls back on what the recording does say: the
+             * {@link #role} (a warm-up's colour, the length marker) and, for a routine the
+             * builder made, the builder's rule (Model#giveStagesTheirMarks). No name is read
+             * that the rule does not already read.
+             */
+            public boolean shapeKnown;
+            public int colour;
+            public boolean traction, fatigueBlock, retention, climb;
+            public String cylinderId = "";
             public final List<String> setIds = new ArrayList<String>();
             /** One entry per setIds entry (or EMPTY on a recording written before set values
              *  were snapshotted — see {@link SetSnap}). */
@@ -4834,6 +4860,33 @@ public final class Model {
                 if (pos < 0 || pos >= sets.size()) return null;
                 SetSnap ss = sets.get(pos);
                 return ss != null && ss.known ? ss : null;
+            }
+
+            /**
+             * THIS STAGE'S SHAPE, PUT BACK ONTO `st` - what a rebuild from the snapshot (a
+             * version restored as a copy, a save from a run whose stage is no longer in the
+             * routine) gives the stage beside its name, sets and waits. As recorded when the
+             * snapshot has it; on a recording made before, only what its {@link #role} says -
+             * the warm-up's colour, the length marker - over whatever default the caller has
+             * already given `st`. Returns whether the shape was recorded, so the caller knows
+             * to ask the builder's rule (Model#giveStagesTheirMarks) for what an old recording
+             * cannot say.
+             */
+            public boolean shapeOnto(Stage st) {
+                if (shapeKnown) {
+                    st.colour = colour;
+                    st.traction = traction;
+                    st.fatigueBlock = fatigueBlock;
+                    st.retention = retention;
+                    st.climb = climb;
+                    st.cylinderId = cylinderId == null ? "" : cylinderId;
+                    return true;
+                }
+                // The role is #roleOf's reading of exactly these two facts, so this gives back
+                // what it saw and nothing more.
+                if (role == ROLE_WARM) st.colour = STAGE_WARM;
+                if (role == ROLE_TRACTION) st.traction = true;
+                return false;
             }
         }
 
@@ -4946,6 +4999,14 @@ public final class Model {
                 st.role = roleOf(src);
                 st.manual = src.manual;
                 st.awaitAck = src.awaitAck;
+                // The whole shape, so a restore puts the stage back as it was (StageSnap#shapeKnown).
+                st.shapeKnown = true;
+                st.colour = src.colour;
+                st.traction = src.traction;
+                st.fatigueBlock = src.fatigueBlock;
+                st.retention = src.retention;
+                st.climb = src.climb;
+                st.cylinderId = src.cylinderId == null ? "" : src.cylinderId;
                 st.setIds.addAll(src.setIds);
                 if (m != null)
                     for (int j = 0; j < src.setIds.size(); j++)
@@ -5012,6 +5073,14 @@ public final class Model {
                 // Written only when set, so an unflagged stage's line is unchanged.
                 if (st.manual) so.put("man", true);
                 if (st.awaitAck) so.put("ack", true);
+                // The shape: the colour whenever it was recorded (its presence is what says the
+                // shape was), each marker only when set, the cylinder only when one is named.
+                if (st.shapeKnown) so.put("col", st.colour);
+                if (st.traction) so.put("trac", true);
+                if (st.fatigueBlock) so.put("fat", true);
+                if (st.retention) so.put("ret", true);
+                if (st.climb) so.put("climb", true);
+                if (st.cylinderId != null && st.cylinderId.length() > 0) so.put("cyl", st.cylinderId);
                 JSONArray ids = new JSONArray();
                 for (int j = 0; j < st.setIds.size(); j++) ids.put(st.setIds.get(j));
                 so.put("sets", ids);
@@ -5048,6 +5117,17 @@ public final class Model {
                 // gives the waits back by the builder's rule (giveStagesTheirWaits).
                 st.manual = so.optBoolean("man", false);
                 st.awaitAck = so.optBoolean("ack", false);
+                // MIGRATION: absent on every recording written before the shape was kept -
+                // shapeKnown false, and a rebuild falls back on the role and the builder's
+                // rule (StageSnap#shapeOnto, Model#giveStagesTheirMarks). A marker is only
+                // ever written when set, so one absent is false either way.
+                st.shapeKnown = so.has("col");
+                st.colour = so.optInt("col", 0);
+                st.traction = so.optBoolean("trac", false);
+                st.fatigueBlock = so.optBoolean("fat", false);
+                st.retention = so.optBoolean("ret", false);
+                st.climb = so.optBoolean("climb", false);
+                st.cylinderId = so.optString("cyl", "");
                 JSONArray ids = so.optJSONArray("sets");
                 if (ids != null) for (int j = 0; j < ids.length(); j++) st.setIds.add(ids.optString(j));
                 // MIGRATION: absent on every recording written before set values were
@@ -9210,6 +9290,37 @@ public final class Model {
     }
 
     /**
+     * THE PULLS' MARKERS, GIVEN BACK BY THE BUILDER'S RULE. What carries no stage markers - a
+     * share code made before they travelled, a version archived before its snapshot kept them
+     * - has lost Stage#traction on the length session's pulls and Stage#fatigueBlock on its
+     * fatigue block, so they counted as girth work and read as such to a connected app. The
+     * builder (RxBuild#tractionStage) gives exactly two stages a pull's name
+     * (Plan#isBuilderPull), the names Plan#isChangeover already reads as the pulls, so they
+     * are known again by them.
+     *
+     * ONLY WHAT THE BUILDER MADE, asked exactly as the waits are (#giveStagesTheirWaits; the
+     * owner, 2026-11-11): stages that are not a trainer mint's (`minted`) and do not carry
+     * the builder's own words (Plan#hasBuilderWords) are never touched, so a stage the person
+     * named "Strain holds" in a routine of their own stays theirs. Only ever ADDS a marker,
+     * only to a stage that commands (never a rest), and both markers take a stage OUT of net,
+     * so this can never feed a gate. Returns whether it changed anything.
+     */
+    public static boolean giveStagesTheirMarks(List<Stage> stages, boolean minted) {
+        if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;
+        boolean changed = false;
+        for (int i = 0; i < stages.size(); i++) {
+            Stage st = stages.get(i);
+            if (st == null || !Plan.isBuilderPull(st)) continue;
+            if (!st.traction) { st.traction = true; changed = true; }
+            if (Plan.FATIGUE_NAME.equals(st.name) && !st.fatigueBlock) {
+                st.fatigueBlock = true;
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    /**
      * EVERY BUILDER ROUTINE GETS ITS STAGE WAITS, NOT ONLY A LENGTH-MARKED ONE. A share code
      * carries no trainer track, so a length routine imported before this sits in the library
      * unmarked, its changeover a plain timed rest and its release a rest that runs on. The
@@ -10761,6 +10872,7 @@ public final class Model {
         if (snap == null) return null;
         Routine draft = new Routine();
         draft.name = live.name;
+        boolean shapeLost = false;
         // The snapshot never carried the assessment (shape only), so the restored copy takes
         // the LIVE routine's current assessment rather than a fresh Routine's defaults.
         draft.assess = live.assess.copy();
@@ -10768,12 +10880,17 @@ public final class Model {
             AsRunSnapshot.StageSnap ss = snap.stages.get(i);
             Stage st = new Stage();
             st.name = ss.name == null || ss.name.length() == 0 ? "Stage" : ss.name;
-            // Colour was never part of the snapshot (AsRunSnapshot deliberately does not
-            // carry it — decoration, not shape) — a restored stage takes the ordinary
-            // "born here" default, exactly what a freshly added stage gets.
-            st.colour = STAGE_COOL;
             st.rest = ss.rest;
             st.restSec = ss.restSec;
+            // THE STAGE AS THE ROUTINE HAD IT: its colour, the length, fatigue, retention and
+            // climb markers and its cylinder, as the snapshot froze them (StageSnap#shapeOnto).
+            // A snapshot made before it kept them gives back what its role says over the
+            // defaults a restore always gave - a rest drawn as a rest, any other stage the
+            // ordinary "born here" colour a freshly added stage gets (which keeps an old
+            // cool-down or retention hold out of net, as it was) - and the builder's rule
+            // after the loop gives a mint's pulls their markers.
+            st.colour = ss.rest ? STAGE_REST : STAGE_COOL;
+            if (!ss.shapeOnto(st)) shapeLost = true;
             if (!ss.rest) {
                 for (int j = 0; j < ss.setIds.size(); j++) {
                     AsRunSnapshot.SetSnap sv = ss.setAt(j);
@@ -10797,6 +10914,9 @@ public final class Model {
         // one does (a mint whose release and changeover were renamed); a person's routine has
         // none and is never given a wait.
         giveStagesTheirWaits(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);
+        // ...and the pulls' markers an old snapshot could not say, by the builder's rule,
+        // asked the same way: only what the builder made.
+        if (shapeLost) giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);
         // Routine#copy is reused verbatim for the deep-copy-under-a-new-id machinery it
         // already gives every other duplicate in this app — its own "+ copy" suffix is
         // then overwritten with a name that says which version this came from, so the

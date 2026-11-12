@@ -3570,8 +3570,17 @@ public final class Plan {
         if (st.name != null && st.name.startsWith(CHANGEOVER_LEAD)) return true;
         if (i == 0 || i + 1 >= stages.size()) return false;
         Model.Stage prev = stages.get(i - 1), next = stages.get(i + 1);
-        boolean pull = prev != null && !prev.rest && (prev.traction
-            || STRAIN_NAME.equals(prev.name) || FATIGUE_NAME.equals(prev.name));
+        boolean pull = prev != null && !prev.rest && (prev.traction || isBuilderPull(prev));
         return pull && next != null && !next.rest && CODA_NAME.equals(next.name);
+    }
+
+    /** Is `st` one of the length session's pulls, by the builder's name: a stage that
+     *  commands, named as RxBuild#tractionStage names the fatigue or the strain block. What
+     *  #isChangeover reads as the pull before the changeover, and what
+     *  Model#giveStagesTheirMarks gives the length marker back to - only ever in a routine
+     *  the builder made. */
+    public static boolean isBuilderPull(Model.Stage st) {
+        return st != null && !st.rest
+            && (STRAIN_NAME.equals(st.name) || FATIGUE_NAME.equals(st.name));
     }
 }

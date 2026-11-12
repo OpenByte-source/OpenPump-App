@@ -2607,6 +2607,10 @@ public final class WiringCheck {
          * stage waits travel in share codes and version snapshots, and every saved routine is
          * given them back at load and on a backup restore. */
         checkStageWaitsFiles(SRC_DIR, violations);
+        /* Invariant 268: a restored version puts each stage back as the routine had it - its
+         * colour and markers frozen in the snapshot, an old one's role given back, the shape
+         * never compared. */
+        checkStageShapeFiles(SRC_DIR, violations);
         System.out.println("WiringCheck: " + pure.size() + " source(s) scanned for the pure "
             + "invariants (28, 29, 30)");
 
@@ -28382,6 +28386,8 @@ public final class WiringCheck {
         growthTrackSelfTests(counts);
         /* ---- invariant 267 (a shared or restored routine waits where the original did) ---- */
         stageWaitsSelfTests(counts);
+        /* ---- invariant 268 (a restored version puts each stage back as the routine had it) ---- */
+        stageShapeSelfTests(counts);
 
         /* ---- blankStringLiterals ------------------------------------------------ */
 
@@ -32557,6 +32563,268 @@ public final class WiringCheck {
             checkStageWaits(m2, a2, r2, v);
             selfCheck(counts, changed && !v.isEmpty(),
                 "INV267 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
+        }
+    }
+
+    /* =====================================================================================
+     * INVARIANT 268: A RESTORED VERSION PUTS EACH STAGE BACK AS THE ROUTINE HAD IT.
+     * "Restore as copy" rebuilt every stage as a plain cool one, so a restored trainer
+     * routine's warm-up played as a plain ramp, its pulls lost the length marker, its work
+     * came out of net and its connected-app labels came out wrong (the emulator, 2026-11-12):
+     *   (a) the snapshot freezes the stage's whole shape (AsRunSnapshot.of: colour, the
+     *       length, fatigue, retention and climb markers, the cylinder), saves it and loads it,
+     *       the colour's presence saying the shape was recorded (MIGRATION: an old one has none);
+     *   (b) StageSnap#shapeOnto puts it back as recorded, and an old recording's role - the
+     *       warm-up's colour, the length marker - and nothing else;
+     *   (c) restoreRoutineVersion and a save from a run's stage that is no longer in the
+     *       routine (AsRun#snapStages) put the shape back through shapeOnto, and ask the
+     *       builder's rule (Model#giveStagesTheirMarks) for what an old recording cannot say,
+     *       after the last stage is in - the restore no longer paints every stage cool;
+     *   (d) the rule is the builder's only: it returns before it touches anything unless the
+     *       stages are a mint's or carry the builder's words, and gives the marker only to a
+     *       pull the builder names (Plan#isBuilderPull, never a rest);
+     *   (e) the shape is never compared: AsRunSnapshot#matchesStructure reads none of it, so
+     *       a recolour or an old recording never makes a run read as "routine edited".
+     * ===================================================================================== */
+    /** { file (M Model, R AsRun, P Plan), signature (or OWN_TOJSON:<class>), name, kind
+     *  (has / not / after: after the last `.stages.add(st);`), statement, what it keeps }. */
+    static final String[][] SHAPE_RULES = {
+        { "M", "AsRunSnapshot\\s+of\\s*\\(\\s*Routine", "AsRunSnapshot.of", "has",
+          "st.shapeKnown=true;st.colour=src.colour;st.traction=src.traction;"
+          + "st.fatigueBlock=src.fatigueBlock;st.retention=src.retention;st.climb=src.climb;"
+          + "st.cylinderId=src.cylinderId==null?\"\":src.cylinderId;",
+          "a version's snapshot freezing the stage's shape" },
+        { "M", "OWN_TOJSON:AsRunSnapshot", "AsRunSnapshot.toJson", "has",
+          "if(st.shapeKnown)so.put(\"col\",st.colour);if(st.traction)so.put(\"trac\",true);"
+          + "if(st.fatigueBlock)so.put(\"fat\",true);if(st.retention)so.put(\"ret\",true);"
+          + "if(st.climb)so.put(\"climb\",true);",
+          "a saved snapshot's shape" },
+        { "M", "OWN_TOJSON:AsRunSnapshot", "AsRunSnapshot.toJson", "has",
+          "so.put(\"cyl\",st.cylinderId);", "a saved snapshot's cylinder" },
+        { "M", "static\\s+AsRunSnapshot\\s+fromJson\\s*\\(", "AsRunSnapshot.fromJson", "has",
+          "st.shapeKnown=so.has(\"col\");st.colour=so.optInt(\"col\",0);"
+          + "st.traction=so.optBoolean(\"trac\",false);st.fatigueBlock=so.optBoolean(\"fat\",false);"
+          + "st.retention=so.optBoolean(\"ret\",false);st.climb=so.optBoolean(\"climb\",false);"
+          + "st.cylinderId=so.optString(\"cyl\",\"\");",
+          "a loaded snapshot's shape, and whether it was recorded" },
+        { "M", "boolean\\s+shapeOnto\\s*\\(", "StageSnap.shapeOnto", "has",
+          "if(shapeKnown){st.colour=colour;st.traction=traction;st.fatigueBlock=fatigueBlock;"
+          + "st.retention=retention;st.climb=climb;",
+          "the recorded shape put back" },
+        { "M", "boolean\\s+shapeOnto\\s*\\(", "StageSnap.shapeOnto", "has",
+          "if(role==ROLE_WARM)st.colour=STAGE_WARM;if(role==ROLE_TRACTION)st.traction=true;"
+          + "returnfalse;",
+          "an old recording's role, and nothing else" },
+        { "M", "Routine\\s+restoreRoutineVersion\\s*\\(", "restoreRoutineVersion", "has",
+          "if(!ss.shapeOnto(st))shapeLost=true;", "a restored stage's shape" },
+        { "M", "Routine\\s+restoreRoutineVersion\\s*\\(", "restoreRoutineVersion", "after",
+          "if(shapeLost)giveStagesTheirMarks(draft.stages,snap.trainerTrack>TRAINER_TRACK_NONE);",
+          "an old version's pulls given back by the builder's rule, asked with its track" },
+        { "M", "Routine\\s+restoreRoutineVersion\\s*\\(", "restoreRoutineVersion", "not",
+          "st.colour=STAGE_COOL;", "every restored stage painted cool" },
+        { "M", "boolean\\s+matchesStructure\\s*\\(", "matchesStructure", "not", ".colour",
+          "the colour compared - a recolour would read as an edit" },
+        { "M", "boolean\\s+matchesStructure\\s*\\(", "matchesStructure", "not", ".traction",
+          "a marker compared - an old recording would read as an edit" },
+        { "M", "boolean\\s+matchesStructure\\s*\\(", "matchesStructure", "not", "shapeKnown",
+          "whether the shape was recorded compared" },
+        { "M", "boolean\\s+giveStagesTheirMarks\\s*\\(\\s*List<Stage>\\s+stages\\s*,\\s*boolean\\s+minted",
+          "giveStagesTheirMarks", "has",
+          "if(stages==null||!(minted||Plan.hasBuilderWords(stages)))returnfalse;",
+          "the builder-only guard" },
+        { "M", "boolean\\s+giveStagesTheirMarks\\s*\\(\\s*List<Stage>\\s+stages\\s*,\\s*boolean\\s+minted",
+          "giveStagesTheirMarks", "has", "if(st==null||!Plan.isBuilderPull(st))continue;",
+          "the marker only on a pull the builder names" },
+        { "P", "boolean\\s+isBuilderPull\\s*\\(", "Plan.isBuilderPull", "has",
+          "returnst!=null&&!st.rest&&(STRAIN_NAME.equals(st.name)||FATIGUE_NAME.equals(st.name));",
+          "a pull is a stage that commands, by the builder's names" },
+        { "R", "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "has",
+          "if(!same&&!ss.shapeOnto(st))shapeLost=true;",
+          "a run's stage no longer in the routine rebuilt with its shape" },
+        { "R", "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "has",
+          "if(shapeLost)Model.giveStagesTheirMarks(src,run.snap.trainerTrack>Model.TRAINER_TRACK_NONE);",
+          "an old snapshot's pulls given back by the builder's rule, asked with its track" },
+    };
+
+    /** The rules engine of the stage-shape invariants (268 on): each rule's method body (whitespace
+     *  out) must have, must not have, or must have after its last `.stages.add(st);`, one
+     *  statement. `srcs` is indexed by the rule's file letter. */
+    static void checkShapeRules(java.util.Map<String, String> srcs, String[][] rules, String inv,
+                                List<String> violations) {
+        for (int i = 0; i < rules.length; i++) {
+            String[] r = rules[i];
+            String src = srcs.get(r[0]);
+            if (src == null) continue;
+            String file = "M".equals(r[0]) ? "Model.java" : "R".equals(r[0]) ? "AsRun.java" : "Plan.java";
+            String b = null;
+            if (r[1].startsWith("OWN_TOJSON:")) {
+                int[] span = ownToJson(src, r[1].substring("OWN_TOJSON:".length()));
+                if (span == null)
+                    violations.add(file + ": invariant " + inv + " names " + r[2]
+                        + " but it is gone - renamed? Update the check deliberately");
+                else b = flat224(src.substring(span[0], span[1]));
+            } else {
+                b = body228(src, r[1], file, r[2], violations);
+            }
+            if (b == null) continue;
+            int at = b.indexOf(r[4]);
+            if ("has".equals(r[3]) && at < 0)
+                violations.add(file + ": invariant " + inv + " - " + r[2] + " no longer keeps "
+                    + r[5] + " (" + r[4] + ")");
+            else if ("not".equals(r[3]) && at >= 0)
+                violations.add(file + ": invariant " + inv + " - " + r[2] + " has " + r[5]
+                    + " (" + r[4] + ")");
+            else if ("after".equals(r[3])
+                    && (b.lastIndexOf(r[4]) < 0 || b.lastIndexOf(r[4]) < b.lastIndexOf(".stages.add(st);")))
+                violations.add(file + ": invariant " + inv + " - " + r[2] + " no longer has "
+                    + r[5] + " (" + r[4] + ") after its last stage is added");
+        }
+    }
+
+    static java.util.Map<String, String> shapeSources(String model, String asRun, String plan) {
+        java.util.Map<String, String> m = new java.util.HashMap<String, String>();
+        if (model != null) m.put("M", model);
+        if (asRun != null) m.put("R", asRun);
+        if (plan != null) m.put("P", plan);
+        return m;
+    }
+
+    static void checkStageShapeFiles(String dir, List<String> violations) throws IOException {
+        String model = runScreenRaw(dir, "Model.java", violations);
+        String asRun = runScreenRaw(dir, "AsRun.java", violations);
+        String plan = runScreenRaw(dir, "Plan.java", violations);
+        checkShapeRules(shapeSources(model, asRun, plan), SHAPE_RULES, "268", violations);
+    }
+
+    /** Invariant 268's self-test: the app's shapes pass, and each way a shape is lost is caught. */
+    static void stageShapeSelfTests(int[] counts) {
+        String model =
+              "public static final class AsRunSnapshot {\n"
+            + "    public static AsRunSnapshot of(Routine r, Model m) {\n"
+            + "        st.shapeKnown = true;\n"
+            + "        st.colour = src.colour;\n"
+            + "        st.traction = src.traction;\n"
+            + "        st.fatigueBlock = src.fatigueBlock;\n"
+            + "        st.retention = src.retention;\n"
+            + "        st.climb = src.climb;\n"
+            + "        st.cylinderId = src.cylinderId == null ? \"\" : src.cylinderId;\n"
+            + "    }\n"
+            + "    public boolean matchesStructure(Routine r) {\n"
+            + "        if (!a.name.equals(b.name == null ? \"\" : b.name)) return false;\n"
+            + "        if (a.rest != b.rest) return false;\n"
+            + "    }\n"
+            + "    public JSONObject toJson() throws JSONException {\n"
+            + "        if (st.shapeKnown) so.put(\"col\", st.colour);\n"
+            + "        if (st.traction) so.put(\"trac\", true);\n"
+            + "        if (st.fatigueBlock) so.put(\"fat\", true);\n"
+            + "        if (st.retention) so.put(\"ret\", true);\n"
+            + "        if (st.climb) so.put(\"climb\", true);\n"
+            + "        if (st.cylinderId != null) so.put(\"cyl\", st.cylinderId);\n"
+            + "    }\n"
+            + "    public static AsRunSnapshot fromJson(JSONObject o) {\n"
+            + "        st.shapeKnown = so.has(\"col\");\n"
+            + "        st.colour = so.optInt(\"col\", 0);\n"
+            + "        st.traction = so.optBoolean(\"trac\", false);\n"
+            + "        st.fatigueBlock = so.optBoolean(\"fat\", false);\n"
+            + "        st.retention = so.optBoolean(\"ret\", false);\n"
+            + "        st.climb = so.optBoolean(\"climb\", false);\n"
+            + "        st.cylinderId = so.optString(\"cyl\", \"\");\n"
+            + "    }\n"
+            + "}\n"
+            + "public boolean shapeOnto(Stage st) {\n"
+            + "    if (shapeKnown) {\n"
+            + "        st.colour = colour;\n"
+            + "        st.traction = traction;\n"
+            + "        st.fatigueBlock = fatigueBlock;\n"
+            + "        st.retention = retention;\n"
+            + "        st.climb = climb;\n"
+            + "        return true;\n"
+            + "    }\n"
+            + "    if (role == ROLE_WARM) st.colour = STAGE_WARM;\n"
+            + "    if (role == ROLE_TRACTION) st.traction = true;\n"
+            + "    return false;\n"
+            + "}\n"
+            + "public static boolean giveStagesTheirMarks(List<Stage> stages, boolean minted) {\n"
+            + "    if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;\n"
+            + "    if (st == null || !Plan.isBuilderPull(st)) continue;\n"
+            + "    if (!st.traction) { st.traction = true; changed = true; }\n"
+            + "}\n"
+            + "public Routine restoreRoutineVersion(String routineId, int idx) {\n"
+            + "    st.colour = ss.rest ? STAGE_REST : STAGE_COOL;\n"
+            + "    if (!ss.shapeOnto(st)) shapeLost = true;\n"
+            + "    draft.stages.add(st);\n"
+            + "    if (shapeLost) giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n"
+            + "}\n";
+        String asRun =
+              "private static List<Model.Stage> snapStages(AsRun run, Model m) {\n"
+            + "    if (!same && !ss.shapeOnto(st)) shapeLost = true;\n"
+            + "    src.add(st);\n"
+            + "    if (shapeLost)\n"
+            + "        Model.giveStagesTheirMarks(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);\n"
+            + "}\n";
+        String plan =
+              "public static boolean isBuilderPull(Model.Stage st) {\n"
+            + "    return st != null && !st.rest\n"
+            + "        && (STRAIN_NAME.equals(st.name) || FATIGUE_NAME.equals(st.name));\n"
+            + "}\n";
+        List<String> v = new ArrayList<String>();
+        checkShapeRules(shapeSources(model, asRun, plan), SHAPE_RULES, "268", v);
+        selfCheck(counts, v.isEmpty(), "INV268 control: the app's shapes pass (got " + v + ")");
+
+        String[][] bad = {
+            { "M", "a snapshot not freezing the colour", "        st.colour = src.colour;\n", "" },
+            { "M", "a snapshot not freezing the length marker", "        st.traction = src.traction;\n", "" },
+            { "M", "a snapshot not freezing the cylinder",
+              "        st.cylinderId = src.cylinderId == null ? \"\" : src.cylinderId;\n", "" },
+            { "M", "a snapshot not saying its shape was recorded", "        st.shapeKnown = true;\n", "" },
+            { "M", "a snapshot not saving the colour", "        if (st.shapeKnown) so.put(\"col\", st.colour);\n", "" },
+            { "M", "a snapshot not saving the cylinder", "so.put(\"cyl\", st.cylinderId);", "" },
+            { "M", "a snapshot not loading the climb", "        st.climb = so.optBoolean(\"climb\", false);\n", "" },
+            { "M", "an old snapshot read as recorded", "st.shapeKnown = so.has(\"col\");", "st.shapeKnown = true;" },
+            { "M", "the shape not put back", "        st.fatigueBlock = fatigueBlock;\n", "" },
+            { "M", "an old recording's warm-up not given its colour",
+              "    if (role == ROLE_WARM) st.colour = STAGE_WARM;\n", "" },
+            { "M", "an old recording's pull not given its marker",
+              "    if (role == ROLE_TRACTION) st.traction = true;\n", "" },
+            { "M", "a restore not putting the shape back",
+              "    if (!ss.shapeOnto(st)) shapeLost = true;\n", "" },
+            { "M", "a restore painting every stage cool",
+              "    st.colour = ss.rest ? STAGE_REST : STAGE_COOL;\n", "    st.colour = STAGE_COOL;\n" },
+            { "M", "an old version's pulls not given back",
+              "    if (shapeLost) giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n", "" },
+            { "M", "an old version's pulls given back before its stages are in",
+              "    draft.stages.add(st);\n    if (shapeLost) giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n",
+              "    if (shapeLost) giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n    draft.stages.add(st);\n" },
+            { "M", "an old version always called a mint",
+              "giveStagesTheirMarks(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE)",
+              "giveStagesTheirMarks(draft.stages, true)" },
+            { "M", "the structure comparing the colour",
+              "        if (a.rest != b.rest) return false;\n",
+              "        if (a.rest != b.rest) return false;\n        if (a.colour != b.colour) return false;\n" },
+            { "M", "the structure comparing a marker",
+              "        if (a.rest != b.rest) return false;\n",
+              "        if (a.rest != b.rest) return false;\n        if (a.traction != b.traction) return false;\n" },
+            { "M", "the rule touching a routine the person built",
+              "    if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;\n",
+              "    if (stages == null) return false;\n" },
+            { "M", "the rule marking any stage",
+              "    if (st == null || !Plan.isBuilderPull(st)) continue;\n", "    if (st == null) continue;\n" },
+            { "P", "a rest taken for a pull", "    return st != null && !st.rest\n", "    return st != null\n" },
+            { "R", "a run's stage no longer in the routine rebuilt without its shape",
+              "    if (!same && !ss.shapeOnto(st)) shapeLost = true;\n", "" },
+            { "R", "a run's old snapshot not given its pulls back",
+              "        Model.giveStagesTheirMarks(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);\n", "" },
+        };
+        for (int i = 0; i < bad.length; i++) {
+            String m2 = model, r2 = asRun, p2 = plan;
+            if ("M".equals(bad[i][0])) m2 = model.replace(bad[i][2], bad[i][3]);
+            else if ("R".equals(bad[i][0])) r2 = asRun.replace(bad[i][2], bad[i][3]);
+            else p2 = plan.replace(bad[i][2], bad[i][3]);
+            boolean changed = !m2.equals(model) || !r2.equals(asRun) || !p2.equals(plan);
+            v = new ArrayList<String>();
+            checkShapeRules(shapeSources(m2, r2, p2), SHAPE_RULES, "268", v);
+            selfCheck(counts, changed && !v.isEmpty(),
+                "INV268 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
         }
     }
 

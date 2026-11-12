@@ -1794,15 +1794,20 @@ public final class AsRun {
      *  its sets, whether it is a rest and for how long, and its waits (the release's for Done,
      *  the changeover's for "I've swapped") - and, where the current routine's stage at the
      *  same place is the same stage (same name, rest or not), it keeps that stage's other
-     *  facts too: the length and fatigue markers, the climb, the cylinder. A snapshot made
-     *  before the waits were kept is given them back by the one rule
-     *  (Model#giveStagesTheirWaits) - only when the builder made it: the snapshot's trainer
-     *  track, or the builder's words. This used to rebuild a stage from its name and sets alone,
-     *  so a rest arrived as an empty stage and was left out. */
+     *  facts too: the length and fatigue markers, the climb, the cylinder. A stage that is NOT
+     *  in the current routine any more (the routine edited since, or deleted) takes those from
+     *  the snapshot, which records them (StageSnap#shapeOnto) - before it did, Save as copy of
+     *  a deleted length routine came back with no length marker and a borrowed colour. A
+     *  snapshot made before the waits, or the shape, were kept is given them back by the one
+     *  rule for each (Model#giveStagesTheirWaits, #giveStagesTheirMarks) - only when the
+     *  builder made it: the snapshot's trainer track, or the builder's words. This used to
+     *  rebuild a stage from its name and sets alone, so a rest arrived as an empty stage and
+     *  was left out. */
     private static List<Model.Stage> snapStages(AsRun run, Model m) {
         Model.Routine cur = m.routine(run.routineId);
         List<Model.Stage> src = new ArrayList<Model.Stage>();
         if (run.snap != null) {
+            boolean shapeLost = false;
             for (int i = 0; i < run.snap.stages.size(); i++) {
                 Model.AsRunSnapshot.StageSnap ss = run.snap.stages.get(i);
                 Model.Stage live = cur != null && i < cur.stages.size() ? cur.stages.get(i) : null;
@@ -1810,6 +1815,8 @@ public final class AsRun {
                 Model.Stage st = same ? live.copy() : new Model.Stage();
                 st.name = ss.name;
                 st.colour = live != null ? live.colour : Model.STAGE_WORK;
+                // Not the live stage: the snapshot's own shape, or - an old one - its role.
+                if (!same && !ss.shapeOnto(st)) shapeLost = true;
                 st.setIds.clear();
                 st.setIds.addAll(ss.setIds);
                 st.rest = ss.rest;
@@ -1825,6 +1832,9 @@ public final class AsRun {
             // does (a mint whose release and changeover were renamed); a routine the person
             // built has none, and is never given a wait.
             Model.giveStagesTheirWaits(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);
+            // ...and the pulls' markers an old snapshot could not say, asked the same way.
+            if (shapeLost)
+                Model.giveStagesTheirMarks(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);
         } else if (cur != null) {
             src.addAll(Model.copyStages(cur.stages));
         }

@@ -2465,6 +2465,37 @@ public class Migrate {
         if (!waitSnapOldOk || !waitSnapTripOk)
             System.out.println("FAIL: a version's stage waits do not load or survive");
 
+        /* A version's snapshot keeps each stage's whole shape (0.10.1): "col" always, the
+         * markers "trac" / "fat" / "ret" / "climb" and the cylinder "cyl" only when set. One
+         * archived before has no "col" - its shape reads as not recorded, every marker false,
+         * and its restore falls back on the role it did record (StageShapeCarryTest); saving it
+         * again writes nothing new. A recorded shape survives a save. */
+        Model.AsRunSnapshot shapeSnapOld = Model.AsRunSnapshot.fromJson(new org.json.JSONObject(
+            "{\"rid\":\"r\",\"stages\":[{\"name\":\"Strain holds\",\"rest\":false,\"restSec\":0,"
+            + "\"role\":2,\"sets\":[\"s1\"]}]}"));
+        Model.AsRunSnapshot.StageSnap shapeOld = shapeSnapOld == null ? null : shapeSnapOld.stages.get(0);
+        String shapeOldJson = shapeSnapOld == null ? "" : shapeSnapOld.toJson().toString();
+        boolean shapeSnapOldOk = shapeOld != null && !shapeOld.shapeKnown && !shapeOld.traction
+            && !shapeOld.fatigueBlock && !shapeOld.retention && !shapeOld.climb
+            && "".equals(shapeOld.cylinderId)
+            && shapeOld.role == Model.AsRunSnapshot.ROLE_TRACTION
+            && !shapeOldJson.contains("\"col\"") && !shapeOldJson.contains("\"trac\"")
+            && !shapeOldJson.contains("\"cyl\"");
+        Model.Stage shapeLive = Model.Stage.of("Strain holds", Model.STAGE_WARM, new String[]{ "s1" });
+        shapeLive.traction = true; shapeLive.fatigueBlock = true; shapeLive.retention = true;
+        shapeLive.climb = true; shapeLive.cylinderId = "cylL";
+        Model.Routine shapeR = new Model.Routine();
+        shapeR.id = "r"; shapeR.stages.add(shapeLive);
+        Model.AsRunSnapshot shapeBack = Model.AsRunSnapshot.fromJson(
+            new org.json.JSONObject(Model.AsRunSnapshot.of(shapeR, null).toJson().toString()));
+        Model.AsRunSnapshot.StageSnap shapeSb = shapeBack.stages.get(0);
+        boolean shapeSnapTripOk = shapeSb.shapeKnown && shapeSb.colour == Model.STAGE_WARM && shapeSb.traction
+            && shapeSb.fatigueBlock && shapeSb.retention && shapeSb.climb && "cylL".equals(shapeSb.cylinderId);
+        System.out.println("stage shape snapshot: old " + (shapeSnapOldOk ? "not recorded, nothing new written" : "WRONG")
+            + ", after a save " + (shapeSnapTripOk ? "kept" : "LOST"));
+        if (!shapeSnapOldOk || !shapeSnapTripOk)
+            System.out.println("FAIL: a version's stage shape does not load or survive");
+
         boolean ok = capOk && reshapeOk && roundB2Ok && roundB2Trip
                   && mbOldOk && mbRestOk && mbTripOk && mbOddOk
                   && dqOldOk && dqTripOk && dqOddOk
@@ -2529,7 +2560,8 @@ public class Migrate {
                   && holdsOldOk && holdsTripOk && holdsOddOk
                   && placeOldOk && placeTripOk && placeOddOk
                   && brakeOldOk && brakeTripOk && brakeOddOk
-                  && impOk && impTripOk && waitSnapOldOk && waitSnapTripOk;
+                  && impOk && impTripOk && waitSnapOldOk && waitSnapTripOk
+                  && shapeSnapOldOk && shapeSnapTripOk;
         System.out.println(ok ? "MIGRATION OK" : "MIGRATION BROKEN");
         System.exit(ok ? 0 : 1);
     }
