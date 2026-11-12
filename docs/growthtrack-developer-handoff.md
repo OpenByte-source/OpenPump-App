@@ -72,6 +72,7 @@ A session is sent when it is a real (not practice) finished session of a type th
 - The Length label comes from `Stage.traction`, not from the track, so a Length session's girth expansion and warm-up are not over-labelled as length work.
 - Traditional (stitched) sessions are joined with a small millisecond slack, so their chunks join as they should.
 - Timer lateness of a few milliseconds never creates Milking sets that did not happen.
+- Each set the person ran is one set with one technique. A set whose time is not a whole number of cycles ends part-way into its last cycle; that last part counts with its set, never as an extra set of its own. Only a hold cut short by STOP, Hold or a change is sent as far as it got, labelled by what ran.
 - A pump change the pump carried out without acknowledging it is still counted, so the sets add up to the session.
 - A short Bluetooth dropout or a Hold does not make the session unsendable.
 - A routine name over 200 characters is shortened, not refused. The peak is rounded.

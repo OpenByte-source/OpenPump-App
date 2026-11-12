@@ -191,7 +191,7 @@ public final class GrowthTrackSession {
         if (draft.parts.isEmpty()) throw new IllegalArgumentException("No confirmed positive-pressure work exists to send");
         draft.warnings.add("Techniques: a warm-up stage is warm_up and a traction stage is length_pumping; other work uses its command hold: up to 6 s Milking; up to 30 s RIP; up to 120 s Interval pumping; longer Static pumping. Release/rest do not affect this label.");
         draft.warnings.add("Set durations retain recorded work spans, including their release halves. Separate rest, held and lost-link periods are excluded. Measured net time under pressure excludes release/rest; gross sealed time is not substituted.");
-        draft.warnings.add("Command phases are reconstructed from holds/releases and elapsed spans, not sampled pressure plateaus. No measured plateau or pressure average is invented. GrowthTrack's whole-second durations round down; a sub-second remainder joins the cycle before it.");
+        draft.warnings.add("Command phases are reconstructed from holds/releases and elapsed spans, not sampled pressure plateaus. No measured plateau or pressure average is invented. GrowthTrack's whole-second durations round down; a sub-second remainder joins the cycle before it, and the last cycle a set's own time cuts short joins that set.");
         return draft;
     }
 
