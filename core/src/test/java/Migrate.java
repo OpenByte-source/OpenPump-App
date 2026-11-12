@@ -2496,6 +2496,45 @@ public class Migrate {
         if (!shapeSnapOldOk || !shapeSnapTripOk)
             System.out.println("FAIL: a version's stage shape does not load or survive");
 
+        /* A LENGTH SESSION ADDED FROM A SHARE CODE BEFORE THE MARKERS TRAVELLED (0.10.1). Its
+         * Fatigue and Strain holds sit in the library as girth work. The load gives them their
+         * length marker (and the fatigue one) by the builder's rule - the routine carries the
+         * builder's release - and touches nothing else; a routine the person built with the
+         * same stage names is left exactly as it was, and a second pass changes nothing. */
+        String mkJson = "{\"ceil\":40,\"unit\":\"inHg\",\"sets\":["
+          + "{\"id\":\"mf1\",\"name\":\"Fatigue hold ×9\",\"fromPlan\":true,\"ramp\":false,"
+          + "\"up\":8,\"lo\":0,\"uh\":60,\"lh\":30,\"sp\":75,\"dur\":810,"
+          + "\"up2\":8,\"lo2\":0,\"sp2\":75,\"steps\":2}],"
+          + "\"routines\":[{\"id\":\"mr1\",\"name\":\"Shared length\",\"runs\":2,\"done\":2,"
+          + "\"stages\":[{\"name\":\"" + org.openpump.Plan.RELEASE_NAME + "\",\"rest\":true,"
+          + "\"restSec\":300,\"manual\":true,\"sets\":[]},"
+          + "{\"name\":\"Fatigue holds\",\"sets\":[\"mf1\"]},"
+          + "{\"name\":\"Strain holds\",\"sets\":[\"mf1\"]}]},"
+          + "{\"id\":\"mr2\",\"name\":\"Mine\",\"stages\":["
+          + "{\"name\":\"Fatigue holds\",\"sets\":[\"mf1\"]},"
+          + "{\"name\":\"Strain holds\",\"sets\":[\"mf1\"]}]}]}";
+        Model mk = Model.fromJson(mkJson);
+        Model.Routine mk1 = mk.routine("mr1"), mk2 = mk.routine("mr2");
+        String mkMine = mk2 == null ? "" : mk2.toJson().toString();
+        boolean mkBefore = mk1 != null && mk2 != null && !mk1.stages.get(1).traction
+            && !mk1.stages.get(2).traction;
+        int mkFixed = mk.giveRoutinesTheirMarks();
+        boolean mkOk = mkBefore && mkFixed == 1
+            && mk1.stages.get(1).traction && mk1.stages.get(1).fatigueBlock
+            && mk1.stages.get(2).traction && !mk1.stages.get(2).fatigueBlock
+            && !mk1.stages.get(0).traction && mk1.runs == 2 && mk1.stages.size() == 3
+            && mkMine.equals(mk2.toJson().toString())                   // the person's: untouched
+            && mk.giveRoutinesTheirMarks() == 0;                         // idempotent
+        Model mkBack = Model.fromJson(mk.toJson());
+        Model.Routine mkB = mkBack.routine("mr1");
+        boolean mkTripOk = mkB != null && mkB.stages.get(1).traction && mkB.stages.get(1).fatigueBlock
+            && mkB.stages.get(2).traction && mkBack.giveRoutinesTheirMarks() == 0;
+        System.out.println("imported pulls: " + mkFixed + " routine(s), "
+            + (mkOk ? "markers given, nothing else touched" : "WRONG")
+            + ", after a save " + (mkTripOk ? "kept" : "LOST"));
+        if (!mkOk || !mkTripOk)
+            System.out.println("FAIL: an imported length session's pulls are not length holds after the load");
+
         boolean ok = capOk && reshapeOk && roundB2Ok && roundB2Trip
                   && mbOldOk && mbRestOk && mbTripOk && mbOddOk
                   && dqOldOk && dqTripOk && dqOddOk
@@ -2561,7 +2600,7 @@ public class Migrate {
                   && placeOldOk && placeTripOk && placeOddOk
                   && brakeOldOk && brakeTripOk && brakeOddOk
                   && impOk && impTripOk && waitSnapOldOk && waitSnapTripOk
-                  && shapeSnapOldOk && shapeSnapTripOk;
+                  && shapeSnapOldOk && shapeSnapTripOk && mkOk && mkTripOk;
         System.out.println(ok ? "MIGRATION OK" : "MIGRATION BROKEN");
         System.exit(ok ? 0 : 1);
     }

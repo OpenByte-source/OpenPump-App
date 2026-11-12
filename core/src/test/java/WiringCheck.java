@@ -2614,6 +2614,9 @@ public final class WiringCheck {
         /* Invariant 269: a shared routine keeps each stage's markers, under a version an older
          * build refuses, and an old code's pulls are given back by the builder's rule. */
         checkShareMarksFiles(SRC_DIR, violations);
+        /* Invariant 270: a builder routine already in the library gets its pulls' markers
+         * back on load and on a backup restore, by the builder-only rule. */
+        checkLoadMarksFiles(SRC_DIR, violations);
         System.out.println("WiringCheck: " + pure.size() + " source(s) scanned for the pure "
             + "invariants (28, 29, 30)");
 
@@ -28393,6 +28396,8 @@ public final class WiringCheck {
         stageShapeSelfTests(counts);
         /* ---- invariant 269 (a shared routine keeps each stage's markers) ---- */
         shareMarksSelfTests(counts);
+        /* ---- invariant 270 (a routine already in the library gets its pulls' markers back) ---- */
+        loadMarksSelfTests(counts);
 
         /* ---- blankStringLiterals ------------------------------------------------ */
 
@@ -33019,6 +33024,102 @@ public final class WiringCheck {
             checkShapeRules(shapeSources(m2, null, null), SHARE_MARK_RULES, "269", v);
             selfCheck(counts, changed && !v.isEmpty(),
                 "INV269 catches: " + bad[i][0] + " (changed " + changed + ", got " + v + ")");
+        }
+    }
+
+    /* =====================================================================================
+     * INVARIANT 270: A ROUTINE ALREADY IN THE LIBRARY GETS ITS PULLS' MARKERS BACK ON LOAD.
+     * A length session added from a share code or restored from a version before the markers
+     * travelled sits in the library with its Fatigue and Strain holds as girth work (the
+     * owner, 2026-11-12: repair it in 0.10.1):
+     *   (a) the repair (Model#giveRoutinesTheirMarks) asks the builder's rule
+     *       (giveStagesTheirMarks, builder-only - invariant 268) with each routine's trainer
+     *       track, so a routine the person built is never touched;
+     *   (b) the load (onCreate) runs it before the reshape (which reads the marker) and before
+     *       it saves, and a backup restore runs it before the restored file is saved.
+     * ===================================================================================== */
+    static void checkLoadMarksFiles(String dir, List<String> violations) throws IOException {
+        checkLoadMarks(runScreenRaw(dir, "Model.java", violations),
+                       runScreenRaw(dir, "SessionActivity.java", violations), violations);
+    }
+
+    static void checkLoadMarks(String model, String act, List<String> violations) {
+        if (model != null) {
+            String gr = body228(model, "int\\s+giveRoutinesTheirMarks\\s*\\(", "Model.java",
+                "giveRoutinesTheirMarks", violations);
+            if (gr != null && gr.indexOf(
+                    "giveStagesTheirMarks(r.stages,r.trainerTrack!=TRAINER_TRACK_NONE)") < 0)
+                violations.add("Model.java: invariant 270 - the load repair no longer asks the "
+                    + "builder's rule with the routine's trainer track - it would touch routines "
+                    + "the person built, or miss a mint");
+        }
+        if (act != null) {
+            String oc = body228(act, "void\\s+onCreate\\s*\\(\\s*Bundle", "SessionActivity.java",
+                "onCreate", violations);
+            if (oc != null) {
+                int give = oc.indexOf("repaired+=model.giveRoutinesTheirMarks();");
+                int reshape = oc.indexOf("model.reshapeTractionStages();");
+                int save = oc.indexOf("if(repaired>0)Store.save(this,model);");
+                if (give < 0 || reshape < 0 || save < 0 || give > reshape || give > save)
+                    violations.add("SessionActivity.java: invariant 270 - onCreate no longer gives "
+                        + "every builder routine its pulls' markers (giveRoutinesTheirMarks) before "
+                        + "the reshape and the save");
+            }
+            String rb = body228(act, "void\\s+restoreFromBackup\\s*\\(", "SessionActivity.java",
+                "restoreFromBackup", violations);
+            if (rb != null) {
+                int give = rb.indexOf("restoredModel.giveRoutinesTheirMarks();");
+                int save = rb.indexOf("Store.save(this,restoredModel);");
+                if (give < 0 || save < 0 || give > save)
+                    violations.add("SessionActivity.java: invariant 270 - a backup restore no longer "
+                        + "gives every builder routine its pulls' markers before the file is saved");
+            }
+        }
+    }
+
+    /** Invariant 270's self-test: the app's shapes pass, and each way the repair is lost is caught. */
+    static void loadMarksSelfTests(int[] counts) {
+        String model =
+              "public int giveRoutinesTheirMarks() {\n"
+            + "    if (r != null && giveStagesTheirMarks(r.stages, r.trainerTrack != TRAINER_TRACK_NONE))\n"
+            + "        changed++;\n"
+            + "}\n";
+        String act =
+              "protected void onCreate(Bundle b) {\n"
+            + "    repaired += model.giveRoutinesTheirWaits();\n"
+            + "    repaired += model.giveRoutinesTheirMarks();\n"
+            + "    repaired += model.reshapeTractionStages();\n"
+            + "    if (repaired > 0) Store.save(this, model);\n"
+            + "}\n"
+            + "private void restoreFromBackup(List<Backup.Entry> entries) {\n"
+            + "    int marked = restoredModel.giveRoutinesTheirMarks();\n"
+            + "    Store.save(this, restoredModel);\n"
+            + "}\n";
+        List<String> v = new ArrayList<String>();
+        checkLoadMarks(model, act, v);
+        selfCheck(counts, v.isEmpty(), "INV270 control: the app's shapes pass (got " + v + ")");
+        String[][] bad = {
+            { "M", "the repair taking every routine for a mint",
+              "r.trainerTrack != TRAINER_TRACK_NONE", "true" },
+            { "A", "a load without the repair", "    repaired += model.giveRoutinesTheirMarks();\n", "" },
+            { "A", "a load repairing after the reshape",
+              "    repaired += model.giveRoutinesTheirMarks();\n    repaired += model.reshapeTractionStages();\n",
+              "    repaired += model.reshapeTractionStages();\n    repaired += model.giveRoutinesTheirMarks();\n" },
+            { "A", "a restore without the repair",
+              "    int marked = restoredModel.giveRoutinesTheirMarks();\n", "" },
+            { "A", "a restore repairing after the save",
+              "    int marked = restoredModel.giveRoutinesTheirMarks();\n    Store.save(this, restoredModel);\n",
+              "    Store.save(this, restoredModel);\n    int marked = restoredModel.giveRoutinesTheirMarks();\n" },
+        };
+        for (int i = 0; i < bad.length; i++) {
+            String m2 = model, a2 = act;
+            if ("M".equals(bad[i][0])) m2 = model.replace(bad[i][2], bad[i][3]);
+            else a2 = act.replace(bad[i][2], bad[i][3]);
+            boolean changed = !m2.equals(model) || !a2.equals(act);
+            v = new ArrayList<String>();
+            checkLoadMarks(m2, a2, v);
+            selfCheck(counts, changed && !v.isEmpty(),
+                "INV270 catches: " + bad[i][1] + " (changed " + changed + ", got " + v + ")");
         }
     }
 

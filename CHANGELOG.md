@@ -75,6 +75,9 @@ Installs over 0.10.0; nothing to back up or move.
   code from a routine with these stages needs this version or later to add it; an older version
   says it does not recognise the code. A code made by an older version still adds, with the
   length holds given back to a length session the trainer made.
+- A length session already in your library from a share code or a restore gets its Fatigue holds
+  and Strain holds back as length holds when the app opens, or when a backup is restored. Only
+  routines the trainer made are changed, never one you built yourself.
 
 ## [0.10.0] — 2026-10-07
 

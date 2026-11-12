@@ -9416,6 +9416,31 @@ public final class Model {
     }
 
     /**
+     * EVERY BUILDER ROUTINE GETS ITS PULLS' MARKERS BACK (0.10.1, the owner). A length session
+     * added from a share code, or restored from a version, before the markers travelled sits
+     * in the library with its Fatigue holds and Strain holds as plain girth work - counted
+     * into net and labelled as girth to a connected app. The load (SessionActivity#onCreate)
+     * and a backup restore run this beside #giveRoutinesTheirWaits and before the reshape:
+     * the builder's rule (giveStagesTheirMarks), asked with each routine's trainer track
+     * exactly as the waits are, so a routine the person built - whatever its stages are
+     * called - is never touched. It only ever ADDS the length marker (and the fatigue one on
+     * the fatigue block), both of which take a stage OUT of net, and a stage that already
+     * has them is left as it is, so a routine already right is unchanged byte for byte and a
+     * second run changes nothing. No run's snapshot comparison reads a marker
+     * (AsRunSnapshot#matchesStructure), so no run reads as "routine edited" because of it.
+     * Returns how many routines changed.
+     */
+    public int giveRoutinesTheirMarks() {
+        int changed = 0;
+        for (int ri = 0; ri < routines.size(); ri++) {
+            Routine r = routines.get(ri);
+            if (r != null && giveStagesTheirMarks(r.stages, r.trainerTrack != TRAINER_TRACK_NONE))
+                changed++;
+        }
+        return changed;
+    }
+
+    /**
      * WHETHER THE TRAINER'S BUILDER MADE THIS ROUTINE - the only routines the waits are ever
      * given back to. Either it is still a trainer mint (Routine#trainerTrack, which only the
      * builder sets and which a share code, a duplicate and a restored copy do not carry), or
