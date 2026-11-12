@@ -616,6 +616,28 @@ public final class Summary {
      */
     public static final String TAU_DETAIL_LABEL = TauSay.NAME;
 
+    /** History's and the session summary's label for the measured net time under pressure. */
+    public static final String TIME_AT_PRESSURE_LABEL = "Time at pressure";
+
+    /** Measured seconds as whole seconds, rounded DOWN: what GrowthTrack is sent as
+     *  time_under_tension_seconds and what the Time at pressure row shows, so a person never
+     *  sees 2:37 here and 156 s there (finding 3, 0.10.1). */
+    public static int wholeSeconds(double sec) { return (int) Math.floor(sec); }
+
+    /**
+     * THE TIME AT PRESSURE ROW, one formatter for History and the session summary: the net
+     * of the gross, in {@link #wholeSeconds}, and their ratio - "2:36 of 3:45   ·   70%".
+     * Null when the record does not hold both figures.
+     */
+    public static String timeAtPressure(Model.Sess s) {
+        if (s == null || s.netTupSec == null || s.grossTupSec == null) return null;
+        double net = s.netTupSec.doubleValue(), gross = s.grossTupSec.doubleValue();
+        if (!(gross > 0.0) || !(net >= 0.0)) return null;
+        int pct = (int) Math.round(100.0 * net / gross);
+        return Model.Fmt.t(wholeSeconds(net)) + " of " + Model.Fmt.t(wholeSeconds(gross))
+            + "   ·   " + pct + "%";
+    }
+
     /**
      * C8 - THE VALUE OF HISTORY'S τ ROW, or null when the assessment never ran.
      *

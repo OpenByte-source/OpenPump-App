@@ -80,7 +80,7 @@ public final class GrowthTrackSession {
             // Gross is sealed elapsed time INCLUDING releases. Net is the saved measured,
             // phase-filtered training time; never substitute gross or commanded duty cycle.
             double tup = s.netTupSec == null ? Double.NaN : s.netTupSec;
-            tensionSeconds = Double.isFinite(tup) && tup >= 1 && tup <= seconds ? (int) Math.floor(tup) : null;
+            tensionSeconds = Double.isFinite(tup) && tup >= 1 && tup <= seconds ? Integer.valueOf(Summary.wholeSeconds(tup)) : null;
             if (s.netTupSec != null && tensionSeconds == null) warnings.add("The unavailable or inconsistent measured net time under pressure is omitted.");
             if (!s.completed) warnings.add("This was stopped early. Only its recorded elapsed work is sent.");
         }

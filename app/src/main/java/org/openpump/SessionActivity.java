@@ -29717,16 +29717,10 @@ public class SessionActivity extends Activity
         // you to watch: gross is how long the session ran, net is how much of that was
         // genuinely at pressure, and a ratio drifting down over weeks is a technique signal
         // long before either number alone looks wrong.
-        if (sess.netTupSec != null && sess.grossTupSec != null
-                && sess.grossTupSec.doubleValue() > 0.0) {
-            double netSec = sess.netTupSec.doubleValue();
-            double grossSec = sess.grossTupSec.doubleValue();
-            int pct = (int) Math.round(100.0 * netSec / grossSec);
-            Ui.kvRow(this, col, "Time at pressure",
-                Model.Fmt.t((int) Math.round(netSec)) + " of "
-                + Model.Fmt.t((int) Math.round(grossSec)) + "   ·   " + pct + "%",
-                Ui.ACCENT, null);
-        }
+        // One formatter with the session summary, in the whole seconds GrowthTrack is sent.
+        String timeAtPressure = Summary.timeAtPressure(sess);
+        if (timeAtPressure != null)
+            Ui.kvRow(this, col, Summary.TIME_AT_PRESSURE_LABEL, timeAtPressure, Ui.ACCENT, null);
         // C8 - THE SUMMARY'S τ, IN THE SUMMARY'S WORDS. This printed "Tissue response 0:07 →
         // 0:07": τ as a clock rounded to whole seconds, no Δτ, and a name the summary's own
         // caption denies. Summary.tauDetail is the summary's formatting and the Sessions

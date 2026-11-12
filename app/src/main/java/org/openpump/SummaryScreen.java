@@ -230,6 +230,11 @@ final class SummaryScreen {
         if (measured) tweenDose(doseFact, s.doseKpaS);
         factRow(card, "Peak", measured ? Model.Fmt.p(s.peakKpa.doubleValue()) : "—",
              measured ? Ui.TEXT : Ui.DIM);
+        // TIME AT PRESSURE, as History says it (finding 3, 0.10.1): it was only there, so the
+        // summary - the screen that reports what was delivered - never stated it.
+        String timeAtPressure = Summary.timeAtPressure(s);
+        if (timeAtPressure != null)
+            factRow(card, Summary.TIME_AT_PRESSURE_LABEL, timeAtPressure, Ui.TEXT);
         // PlannedTime's two rows, the time row as a fact row and the level target as the
         // DIM line under it, both in sentence case (PlannedTime keeps its own words).
         if (vs != null && vs.tupLabel != null)
