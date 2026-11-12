@@ -29717,16 +29717,10 @@ public class SessionActivity extends Activity
         // you to watch: gross is how long the session ran, net is how much of that was
         // genuinely at pressure, and a ratio drifting down over weeks is a technique signal
         // long before either number alone looks wrong.
-        if (sess.netTupSec != null && sess.grossTupSec != null
-                && sess.grossTupSec.doubleValue() > 0.0) {
-            double netSec = sess.netTupSec.doubleValue();
-            double grossSec = sess.grossTupSec.doubleValue();
-            int pct = (int) Math.round(100.0 * netSec / grossSec);
-            Ui.kvRow(this, col, "Time at pressure",
-                Model.Fmt.t((int) Math.round(netSec)) + " of "
-                + Model.Fmt.t((int) Math.round(grossSec)) + "   ·   " + pct + "%",
-                Ui.ACCENT, null);
-        }
+        // One formatter with the session summary, in the whole seconds GrowthTrack is sent.
+        String timeAtPressure = Summary.timeAtPressure(sess);
+        if (timeAtPressure != null)
+            Ui.kvRow(this, col, Summary.TIME_AT_PRESSURE_LABEL, timeAtPressure, Ui.ACCENT, null);
         // C8 - THE SUMMARY'S τ, IN THE SUMMARY'S WORDS. This printed "Tissue response 0:07 →
         // 0:07": τ as a clock rounded to whole seconds, no Δτ, and a name the summary's own
         // caption denies. Summary.tauDetail is the summary's formatting and the Sessions
@@ -33294,7 +33288,16 @@ public class SessionActivity extends Activity
         // A DRAFT IS COMMITTED HERE and nowhere else: Save is what puts a new set or
         // routine into the library for good. From this point it is an ordinary saved
         // object, so Discard means "back to what Save just kept", not "delete it".
-        if (setSnapId != null && setSnapId.equals(draftSetId)) draftSetId = null;
+        if (setSnapId != null && setSnapId.equals(draftSetId)) {
+            // A new set made from a stage's picker joins that stage when it is first saved.
+            if (newSetForRout != null && setSnapId.equals(newSetForId)
+                    && model.addSetsToStage(newSetForRout, newSetForStage,
+                           java.util.Collections.singletonList(setSnapId)) > 0
+                    && newSetForRout.equals(freshRoutineId))
+                freshRoutineId = null;   // a routine with a set in it is not an empty stray
+            newSetForRout = null; newSetForId = null; newSetForStage = -1;
+            draftSetId = null;
+        }
         if (routSnapId != null && routSnapId.equals(draftRoutId)) draftRoutId = null;
         Store.save(this, model);
     }
@@ -34772,9 +34775,19 @@ public class SessionActivity extends Activity
     private final class PickerNewSetTap implements View.OnClickListener {
         @Override public void onClick(View v) {
             setEditReturnRout = editRoutId;
+            String forRout = editRoutId; int forStage = editStageIdx;
             new NewSetTap().onClick(v);
+            // Finding 4 (0.10.1): saving this new set adds it to the stage the picker was
+            // opened from (commitEditor); it had to be picked from the list afterwards.
+            newSetForRout = forRout; newSetForStage = forStage; newSetForId = draftSetId;
         }
     }
+
+    /** Where the draft set made by the picker's "+ New set" goes when it is saved: the
+     *  routine, the stage and the draft's own id, so a stale value can never add a
+     *  different set. Cleared by any other "+ New set". */
+    String newSetForRout, newSetForId;
+    int newSetForStage = -1;
 
     /** Item 10: the picker's own provenance chips — same filter state the browser uses,
      *  re-rendered in place. */
@@ -38227,6 +38240,7 @@ public class SessionActivity extends Activity
             String id = model.newSetId();
             model.sets.add(Model.Set.fresh(id, model.ceilKpa));
             draftSetId = id;
+            newSetForRout = null; newSetForId = null; newSetForStage = -1;
             setSnapId = null;          // force snapshotSet to re-snap onto the draft
             toast("New set — Save keeps it, leaving discards it");
             showSetEdit(id);

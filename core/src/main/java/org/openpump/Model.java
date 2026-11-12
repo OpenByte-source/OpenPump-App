@@ -5492,6 +5492,8 @@ public final class Model {
             o.put("setsPlanned", setsPlanned);
             o.put("signal", signal);
             o.put("peak", peakKpa == null ? "" : String.valueOf(peakKpa.doubleValue()));
+            // kPa·s, always: every screen shows it through Fmt.dose in the chosen unit, so
+            // a record's 1462.45 is the summary's "1097 cmHg·s" (DoseOneFigureTest).
             o.put("dose", String.valueOf(doseKpaS));
             o.put("pd", presetsDone);
             o.put("pp", presetsPlanned);
@@ -10466,6 +10468,24 @@ public final class Model {
      * of THIS call, not necessarily what they were for the whole span back to the
      * shape's `since`.
      */
+    /**
+     * "+ NEW SET" FROM A STAGE ADDS IT TO THAT STAGE (finding 4, 0.10.1): appends the sets
+     * that exist to stage `stageIdx` of routine `routineId`, cutting a version as the
+     * picker's Add does. Returns how many were added; 0, with nothing changed, when the
+     * routine, the stage or every set is gone.
+     */
+    public int addSetsToStage(String routineId, int stageIdx, List<String> ids) {
+        Routine r = routine(routineId);
+        if (r == null || ids == null || stageIdx < 0 || stageIdx >= r.stages.size()) return 0;
+        List<String> toAdd = new ArrayList<String>();
+        for (String id : ids) if (set(id) != null) toAdd.add(id);
+        if (toAdd.isEmpty()) return 0;
+        AsRunSnapshot pre = AsRunSnapshot.of(r, this);
+        r.stages.get(stageIdx).setIds.addAll(toAdd);
+        archiveRoutineVersion(r, pre);
+        return toAdd.size();
+    }
+
     public void archiveRoutineVersion(Routine r, AsRunSnapshot pre) {
         if (r == null || pre == null) return;
         long now = System.currentTimeMillis();

@@ -85,11 +85,23 @@ final class GrowthTrackTiming {
                 out.add(new Span(carryRow == null ? row : carryRow, carryWork + row.span(), carryHold + row.span(), WORK));
             } else {
                 long remaining = row.span();
+                boolean toItsEnd = ranToPlannedEnd(row, planned);
+                int cycles = 0;
                 while (remaining > 0) {
                     long held = Math.min(remaining, upper);
                     long work = Math.min(remaining, upper + release);
                     if (remaining - work > 0 && remaining - work <= LEFTOVER_MS) work = remaining;
-                    out.add(new Span(carryRow == null ? row : carryRow, carryWork + work, carryHold + held, WORK));
+                    if (toItsEnd && cycles > 0 && work < upper + release) {
+                        // THE CYCLE THE SET'S OWN CLOCK ENDED is the same work as the cycles
+                        // before it, not a set of its own (finding 1, 0.10.1): a 2:00 set of
+                        // 30 s + 5 s cycles ends 15 s into its fourth, and that shortened hold
+                        // was sent as an extra set, a 1:30 manual run's last 5 s as "Milking".
+                        Span last = out.remove(out.size() - 1);
+                        out.add(new Span(last.row, last.workMs + work, last.holdMs, WORK));
+                    } else {
+                        out.add(new Span(carryRow == null ? row : carryRow, carryWork + work, carryHold + held, WORK));
+                        cycles++;
+                    }
                     carryHold = 0; carryWork = 0; carryRow = null;
                     remaining -= work;
                 }
@@ -99,6 +111,19 @@ final class GrowthTrackTiming {
         // A stopped final chunk retains only its recorded, clipped hold duration.
         if (carryHold > 0) out.add(new Span(carryRow, carryWork, carryHold, WORK));
         return out;
+    }
+    /**
+     * True when a plan row ran the whole time its preset planned (within the timer's own
+     * tolerance), so its shortened last cycle was ended by the set's clock, not by a STOP, a
+     * Hold or a change. Unknown (no frozen plan, or a row that no longer matches its preset)
+     * is false: an interrupted hold keeps being sent as far as it got, as it always was.
+     */
+    private static boolean ranToPlannedEnd(AsRun.Row row, List<Model.Preset> plan) {
+        if (row.kind != AsRun.PLAN) return false;
+        for (Model.Preset p : plan) if (p.stageIdx == row.stageIdx && p.pos == row.pos && p.ordinal == row.ordinal
+            && p.setId.equals(row.setId) && p.uh == row.uhWire && p.uh == row.uhReq && p.lh == row.lh && p.durMs > 0)
+            return row.span() + STITCH_TOL_MS >= p.durMs;
+        return false;
     }
     private static int part(AsRun.Row row, List<Model.Preset> plan) {
         if (row.cyclePart >= 0) return row.cyclePart;

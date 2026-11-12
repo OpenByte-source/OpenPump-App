@@ -80,7 +80,7 @@ public final class GrowthTrackSession {
             // Gross is sealed elapsed time INCLUDING releases. Net is the saved measured,
             // phase-filtered training time; never substitute gross or commanded duty cycle.
             double tup = s.netTupSec == null ? Double.NaN : s.netTupSec;
-            tensionSeconds = Double.isFinite(tup) && tup >= 1 && tup <= seconds ? (int) Math.floor(tup) : null;
+            tensionSeconds = Double.isFinite(tup) && tup >= 1 && tup <= seconds ? Integer.valueOf(Summary.wholeSeconds(tup)) : null;
             if (s.netTupSec != null && tensionSeconds == null) warnings.add("The unavailable or inconsistent measured net time under pressure is omitted.");
             if (!s.completed) warnings.add("This was stopped early. Only its recorded elapsed work is sent.");
         }
@@ -191,7 +191,7 @@ public final class GrowthTrackSession {
         if (draft.parts.isEmpty()) throw new IllegalArgumentException("No confirmed positive-pressure work exists to send");
         draft.warnings.add("Techniques: a warm-up stage is warm_up and a traction stage is length_pumping; other work uses its command hold: up to 6 s Milking; up to 30 s RIP; up to 120 s Interval pumping; longer Static pumping. Release/rest do not affect this label.");
         draft.warnings.add("Set durations retain recorded work spans, including their release halves. Separate rest, held and lost-link periods are excluded. Measured net time under pressure excludes release/rest; gross sealed time is not substituted.");
-        draft.warnings.add("Command phases are reconstructed from holds/releases and elapsed spans, not sampled pressure plateaus. No measured plateau or pressure average is invented. GrowthTrack's whole-second durations round down; a sub-second remainder joins the cycle before it.");
+        draft.warnings.add("Command phases are reconstructed from holds/releases and elapsed spans, not sampled pressure plateaus. No measured plateau or pressure average is invented. GrowthTrack's whole-second durations round down; a sub-second remainder joins the cycle before it, and the last cycle a set's own time cuts short joins that set.");
         return draft;
     }
 
