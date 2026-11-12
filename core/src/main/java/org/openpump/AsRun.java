@@ -1796,7 +1796,8 @@ public final class AsRun {
      *  same place is the same stage (same name, rest or not), it keeps that stage's other
      *  facts too: the length and fatigue markers, the climb, the cylinder. A snapshot made
      *  before the waits were kept is given them back by the one rule
-     *  (Model#giveStagesTheirWaits). This used to rebuild a stage from its name and sets alone,
+     *  (Model#giveStagesTheirWaits) - only when the builder made it: the snapshot's trainer
+     *  track, or the builder's words. This used to rebuild a stage from its name and sets alone,
      *  so a rest arrived as an empty stage and was left out. */
     private static List<Model.Stage> snapStages(AsRun run, Model m) {
         Model.Routine cur = m.routine(run.routineId);
@@ -1820,7 +1821,10 @@ public final class AsRun {
                 st.clampRest();
                 src.add(st);
             }
-            Model.giveStagesTheirWaits(src);
+            // The snapshot's own trainer track says the builder made it, as the live track
+            // does (a mint whose release and changeover were renamed); a routine the person
+            // built has none, and is never given a wait.
+            Model.giveStagesTheirWaits(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);
         } else if (cur != null) {
             src.addAll(Model.copyStages(cur.stages));
         }

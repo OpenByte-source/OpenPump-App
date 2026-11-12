@@ -32140,7 +32140,7 @@ public final class WiringCheck {
           "giveStagesTheirWaits(r.stages);" },
         { "Routine\\s+restoreRoutineVersion\\s*\\(", "restoreRoutineVersion", "a restored version",
           "st.manual=ss.rest&&ss.manual;st.awaitAck=ss.rest&&ss.awaitAck;",
-          "giveStagesTheirWaits(draft.stages);" },
+          "giveStagesTheirWaits(draft.stages,snap.trainerTrack>TRAINER_TRACK_NONE);" },
     };
     /** (c) and (d): { signature (or OWN_TOJSON:<class>), name, statement, what it carries }. */
     static final String[][] WAIT_CARRIES = {
@@ -32193,7 +32193,8 @@ public final class WiringCheck {
         { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "st.manual=ss.rest&&(ss.manual||(same&&live.manual));" },
         { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "st.awaitAck=ss.rest&&(ss.awaitAck||(same&&live.awaitAck));" },
         { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "st.rest=ss.rest;" },
-        { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages", "Model.giveStagesTheirWaits(src);" },
+        { "List<Model.Stage>\\s+snapStages\\s*\\(", "snapStages",
+          "Model.giveStagesTheirWaits(src,run.snap.trainerTrack>Model.TRAINER_TRACK_NONE);" },
     };
 
     static void checkStageWaits(String model, String act, String asRun, List<String> violations) {
@@ -32413,7 +32414,7 @@ public final class WiringCheck {
             + "    st.clampRest();\n"
             + "    draft.stages.add(st);\n"
             + "    }\n"
-            + "    giveStagesTheirWaits(draft.stages);\n"
+            + "    giveStagesTheirWaits(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n"
             + "}\n"
             + "public List<Preset> plan(Routine r) {\n"
             + "    p.awaitAck = st.awaitAck;\n"
@@ -32438,7 +32439,7 @@ public final class WiringCheck {
             + "    st.rest = ss.rest;\n"
             + "    st.manual = ss.rest && (ss.manual || (same && live.manual));\n"
             + "    st.awaitAck = ss.rest && (ss.awaitAck || (same && live.awaitAck));\n"
-            + "    Model.giveStagesTheirWaits(src);\n"
+            + "    Model.giveStagesTheirWaits(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);\n"
             + "}\n"
             + "private static List<Model.Stage> applyToStages(List<Model.Stage> stages) {\n"
             + "    if (ids.isEmpty() && !st.rest) continue;\n"
@@ -32495,7 +32496,10 @@ public final class WiringCheck {
             { "M", "a restored version dropping the waits its snapshot froze",
               "    st.manual = ss.rest && ss.manual;\n", "" },
             { "M", "a restored version without the rule",
-              "    giveStagesTheirWaits(draft.stages);\n", "" },
+              "    giveStagesTheirWaits(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);\n", "" },
+            { "M", "a restored version calling every snapshot a mint",
+              "giveStagesTheirWaits(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);",
+              "giveStagesTheirWaits(draft.stages, true);" },
             { "M", "a duplicate dropping the by-hand flag", "    cs.manual = src.manual;\n", "" },
             { "M", "a duplicate dropping the changeover's wait", "    cs.awaitAck = src.awaitAck;\n", "" },
             { "M", "a stepped-up copy dropping the by-hand flag", "    cs.manual  = src.manual;\n", "" },
@@ -32537,7 +32541,11 @@ public final class WiringCheck {
             { "R", "a run's snapshot rebuilt without its rests", "    st.rest = ss.rest;\n", "" },
             { "R", "a run's snapshot rebuilt without its changeover wait",
               "    st.awaitAck = ss.rest && (ss.awaitAck || (same && live.awaitAck));\n", "" },
-            { "R", "a run's old snapshot not given its waits back", "    Model.giveStagesTheirWaits(src);\n", "" },
+            { "R", "a run's old snapshot not given its waits back",
+              "    Model.giveStagesTheirWaits(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);\n", "" },
+            { "R", "a run's snapshot always called a mint",
+              "Model.giveStagesTheirWaits(src, run.snap.trainerTrack > Model.TRAINER_TRACK_NONE);",
+              "Model.giveStagesTheirWaits(src, true);" },
         };
         for (int i = 0; i < bad.length; i++) {
             String m2 = model, a2 = act, r2 = asRun;

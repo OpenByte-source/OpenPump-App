@@ -10793,7 +10793,10 @@ public final class Model {
             draft.stages.add(st);
         }
         // ...and what a snapshot archived before they were kept lost, by the one rule.
-        giveStagesTheirWaits(draft.stages);
+        // Only what the builder made: the snapshot's own trainer track says so as the live
+        // one does (a mint whose release and changeover were renamed); a person's routine has
+        // none and is never given a wait.
+        giveStagesTheirWaits(draft.stages, snap.trainerTrack > TRAINER_TRACK_NONE);
         // Routine#copy is reused verbatim for the deep-copy-under-a-new-id machinery it
         // already gives every other duplicate in this app — its own "+ copy" suffix is
         // then overwritten with a name that says which version this came from, so the
