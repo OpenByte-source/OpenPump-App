@@ -9183,11 +9183,22 @@ public final class Model {
      * and the changeover for "I've swapped" from its start (Plan#isChangeover, by its lead or
      * its place before the expansion). The share-code readers, restoreRoutineVersion and the
      * load repair (#giveRoutinesTheirWaits) all call this and nothing else, so there is no
-     * second rule to drift. Only ever ADDS a wait, so a stage that already waits, and a
-     * hand-built rest the builder never made, are left as they are. Returns whether it
-     * changed anything.
+     * second rule to drift. Only ever ADDS a wait, so a stage that already waits is left as
+     * it is.
+     *
+     * ONLY WHAT THE BUILDER MADE (the owner, 2026-11-11): stages that do not carry the
+     * builder's own words (Plan#hasBuilderWords) are never touched - a routine the person
+     * built keeps exactly the rests they gave it. Returns whether it changed anything.
      */
     public static boolean giveStagesTheirWaits(List<Stage> stages) {
+        return giveStagesTheirWaits(stages, false);
+    }
+
+    /** The one rule, for stages known to be a trainer mint's (`minted`: Routine#trainerTrack
+     *  is set, which only the builder sets) or carrying the builder's words; anything else is
+     *  a routine the person built, and is left as it is. */
+    public static boolean giveStagesTheirWaits(List<Stage> stages, boolean minted) {
+        if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;
         boolean changed = false;
         for (int i = 0; i < stages.size(); i++) {
             Stage st = stages.get(i);
@@ -9199,11 +9210,12 @@ public final class Model {
     }
 
     /**
-     * EVERY SAVED ROUTINE GETS ITS STAGE WAITS, NOT ONLY A LENGTH-MARKED ONE. A share code
+     * EVERY BUILDER ROUTINE GETS ITS STAGE WAITS, NOT ONLY A LENGTH-MARKED ONE. A share code
      * carries no trainer track, so a length routine imported before this sits in the library
      * unmarked, its changeover a plain timed rest and its release a rest that runs on. The
      * load (SessionActivity#onCreate) and a backup restore run this BEFORE
-     * reshapeTractionStages: the one rule (giveStagesTheirWaits) over every routine. It only
+     * reshapeTractionStages: the one rule (giveStagesTheirWaits) over every routine the
+     * builder made (#isBuilderRoutine) - a routine the person built is never touched. It only
      * ever ADDS a wait, only to a rest the builder names or places (never a set, never
      * pressure), and a stage that already waits is left as it is - so a second run changes
      * nothing. Returns how many routines changed.
@@ -9212,9 +9224,21 @@ public final class Model {
         int changed = 0;
         for (int ri = 0; ri < routines.size(); ri++) {
             Routine r = routines.get(ri);
-            if (r != null && giveStagesTheirWaits(r.stages)) changed++;
+            if (r != null && giveStagesTheirWaits(r.stages, r.trainerTrack != TRAINER_TRACK_NONE))
+                changed++;
         }
         return changed;
+    }
+
+    /**
+     * WHETHER THE TRAINER'S BUILDER MADE THIS ROUTINE - the only routines the waits are ever
+     * given back to. Either it is still a trainer mint (Routine#trainerTrack, which only the
+     * builder sets and which a share code, a duplicate and a restored copy do not carry), or
+     * its stages carry the builder's own words (Plan#hasBuilderWords: the release's name, the
+     * changeover's sentence), which they do. A routine the person built has neither.
+     */
+    public static boolean isBuilderRoutine(Routine r) {
+        return r != null && (r.trainerTrack != TRAINER_TRACK_NONE || Plan.hasBuilderWords(r.stages));
     }
 
     /**

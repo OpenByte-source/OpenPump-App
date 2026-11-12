@@ -2390,10 +2390,10 @@ public class Migrate {
         /* A LENGTH ROUTINE ADDED FROM A SHARE CODE OR A RESTORED VERSION BEFORE THE WAITS
          * TRAVELLED. A share code carries no trainer track, so it sits in the library unmarked:
          * its release and its changeover are plain timed rests that pull on by themselves. The
-         * load (and a backup restore) gives every routine its waits by the one rule - the release
+         * load (and a backup restore) gives every routine the builder made its waits by the one rule - the release
          * waits for Done, the changeover for "I've swapped" from its start - and touches nothing
          * else: a hand-built rest keeps its clock, every pull keeps its sets and pressure, and a
-         * second pass changes nothing. */
+         * second pass changes nothing. A routine the person built is never touched. */
         String impJson = "{\"ceil\":40,\"unit\":\"inHg\",\"sets\":["
           + "{\"id\":\"if1\",\"name\":\"Strain hold ×3\",\"fromPlan\":true,\"ramp\":false,"
           + "\"up\":8,\"lo\":0,\"uh\":300,\"lh\":30,\"sp\":75,\"dur\":990,"
@@ -2407,7 +2407,13 @@ public class Migrate {
           + "{\"name\":\"Strain holds\",\"traction\":true,\"sets\":[\"if1\"]},"
           + "{\"name\":\"Swap now\",\"rest\":true,\"restSec\":120,\"sets\":[]},"
           + "{\"name\":\"Expansion\",\"sets\":[\"ic1\"]},"
-          + "{\"name\":\"Cool off\",\"rest\":true,\"restSec\":90,\"sets\":[]}]}]}";
+          + "{\"name\":\"Cool off\",\"rest\":true,\"restSec\":90,\"sets\":[]}]},"
+          // ...and a routine the person built in the same shape, in their own words: never touched.
+          + "{\"id\":\"ir2\",\"name\":\"My two tubes\",\"stages\":["
+          + "{\"name\":\"Release\",\"rest\":true,\"restSec\":60,\"sets\":[]},"
+          + "{\"name\":\"Strain holds\",\"sets\":[\"if1\"]},"
+          + "{\"name\":\"Swap now\",\"rest\":true,\"restSec\":120,\"sets\":[]},"
+          + "{\"name\":\"Expansion\",\"sets\":[\"ic1\"]}]}]}";
         Model im = Model.fromJson(impJson);
         Model.Routine ir = im.routine("ir1");
         boolean impBefore = ir != null && ir.trainerTrack != org.openpump.Plan.TRACK_LENGTH
@@ -2426,6 +2432,8 @@ public class Migrate {
             && impPullsBefore.equals(im.set("if1").toJson().toString()
                 + im.set("ic1").toJson().toString())
             && ir.runs == 3 && "Shared length".equals(ir.name)
+            && !im.routine("ir2").stages.get(0).manual                 // the person's own: as built
+            && !im.routine("ir2").stages.get(2).manual && !im.routine("ir2").stages.get(2).awaitAck
             && im.giveRoutinesTheirWaits() == 0;                       // idempotent
         Model imBack = Model.fromJson(im.toJson());
         Model.Routine irBack = imBack.routine("ir1");

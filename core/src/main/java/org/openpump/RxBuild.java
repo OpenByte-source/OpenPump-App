@@ -2527,7 +2527,7 @@ public final class RxBuild {
             // 4. THE CHANGEOVER. Vented and uncommanded, carrying the one sentence that
             //    says what to do and what is coming.
             Model.Stage over = Model.Stage.restOf(
-                Plan.CHANGEOVER_LEAD + " \u2014 next is expansion at "
+                Plan.CHANGEOVER_SENTENCE
                 + Model.Fmt.p(codaKpa), CHANGEOVER_SEC);
             over.manual = true;
             /* AND IT WAITS. Spec section 4 item 4: "held, uncommanded ... waits for

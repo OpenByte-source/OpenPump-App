@@ -3532,9 +3532,29 @@ public final class Plan {
     public static final String RELEASE_NAME = "Tunica release — by hand";
     /** How the builder's changeover name starts (block 4); the coda's pressure follows. */
     public static final String CHANGEOVER_LEAD = "Swap to your girth cylinder";
+    /** The builder's whole changeover sentence, up to the coda's pressure. */
+    public static final String CHANGEOVER_SENTENCE = CHANGEOVER_LEAD + " — next is expansion at ";
     /** The builder's names for the pulls in front of the changeover, and the coda after it. */
     public static final String STRAIN_NAME = "Strain holds", FATIGUE_NAME = "Fatigue holds",
         CODA_NAME = "Expansion";
+
+    /**
+     * DOES THIS ROUTINE CARRY THE BUILDER'S OWN WORDS? A rest named exactly as the builder
+     * names the tunica release, or a rest named with the builder's whole changeover sentence.
+     * Only the trainer's builder writes either (a person's own rest is named in their words),
+     * and both travel in every share code and version, so a builder routine that has lost its
+     * trainer track - shared, restored as a copy, duplicated - is still known by them. What
+     * Model#isBuilderRoutine asks besides the track.
+     */
+    public static boolean hasBuilderWords(java.util.List<Model.Stage> stages) {
+        if (stages == null) return false;
+        for (int i = 0; i < stages.size(); i++) {
+            Model.Stage st = stages.get(i);
+            if (st == null || !st.rest || st.name == null) continue;
+            if (RELEASE_NAME.equals(st.name) || st.name.startsWith(CHANGEOVER_SENTENCE)) return true;
+        }
+        return false;
+    }
 
     /** Is `st` the hand tunica release, by the builder's name? */
     public static boolean isHandRelease(Model.Stage st) {

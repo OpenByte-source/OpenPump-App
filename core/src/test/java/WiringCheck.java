@@ -32110,7 +32110,10 @@ public final class WiringCheck {
      *   (a) the one rule (Model#giveStagesTheirWaits) gives the release and the changeover
      *       their waits through Stage#giveHandWaitBack, which only ever adds a wait, only to a
      *       rest, after clampRest empties its sets (invariant 29), and the changeover's from
-     *       its start;
+     *       its start - and ONLY to what the builder made (the owner, 2026-11-11): the rule
+     *       returns before it touches anything unless the stages are a trainer mint's or carry
+     *       the builder's own words (Plan#hasBuilderWords), and the load repair asks it with
+     *       the routine's trainer track, so a routine the person built is never changed;
      *   (b) what is rebuilt - both share-code readers and a restored version - reads the waits
      *       it carries (only ever onto a rest), then runs the one rule over every stage after
      *       the last is added, for what was made before the waits travelled;
@@ -32217,13 +32220,37 @@ public final class WiringCheck {
         }
         if (model != null) {
             // (a) the one rule, and the only way it adds a wait.
-            String gs = body228(model, "boolean\\s+giveStagesTheirWaits\\s*\\(", "Model.java",
-                "giveStagesTheirWaits", violations);
+            String gs = body228(model,
+                "boolean\\s+giveStagesTheirWaits\\s*\\(\\s*List<Stage>\\s+stages\\s*,\\s*boolean\\s+minted",
+                "Model.java", "giveStagesTheirWaits", violations);
             if (gs != null && gs.indexOf("st.giveHandWaitBack(Plan.isHandRelease(st),"
                     + "Plan.isChangeover(stages,i))") < 0)
                 violations.add("Model.java: invariant 267 - giveStagesTheirWaits no longer gives "
                     + "the hand release (Plan.isHandRelease) and the changeover (Plan.isChangeover) "
                     + "their waits - what carries no flags would run on into a pull");
+            if (gs != null) {
+                int guard = gs.indexOf("if(stages==null||!(minted||Plan.hasBuilderWords(stages)))"
+                    + "returnfalse;");
+                int give = gs.indexOf("st.giveHandWaitBack(");
+                if (guard < 0 || (give >= 0 && guard > give))
+                    violations.add("Model.java: invariant 267 - giveStagesTheirWaits no longer "
+                        + "returns before it touches anything unless the stages are the builder's "
+                        + "(a trainer mint, or Plan.hasBuilderWords) - a routine the person built "
+                        + "could be changed");
+            }
+            String g1 = body228(model,
+                "boolean\\s+giveStagesTheirWaits\\s*\\(\\s*List<Stage>\\s+stages\\s*\\)",
+                "Model.java", "giveStagesTheirWaits", violations);
+            if (g1 != null && !"returngiveStagesTheirWaits(stages,false);".equals(g1))
+                violations.add("Model.java: invariant 267 - giveStagesTheirWaits(stages) is no "
+                    + "longer the builder-only rule with no trainer mark (stages, false)");
+            String gr = body228(model, "int\\s+giveRoutinesTheirWaits\\s*\\(", "Model.java",
+                "giveRoutinesTheirWaits", violations);
+            if (gr != null && gr.indexOf(
+                    "giveStagesTheirWaits(r.stages,r.trainerTrack!=TRAINER_TRACK_NONE)") < 0)
+                violations.add("Model.java: invariant 267 - the load repair no longer asks the one "
+                    + "rule with the routine's trainer track - it would touch routines the person "
+                    + "built, or miss a mint");
             String gh = body228(model, "boolean\\s+giveHandWaitBack\\s*\\(", "Model.java",
                 "giveHandWaitBack", violations);
             if (gh != null) {
@@ -32368,8 +32395,16 @@ public final class WiringCheck {
             + "    }\n"
             + "}\n"
             + "public static boolean giveStagesTheirWaits(List<Stage> stages) {\n"
+            + "    return giveStagesTheirWaits(stages, false);\n"
+            + "}\n"
+            + "public static boolean giveStagesTheirWaits(List<Stage> stages, boolean minted) {\n"
+            + "    if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;\n"
             + "    if (st.giveHandWaitBack(Plan.isHandRelease(st), Plan.isChangeover(stages, i)))\n"
             + "        changed = true;\n"
+            + "}\n"
+            + "public int giveRoutinesTheirWaits() {\n"
+            + "    if (r != null && giveStagesTheirWaits(r.stages, r.trainerTrack != TRAINER_TRACK_NONE))\n"
+            + "        changed++;\n"
             + "}\n"
             + "public Routine restoreRoutineVersion(String routineId, int idx) {\n"
             + "    for (int i = 0; i < n; i++) {\n"
@@ -32418,6 +32453,16 @@ public final class WiringCheck {
         selfCheck(counts, v.isEmpty(), "INV267 control: the app's shapes pass (got " + v + ")");
 
         String[][] bad = {
+            { "M", "the rule touching a routine the person built",
+              "    if (stages == null || !(minted || Plan.hasBuilderWords(stages))) return false;\n",
+              "    if (stages == null) return false;\n" },
+            { "M", "the rule taking every routine for a mint",
+              "!(minted || Plan.hasBuilderWords(stages))", "!(true || Plan.hasBuilderWords(stages))" },
+            { "M", "the one-argument rule calling every routine a mint",
+              "    return giveStagesTheirWaits(stages, false);\n", "    return giveStagesTheirWaits(stages, true);\n" },
+            { "M", "the load repair not asking the trainer track",
+              "giveStagesTheirWaits(r.stages, r.trainerTrack != TRAINER_TRACK_NONE)",
+              "giveStagesTheirWaits(r.stages, true)" },
             { "M", "the rule without the changeover",
               "Plan.isHandRelease(st), Plan.isChangeover(stages, i))", "Plan.isHandRelease(st), false)" },
             { "M", "the rule without the release",
