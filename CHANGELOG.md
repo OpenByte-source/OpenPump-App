@@ -43,6 +43,13 @@ Installs over 0.10.0; nothing to back up or move.
   shorter since, or a run more than 6 hours old.
 - A session's peak pressure is the routine's own, not the start check's pull.
 - STOP's Resume offer waits until the training question is answered.
+- On GrowthTrack, each set you ran is one set, with its own technique. A set that ended part-way
+  into a cycle was sent as an extra set, and a manual run's last few seconds as a separate
+  "Milking" set.
+- The session summary shows Time at pressure, as History does. History, the summary and
+  GrowthTrack now give the same seconds.
+- In the routine editor, a set made with "+ New set" from a stage is added to that stage when
+  you save it.
 
 ## [0.10.0] — 2026-10-07
 
