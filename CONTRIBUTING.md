@@ -46,8 +46,7 @@ contributions.
 
 ## Adding support for another pump
 
-Read [docs/adding-a-pump.md](docs/adding-a-pump.md). Contribute only code and text you have
-the right to license under the AGPL-3.0.
+Read [docs/adding-a-pump.md](docs/adding-a-pump.md).
 
 ## Code of conduct
 
