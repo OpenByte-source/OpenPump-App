@@ -537,6 +537,12 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="gt-openpump" android:host="oauth" android:path="/callback" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gt-openpump" android:host="routine" android:path="/import" />
+            </intent-filter>
         </activity-alias>
         <activity-alias
             android:name=".GrowthTrackReturnFitnessLog"
@@ -551,6 +557,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="gt-openpump" android:host="oauth" android:path="/callback" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gt-openpump" android:host="routine" android:path="/import" />
             </intent-filter>
         </activity-alias>
         <activity-alias
@@ -567,6 +579,12 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="gt-openpump" android:host="oauth" android:path="/callback" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gt-openpump" android:host="routine" android:path="/import" />
+            </intent-filter>
         </activity-alias>
         <activity-alias
             android:name=".GrowthTrackReturnNotes"
@@ -582,6 +600,13 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="gt-openpump" android:host="oauth" android:path="/callback" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gt-openpump" android:host="routine" android:path="/import" />
+            </intent-filter>
         </activity-alias>
+
     </application>
 </manifest>

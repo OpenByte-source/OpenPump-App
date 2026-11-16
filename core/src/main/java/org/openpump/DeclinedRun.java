@@ -21,6 +21,10 @@ import java.util.List;
  */
 public final class DeclinedRun {
     private DeclinedRun() { }
+    /** Copy only the trusted local run-snapshot marker before filing or export. */
+    public static void restoreImportedMethod(Model.Sess record, boolean importedStatic) {
+        if (record != null && importedStatic) record.gtImportedMethod = "static_pumping";
+    }
 
     /** The record that already holds everything the snapshot played, or null: the part a
      *  destroyed screen filed (the snapshot learnt it), or one this filed before its

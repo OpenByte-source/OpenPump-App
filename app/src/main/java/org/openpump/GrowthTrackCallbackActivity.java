@@ -33,6 +33,17 @@ public final class GrowthTrackCallbackActivity extends Activity {
         callback = in == null ? null : in.getDataString();
         if (in != null) in.setData(null);
         if (saved != null || in == null || !Intent.ACTION_VIEW.equals(in.getAction()) || callback == null) { finish(); return; }
+        // Routine navigation has no OAuth code and cannot exchange credentials. The same
+        // identity-specific aliases protect the browser chooser's displayed app identity.
+        android.net.Uri returnUri = android.net.Uri.parse(callback);
+        boolean oauthReturn = "gt-openpump".equals(returnUri.getScheme())
+            && "oauth".equals(returnUri.getAuthority()) && "/callback".equals(returnUri.getPath());
+        if (!oauthReturn) {
+            String id = GrowthTrackRoutineLink.parse(callback);
+            callback = null;
+            if (id != null) GrowthTrackActivity.open(this, 0, GrowthTrackReturn.FROM_NONE, id);
+            finish(); return;
+        }
         GrowthTrackManager manager = GrowthTrackManager.get(this);
         if (GrowthTrackPages.onReturn(GrowthTrackActivity.doorShut(null), true) == GrowthTrackPages.RETURN_HEADLESS) {
             // Never over a live run: the approval still completes, with nothing on screen.

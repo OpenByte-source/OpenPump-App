@@ -21,7 +21,7 @@ final class GrowthTrackHttp implements GrowthTrackClient.Transport {
     }
     synchronized void cancel() { generation++; HttpsURLConnection connection = active; if (connection != null) connection.disconnect(); }
     @Override public GrowthTrackClient.Response request(String method, String path, Map<String, String> headers, String body) throws IOException {
-        if (!(path.equals("/oauth-token") || path.equals("/partner-ingest") || path.matches("/partner-routines(?:\\?id=[0-9a-fA-F-]{36})?")))
+        if (!(path.equals("/oauth-token") || path.equals("/partner-ingest") || path.matches("/partner-routines(?:\\?id=[0-9a-fA-F-]{36})?") || path.matches("/partner-routines\\?execution=openpump-pattern-v1(?:&id=[0-9a-fA-F-]{36})?")))
             throw new IOException("Unsupported GrowthTrack endpoint");
         if (!("GET".equals(method) || "POST".equals(method))) throw new IOException("Unsupported GrowthTrack operation");
         HttpsURLConnection connection;

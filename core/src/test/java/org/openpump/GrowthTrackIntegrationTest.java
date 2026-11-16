@@ -347,15 +347,17 @@ class GrowthTrackIntegrationTest {
         Fixture denied = new Fixture(); denied.approve("denied"); denied.http.responses.add(new GrowthTrackClient.Response(403, "{}"));
         assertThrows(IOException.class, () -> denied.client.sendApproved()); assertEquals(1, denied.client.snapshot().queued); assertEquals(1, denied.http.requests.size());
     }
-    /** CHANGED (owner decision 6): there is no routine endpoint any more; every request the
-     *  client makes goes to the token or session-ingest endpoint, with no-store. */
-    @Test void theClientOnlyEverCallsTheTokenAndIngestEndpoints() throws Exception {
+    /** Session-only consent still calls only token/ingest. Routine reading is a separate
+     *  explicit grant and cannot leak into the default connection. */
+    @Test void sessionOnlyConsentCallsOnlyTokenAndIngestEndpoints() throws Exception {
         Fixture f = new Fixture(); f.approve("only"); f.clock.time += 901_000; f.http.responses.add(token(R2)); f.http.responses.add(ok(1, 0, new JSONArray())); f.client.sendApproved();
         for (Request r : f.http.requests) {
             assertTrue(r.path.equals("/oauth-token") || r.path.equals("/partner-ingest"), r.path);
             assertEquals("no-store", r.headers.get("Cache-Control"));
         }
-        for (java.lang.reflect.Method m : GrowthTrackClient.class.getDeclaredMethods()) assertFalse(m.getName().toLowerCase(java.util.Locale.ROOT).contains("routine"), m.getName());
+        int before = f.http.requests.size();
+        assertThrows(IOException.class, f.client::listExecutableRoutines);
+        assertEquals(before, f.http.requests.size(), "routine reads cannot use session-only consent");
     }
     @Test void stoppedUpperHoldUsesClippedDurationAndNeverItsLongerSetting() {
         AsRun run = new AsRun(); AsRun.Row r = row(AsRun.PLAN, 0, 6000, 0); r.uhWire = 121; run.rows.add(r);

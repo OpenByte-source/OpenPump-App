@@ -5239,6 +5239,8 @@ public final class Model {
         /** Explicit wall-clock boundaries for optional partner export. Zero means unknown;
          * never infer the meaning of an old ts or reconstruct gaps between rejoined parts. */
         public long recordedStartMs, recordedEndMs;
+        /** Frozen imported technique; absent on all legacy/native records. */
+        public String gtImportedMethod;
         /** The connection this record belongs to: a random id OpenPump made for the connected
          *  account (never the OAuth state), captured at filing; empty records never enter sync.
          *  MIGRATION: "" on every record written before it, which is the truth about them. */
@@ -5741,6 +5743,7 @@ public final class Model {
             // keeps the phone and the self-test on the same code path.
             o.put("ts", String.valueOf(ts));
             o.put("dur", String.valueOf(durSec));
+            if ("static_pumping".equals(gtImportedMethod)) o.put("gtImportedMethod", gtImportedMethod);
             if (recordedStartMs > 0) o.put("recordedStartMs", String.valueOf(recordedStartMs));
             if (recordedEndMs > 0) o.put("recordedEndMs", String.valueOf(recordedEndMs));
             if (!growthTrackConnectionId.isEmpty()) o.put("growthTrackConnectionId", growthTrackConnectionId);
@@ -5866,6 +5869,7 @@ public final class Model {
             s.countedTrack = o.optInt("countedTrack", TRAINER_TRACK_NONE);
             s.routineName = o.optString("rname", "");
             s.ts = parseLong(o.optString("ts", "0"));
+            s.gtImportedMethod = "static_pumping".equals(o.optString("gtImportedMethod", "")) ? "static_pumping" : null;
             s.recordedStartMs = parseLong(o.optString("recordedStartMs", "0"));
             s.recordedEndMs = parseLong(o.optString("recordedEndMs", "0"));
             s.growthTrackConnectionId = o.optString("growthTrackConnectionId", "");

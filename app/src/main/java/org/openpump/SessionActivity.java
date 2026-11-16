@@ -941,8 +941,14 @@ public class SessionActivity extends Activity
      * button, not a way around the "this RUNS THE PUMP" confirmation every other start
      * path on this app asks for.
      */
+    private String gtPendingAccount, gtPendingId;
     private void handleShortcutIntent(Intent intent) {
         if (intent == null) return;
+        if (intent.hasExtra("gt_import_id")) {
+            gtPendingAccount=intent.getStringExtra("gt_import_account"); gtPendingId=intent.getStringExtra("gt_import_id");
+            intent.removeExtra("gt_import_account"); intent.removeExtra("gt_import_id");
+            intent.putExtra(EXTRA_SHORTCUT,"gt_imported_routine");
+        }
         String action = intent.getStringExtra(EXTRA_SHORTCUT);
         if (action == null) return;
         intent.removeExtra(EXTRA_SHORTCUT);
@@ -976,6 +982,9 @@ public class SessionActivity extends Activity
         }
         if (arrival != ScreenEntry.ROUTE) return;
 
+        if ("gt_imported_routine".equals(action)) {
+            confirmGrowthTrackImport(); return;
+        }
         if (SHORTCUT_START_LAST.equals(action)) {
             String last = model.lastRunRoutineId();
             if (last == null) {
@@ -9923,6 +9932,54 @@ public class SessionActivity extends Activity
      * sendStartSlot and cancels the vent watch exactly as a routine does.
      */
     private void beginManualRun() { beginEphemeralRun(model.manual, null); }
+    private void confirmGrowthTrackImport() {
+        final String account=gtPendingAccount, id=gtPendingId;
+        gtPendingAccount=null;gtPendingId=null;
+        if(account==null||id==null||!account.equals(GrowthTrackManager.get(this).connectionId())) {
+            toast("The GrowthTrack connection changed. Open the routine again.");return;
+        }
+        try {
+            String json=getSharedPreferences("growthtrack_imports",MODE_PRIVATE).getString(account+":"+id,null);
+            if(json==null) {toast("Import this routine first.");return;}
+            GrowthTrackRoutine routine=GrowthTrackRoutine.parse(new org.json.JSONObject(json));
+            Model.Set target=GrowthTrackStaticRun.prepare(routine,model.ceilKpa);
+            Ui.dialog(this).setTitle("Start imported static routine?")
+                .setMessage("Effective target: "+target.up+" kPa ("+String.format(java.util.Locale.US,"%.1f",target.up/3.38639)+" inHg), "+target.dur+" seconds. Whole-kPa resolution and your ceiling may reduce the requested target. Press Start to begin through the existing pump safety checks. Imported routines do not resume after the app closes.")
+                .setPositiveButton("Start",new GrowthTrackRunConfirmed(account,routine))
+                .setNegativeButton("Cancel",null).show();
+        } catch(Exception e) {toast("Cannot run this import: "+e.getMessage());}
+    }
+    private final class GrowthTrackRunConfirmed implements DialogInterface.OnClickListener {
+        private final String account;private final GrowthTrackRoutine routine;
+        GrowthTrackRunConfirmed(String a,GrowthTrackRoutine r){account=a;routine=r;}
+        @Override public void onClick(DialogInterface dialog,int which) {
+            if(!account.equals(GrowthTrackManager.get(SessionActivity.this).connectionId())
+                ||AppLock.isLocked(model,AppLock.WHOLE_APP)||stillUnsafe()||guidedStarting) {
+                toast("Unlock and finish the current run before opening this import.");return;
+            }
+            beginGrowthTrackRun(routine);
+        }
+    }
+    private boolean growthTrackStaticRun;
+    /** Called only after the import preview's explicit Run confirmation. Existing run
+     * flow owns all START, ceiling, link-loss, foreground and verified STOP handling. */
+    void beginGrowthTrackRun(GrowthTrackRoutine imported) {
+        final Model.Set src;
+        try { src=GrowthTrackStaticRun.prepare(imported,model.ceilKpa); }
+        catch(IllegalArgumentException e) { toast(e.getMessage()); return; }
+        if(link==null||!link.isReady()) {toast("Not connected to the pump");openConnect();return;}
+        if(stillUnsafe()||RunService.isRunning()) {toast("Finish the current run or confirm its release first");return;}
+        growthTrackStaticRun=true;
+        manualSession=true;manualSkipSeal=true;
+        manualRoutine=Manual.routine(model.ceilKpa);manualRoutine.name=imported.name;
+        manualSource=src;tryReturnSetId=null;scTriedSetId=null;scTriedTs=0L;
+        model.adhoc.clear();model.adhoc.add(src);
+        flowSteps=new int[]{Nav.STEP_RUN,Nav.STEP_SUMMARY};
+        if(!beginRunFlow()) {
+            growthTrackStaticRun=false;manualSession=false;manualSkipSeal=false;
+            manualRoutine=null;manualSource=null;model.adhoc.clear();
+        }
+    }
 
     /**
      * The body of {@link #beginManualRun}, taking the SET to play and where to land when it
@@ -14649,7 +14706,19 @@ public class SessionActivity extends Activity
             Runnable note = awaitStartAck(asRun.open(AsRun.PLAN, asRunNow(), p,
                     planUp(p), p.up, planLo(p), p.uh, p.uh, p.lh, p.sp));
             sendStartSlot(idx - batchBase, "start slot " + (idx - batchBase)
-                    + " (" + p.label + ")", note);
+                    + " (" + p.label + ")", growthTrackStaticRun ? new Runnable() {
+                        @Override public void run() {
+                            note.run();
+                            if (!growthTrackStaticRun || !running || planIdx != idx) return;
+                            // Imported durations include approach and begin at acknowledged START.
+                            if (pendingAdvance != null) ui.removeCallbacks(pendingAdvance);
+                            presetStartedAt = System.currentTimeMillis();
+                            repArmedAt = presetStartedAt;
+                            presetFireAt = presetStartedAt + p.durMs;
+                            pendingAdvance = new Advance(idx + 1);
+                            ui.postDelayed(pendingAdvance, p.durMs);
+                        }
+                    } : note);
         }
         // THE COUNTDOWN IS THE SAME FOR A REST. It occupies a plan index and a duration
         // like any other step, so skip, +30 s, the elapsed-to-index mapping and the stage
@@ -20248,7 +20317,7 @@ public class SessionActivity extends Activity
     }
 
     private void tickTupTiming(long now) {
-        if (!model.tupTiming || !running) { tupLastTickAt = now; tupClockPaused = false; return; }
+        if (growthTrackStaticRun || !model.tupTiming || !running) { tupLastTickAt = now; tupClockPaused = false; return; }
         if (planIdx < 0 || planIdx >= plan.size()) {
             tupLastTickAt = now; tupClockPaused = false; return;
         }
@@ -20703,6 +20772,7 @@ public class SessionActivity extends Activity
                 // called once already inside it), so restarting through it rather than
                 // re-deriving its five-field setup by hand cannot drift from what a normal
                 // manual start already does correctly.
+                boolean wasImportedStatic = growthTrackStaticRun;
                 boolean wasManual = manualSession;
                 Model.Set manualSet = wasManual ? manualSourceSet() : null;
                 String returnSetId = tryReturnSetId;
@@ -20721,6 +20791,10 @@ public class SessionActivity extends Activity
                 // finishSession(), a brand new attempt.
                 stopBecause(RunStopReason.WHY_STOP);
                 finishSession(true);
+                if (wasImportedStatic) {
+                    toast("Imported run ended and saved. Reopen the imported routine to start again.");
+                    return;
+                }
                 if (wasManual) beginEphemeralRun(manualSet, returnSetId);
                 else beginRunFlow();
             } else {
@@ -28045,6 +28119,7 @@ public class SessionActivity extends Activity
         // A manual run is filed like any other so History says what happened, but marked
         // manual so Summary excludes it from the streak and every Today count (Task 18).
         rec.manual = manualSession;
+        rec.gtImportedMethod = growthTrackStaticRun ? "static_pumping" : null;
         rec.peakKpa = peak;                    // null = no real reading — never 0.0
         rec.doseKpaS = dose;
         rec.presetsDone = presetsDone;
@@ -28330,6 +28405,7 @@ public class SessionActivity extends Activity
         manualSession = false;
         manualSkipSeal = false;
         manualRoutine = null;
+        growthTrackStaticRun = false;
         // manualSource goes with them — it is run state. tryReturnSetId is NOT cleared here:
         // it is where the summary's Done goes, and the summary is drawn after this runs.
         manualSource = null;
@@ -39968,6 +40044,7 @@ public class SessionActivity extends Activity
                 .putLong(KEY_SNAP_FIRE, presetFireAt)
                 .putLong(KEY_SNAP_STARTED, session.runStartedAtOrZero())
                 .putBoolean(KEY_SNAP_MANUAL, manualSession)
+                .putBoolean("gt_imported_static", growthTrackStaticRun)
                 .putString(KEY_SNAP_SHAPE, runChoice.code())
                 .putInt(KEY_SNAP_SRC, at.src)
                 .putInt(KEY_SNAP_AHEAD, at.ahead)
@@ -40017,7 +40094,7 @@ public class SessionActivity extends Activity
         String rid;
         final int idx;
         long fire, started;
-        boolean man;
+        boolean man, importedStatic;
         String shapeCode;
         RunRejoin.Spot spot;
         long lastAt;
@@ -40029,7 +40106,10 @@ public class SessionActivity extends Activity
             idx = p.getInt(KEY_SNAP_IDX, -1);
             fire = p.getLong(KEY_SNAP_FIRE, 0L);
             started = p.getLong(KEY_SNAP_STARTED, 0L);
-            man = p.getBoolean(KEY_SNAP_MANUAL, false);
+            // Imported approach-timed runs cannot be rebuilt as native at-pressure runs.
+            // Fail closed after process death, preserving the existing declined-part filing.
+            importedStatic = p.getBoolean("gt_imported_static", false);
+            man = p.getBoolean(KEY_SNAP_MANUAL, false) || importedStatic;
             spot = RunRejoin.Spot.read(idx, p.getInt(KEY_SNAP_SRC, -1), p.getInt(KEY_SNAP_AHEAD, 0),
                 p.getInt(KEY_SNAP_BLOCK, -1), p.getInt(KEY_SNAP_BUILT, -1),
                 p.getString(KEY_SNAP_SKIPPED, ""), p.getString(KEY_SNAP_TAKEN, ""));
@@ -40051,7 +40131,7 @@ public class SessionActivity extends Activity
             // Not offered; its part is kept all the same, once (the snapshot is gone).
             fileDeclinedPart(DeclinedRun.unoffered(model, rid, man), spot, lastAt, sim,
                 r == null ? "" : RunShape.build(model, r, shaped).code(),
-                idx + 1, Math.max(idx + 1, spot.built), now, false);
+                idx + 1, Math.max(idx + 1, spot.built), now, importedStatic, false);
             return false;
         }
         RunShape.Built built = RunShape.build(model, r, shaped);
@@ -40062,7 +40142,7 @@ public class SessionActivity extends Activity
         RunRejoin.stamp(fresh);
         RunRejoin.Rebuilt where = RunRejoin.apply(fresh, spot);
         if (where.idx < 0 || where.idx >= where.size) {      // edited shorter: kept, and final
-            fileDeclinedPart(r, spot, lastAt, sim, built.code(), idx + 1, Math.max(idx + 1, spot.built), now, false);
+            fileDeclinedPart(r, spot, lastAt, sim, built.code(), idx + 1, Math.max(idx + 1, spot.built), now, importedStatic, false);
             gtHoldEnded(); return false;
         }
         long overdueSec = Math.max(0, (now - fire) / 1000L);
@@ -40103,7 +40183,7 @@ public class SessionActivity extends Activity
      */
     private void fileDeclinedPart(Model.Routine r, RunRejoin.Spot spot, long lastAt, Boolean sim,
                                   String shape, int presetsDone, int presetsPlanned, long now,
-                                  boolean offered) {
+                                  boolean importedStatic, boolean offered) {
         RunParts sofar = spot.prior;
         if (sofar == null) return;
         try {
@@ -40117,6 +40197,7 @@ public class SessionActivity extends Activity
                 sim != null ? sim.booleanValue() : link != null && link.isSimulated(),
                 shape, presetsDone, presetsPlanned);
             if (rec == null) return;
+            DeclinedRun.restoreImportedMethod(rec, importedStatic);
             RunParts.dropEarlier(model.sessLog.all, sofar);
             rows.ts = rec.ts;
             Store.saveAsRun(this, rec.ts, rows);
@@ -40144,6 +40225,11 @@ public class SessionActivity extends Activity
      * is the same thing the rest-resume path does for the same reason. Everything else the
      * run needs is rebuilt by startSession() from the routine as it stands NOW.
      */
+    private void fileDeclinedPart(Model.Routine r, RunRejoin.Spot spot, long lastAt, Boolean sim,
+                                  String shape, int presetsDone, int presetsPlanned, long now,
+                                  boolean offered) {
+        fileDeclinedPart(r,spot,lastAt,sim,shape,presetsDone,presetsPlanned,now,false,offered);
+    }
     private final class RejoinRunTap implements DialogInterface.OnClickListener {
         private final Model.Routine r;
         /** rc9b (EMU9b N1) - where the run was, as a rebuild can find it: the step's place in

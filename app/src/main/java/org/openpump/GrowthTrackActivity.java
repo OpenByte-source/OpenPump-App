@@ -107,14 +107,19 @@ public final class GrowthTrackActivity extends Activity implements GrowthTrackWa
 
     /** From the one screen: Settings' row, setup's row. `page` 0 decides from the connection;
      *  `from` is where the way back goes (GrowthTrackReturn.FROM_SETUP / FROM_SETTINGS). */
-    static void open(SessionActivity owner, int page, int from) {
+    static void open(Activity owner, int page, int from, String routineId) {
         if (doorShut(owner)) return;
         Intent intent = new Intent(owner, GrowthTrackActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra(EXTRA_PAGE, GrowthTrackPages.key(page));
         intent.putExtra(EXTRA_FROM, GrowthTrackReturn.key(from));
+        if (routineId != null) intent.putExtra("gt_import_id",routineId);
         owner.startActivity(intent);
         // This app's own screen, not the person leaving: the areas they unlocked stay open.
-        owner.ownLaunchPending = true;
+        if (owner instanceof SessionActivity) ((SessionActivity)owner).ownLaunchPending = true;
+    }
+
+    static void open(SessionActivity owner, int page, int from) {
+        open(owner,page,from,null);
     }
 
     static final class OpenTap implements View.OnClickListener {
@@ -162,6 +167,7 @@ public final class GrowthTrackActivity extends Activity implements GrowthTrackWa
         buildRoot();
         if (doorShut(null)) { finish(); return; }
         if (saved != null) {
+            pendingImport = saved.getString("pendingImport");
             page = saved.getInt("page", 0); entry = saved.getInt("entry", 0);
             changing = saved.getBoolean("changing", false);
             String pick = saved.getString("earlier");
@@ -186,6 +192,7 @@ public final class GrowthTrackActivity extends Activity implements GrowthTrackWa
     /** An opening: the page asked for (decided once the connection is read), and whether it
      *  is the sign-in's return. */
     private void arrive(Intent intent) {
+        if (intent != null && intent.hasExtra("gt_import_id")) pendingImport = GrowthTrackRoutineLink.parse("gt-openpump://routine/import?id=" + intent.getStringExtra("gt_import_id"));
         afterSignIn = intent != null && intent.getBooleanExtra(EXTRA_AFTER_SIGN_IN, false);
         int wanted = GrowthTrackPages.fromKey(intent == null ? null : intent.getStringExtra(EXTRA_PAGE));
         page = wanted; entry = 0; changing = false; localNote = "";
@@ -212,6 +219,7 @@ public final class GrowthTrackActivity extends Activity implements GrowthTrackWa
 
     @Override protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
+        out.putString("pendingImport", pendingImport);
         out.putInt("page", page); out.putInt("entry", entry);
         out.putBoolean("changing", changing); out.putString("earlier", earlierPick);
         out.putString("from", GrowthTrackReturn.key(origin));
@@ -448,6 +456,15 @@ public final class GrowthTrackActivity extends Activity implements GrowthTrackWa
             Ui.note(this, body, busy ? "Finishing your sign-in…" : "Reading the connection…");
             return;
         }
+        if (pendingImport != null) {
+            final String requested = pendingImport;
+            Button handoff = Ui.big(this, body, "Preview requested GrowthTrack routine", Ui.ACCENT);
+            handoff.setOnClickListener(new ImportClick(requested));
+        }
+        Button stored = Ui.flat(this, body, "Saved GrowthTrack imports");
+        stored.setOnClickListener(new ImportClick("saved"));
+        Button imports = Ui.big(this, body, "Import from GrowthTrack", Ui.ACCENT);
+        imports.setOnClickListener(new ImportClick("list"));
         if (page == GrowthTrackPages.CONNECTED) connectedPage();
         else if (page == GrowthTrackPages.NOT_CONNECTED) notConnectedPage();
         else if (page == GrowthTrackPages.LIST) listPage();
@@ -898,11 +915,127 @@ public final class GrowthTrackActivity extends Activity implements GrowthTrackWa
         if (doorShut(null)) return false;
         ownLaunch = true;
         try {
-            startActivity(RunService.appIntent(this));
+            if (importStartId != null && importStartAccount != null
+                    && importStartAccount.equals(manager.connectionId())) {
+                Intent back = RunService.appIntent(this);
+                back.putExtra("gt_import_account", importStartAccount);
+                back.putExtra("gt_import_id", importStartId);
+                importStartId = null; importStartAccount = null;
+                startActivity(back);
+            } else {
+                importStartId = null; importStartAccount = null;
+                startActivity(RunService.appIntent(this));
+            }
             return true;
         } catch (RuntimeException e) {
             ownLaunch = false;
             return false;
         }
+    }
+    private String pendingImport, importStartId, importStartAccount;
+    private boolean importVisible() {
+        return resumed && !isFinishing() && !isDestroyed() && !locked() && !doorShut(null);
+    }
+
+    private final class ImportClick implements View.OnClickListener {
+        final String id; ImportClick(String id) { this.id=id; }
+        @Override public void onClick(View v) {
+            if ("saved".equals(id)) showSavedImports();
+            else if ("list".equals(id)) importRoutines();
+            else { pendingImport=null; previewImport(id); }
+        }
+    }
+    private void importRoutines() {
+        if (importVisible()) manager.listRoutines(new ImportResult("list",null,manager.connectionId()));
+    }
+    private void previewImport(String id) {
+        if (importVisible()) manager.downloadRoutine(id,new ImportResult("download",id,manager.connectionId()));
+    }
+    private final class ImportResult implements GrowthTrackManager.Listener, Runnable {
+        final String operation,id,account; Object value; String error;
+        ImportResult(String operation,String id,String account) { this.operation=operation;this.id=id;this.account=account; }
+        @Override public void done(Object value,String error) { this.value=value;this.error=error;runOnUiThread(this); }
+        @Override public void run() {
+            if (!importVisible() || !account.equals(manager.connectionId())) return;
+            if(error!=null) {
+                boolean scope="Approve routine reading in GrowthTrack first".equals(error)
+                    || "GrowthTrack has not granted routine reading. Approve it again; session sync is unchanged.".equals(error)
+                    || "Connect again to allow routines:read".equals(error);
+                if(scope) {
+                    AlertDialog d=Ui.dialog(GrowthTrackActivity.this).setTitle("Allow routine imports")
+                        .setMessage("Authorize GrowthTrack routine reading. Session-upload settings remain unchanged.")
+                        .setNegativeButton("Cancel",null).setPositiveButton("Authorize",new ImportChoice("authorize",null,account,null)).show();
+                    Ui.dress(GrowthTrackActivity.this,d);
+                } else { localNote=error;render(); }
+                return;
+            }
+            if("authorize".equals(operation)) { openBrowser((String)value);return; }
+            if("list".equals(operation)) { showImportPicker((org.json.JSONArray)value,account);return; }
+            showImportPreview((org.json.JSONObject)value,account,true);
+        }
+    }
+    private void showImportPicker(org.json.JSONArray rows,String account) {
+        String[] names=new String[rows.length()];
+        for(int i=0;i<names.length;i++) names[i]=rows.optJSONObject(i).optString("name");
+        AlertDialog d=Ui.dialog(this).setTitle("GrowthTrack routines").setItems(names,new ImportPicker(rows,account))
+            .setNegativeButton("Close",null).show();Ui.dress(this,d);
+    }
+    private final class ImportPicker implements DialogInterface.OnClickListener {
+        final org.json.JSONArray rows;final String account;
+        ImportPicker(org.json.JSONArray rows,String account){this.rows=rows;this.account=account;}
+        @Override public void onClick(DialogInterface dialog,int which){
+            if(importVisible() && account.equals(manager.connectionId())) {
+                org.json.JSONObject row=rows.optJSONObject(which);
+                if(row.has("format")) showImportPreview(row,account,false);
+                else previewImport(row.optString("id"));
+            }
+        }
+    }
+    private void showImportPreview(org.json.JSONObject envelope,String account,boolean save) {
+        if(!importVisible() || !account.equals(manager.connectionId())) return;
+        try {
+            GrowthTrackRoutine.parse(envelope);
+            org.json.JSONObject routine=envelope.getJSONObject("routine");
+            String details=routine.getJSONArray("steps").toString(2);
+            AlertDialog.Builder b=Ui.dialog(this).setTitle(routine.getString("name"))
+                .setMessage("Start opens the pump screen for compatibility checks and a final confirmation showing effective pressure and duration. Unsupported routines are rejected; nothing starts automatically.\n\n"+details)
+                .setNegativeButton("Close",null);
+            if(save)b.setPositiveButton("Save import",new ImportChoice("save",routine.getString("id"),account,envelope));
+            b.setNeutralButton("Start",new ImportChoice("start",routine.getString("id"),account,envelope));
+            AlertDialog d=b.show();Ui.dress(this,d);
+        } catch(Exception invalid){localNote="This routine cannot be imported.";render();}
+    }
+    private final class ImportChoice implements DialogInterface.OnClickListener {
+        final String action,id,account; final org.json.JSONObject envelope;
+        ImportChoice(String action,String id,String account,org.json.JSONObject envelope){this.action=action;this.id=id;this.account=account;this.envelope=envelope;}
+        @Override public void onClick(DialogInterface dialog,int which){
+            if(!importVisible() || !account.equals(manager.connectionId())) return;
+            if("authorize".equals(action)) manager.beginRoutineConsent(new ImportResult("authorize",null,account));
+            else {
+                // Persist before navigating: a cold main-screen launch reads this exact draft.
+                boolean saved = getSharedPreferences("growthtrack_imports",MODE_PRIVATE).edit()
+                    .putString(account+":"+id,envelope.toString()).commit();
+                if (!saved) { localNote="Could not save this import. Nothing started.";render();return; }
+                if ("start".equals(action)) {
+                    importStartAccount=account;importStartId=id;
+                    boolean opened=frontTheApp();
+                    importStartAccount=null;importStartId=null;
+                    if(opened)finish();
+                    else { localNote="Could not open the pump screen. Nothing started.";render(); }
+                } else { localNote="Routine imported. No pump operation was started.";render(); }
+            }
+        }
+    }
+    private void showSavedImports() {
+        if(!importVisible())return;
+        String account=manager.connectionId(); org.json.JSONArray rows=new org.json.JSONArray();
+        for(java.util.Map.Entry<String,?> e:getSharedPreferences("growthtrack_imports",MODE_PRIVATE).getAll().entrySet()){
+            if(account.isEmpty() || !e.getKey().startsWith(account+":"))continue;
+            try{
+                org.json.JSONObject envelope=new org.json.JSONObject((String)e.getValue());GrowthTrackRoutine.parse(envelope);
+                envelope.put("name",envelope.getJSONObject("routine").getString("name"));rows.put(envelope);
+            }catch(Exception invalid){/* Do not expose invalid cached data. */}
+        }
+        showImportPicker(rows,account);
     }
 }

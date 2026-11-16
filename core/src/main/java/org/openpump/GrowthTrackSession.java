@@ -110,6 +110,12 @@ public final class GrowthTrackSession {
     }
     public static Draft draft(Model.Sess s, AsRun run, Model model) {
         Draft draft = new Draft(s, bounds(s, run));
+        // A stopped imported static run remains static, even when shorter than a native hold threshold.
+        // Send only saved elapsed time and observed telemetry; never synthesize a delivered target.
+        if ("static_pumping".equals(s.gtImportedMethod)) {
+            draft.wholeMethod = s.gtImportedMethod;
+            return draft;
+        }
         final Model.AsRunSnapshot snap = run != null && run.snap != null ? run.snap : s.asRunSnapshot;
         boolean length = snap != null && snap.trainerTrack == Plan.TRACK_LENGTH;
         // Legacy snapshots have no frozen marker. Only use a structured marker on a
